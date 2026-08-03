@@ -106,7 +106,7 @@
     {
       "subpath": "./library-update",
       "types": "./dist/library-update.d.ts",
-      "sha256": "0b1cd4855acdbb61e2059088ba832aad485fd5b74d7a6968e65aa1e066acda0e"
+      "sha256": "a6d8aa6f43e689d316da8069a6833fb2d4b5634e07f278847ca4dfde49be6afe"
     },
     {
       "subpath": "./machine",

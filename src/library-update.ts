@@ -64,6 +64,7 @@ export interface LibraryUpdatePlan {
   schemaVersion: 1;
   planId: string;
   root: string;
+  expectedRoot: { kind: "absent" } | { kind: "directory"; realPath: string };
   operations: LibraryUpdateOperation[];
   secretFindings: LibraryUpdateSecretFinding[];
   hasConflicts: boolean;
@@ -101,6 +102,15 @@ type LibraryUpdateJournal = {
 
 function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function rootSnapshot(root: string): LibraryUpdatePlan["expectedRoot"] {
+  if (!existsSync(root)) return { kind: "absent" };
+  const metadata = lstatSync(root);
+  if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
+    throw new Error(`Library update root must be a regular directory: ${root}`);
+  }
+  return { kind: "directory", realPath: realpathSync(root) };
 }
 
 function portablePath(value: string): string {
@@ -165,7 +175,8 @@ function operationConflict(
  * serializable plan; apply receives and revalidates them at the adapter seam.
  */
 export function planLibraryUpdate(input: PlanLibraryUpdateInput): LibraryUpdatePlan {
-  const root = realpathSync(input.root);
+  const root = path.resolve(input.root);
+  const expectedRoot = rootSnapshot(root);
   const operations: LibraryUpdateOperation[] = [];
   const secretFindings: LibraryUpdateSecretFinding[] = [];
   const portableFiles = Object.entries(input.portableFiles)
@@ -220,6 +231,7 @@ export function planLibraryUpdate(input: PlanLibraryUpdateInput): LibraryUpdateP
     kind: "library-update" as const,
     schemaVersion: 1 as const,
     root,
+    expectedRoot,
     operations,
     secretFindings,
     hasConflicts: operations.some((operation) => operation.reason !== undefined),
@@ -229,6 +241,13 @@ export function planLibraryUpdate(input: PlanLibraryUpdateInput): LibraryUpdateP
 
 function defaultJournalPath(plan: LibraryUpdatePlan): string {
   return path.join(plan.root, ".dotagent", "library-update-journal.json");
+}
+
+function assertRootUnchanged(plan: LibraryUpdatePlan): void {
+  const current = rootSnapshot(plan.root);
+  if (JSON.stringify(current) !== JSON.stringify(plan.expectedRoot)) {
+    throw new Error("Library update root changed after review");
+  }
 }
 
 function writeJournal(filePath: string, journal: LibraryUpdateJournal): void {
@@ -395,6 +414,7 @@ export function applyLibraryUpdatePlan(
   const files = portableFileContents(plan, options.portableFiles);
   const journalPath = options.journalPath ?? defaultJournalPath(plan);
   if (existsSync(journalPath)) throw new Error("An unfinished library update requires recovery first");
+  assertRootUnchanged(plan);
   for (const operation of plan.operations) {
     assertTargetUnchanged(operation);
     if (operation.kind === "skill") assertSkillSource(operation);

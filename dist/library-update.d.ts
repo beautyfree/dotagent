@@ -54,6 +54,12 @@ export interface LibraryUpdatePlan {
     schemaVersion: 1;
     planId: string;
     root: string;
+    expectedRoot: {
+        kind: "absent";
+    } | {
+        kind: "directory";
+        realPath: string;
+    };
     operations: LibraryUpdateOperation[];
     secretFindings: LibraryUpdateSecretFinding[];
     hasConflicts: boolean;

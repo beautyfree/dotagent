@@ -57,6 +57,25 @@ describe("transactional library update", () => {
     expect(readFileSync(path.join(current.workspace, "skills", "writing", "SKILL.md"), "utf8")).toBe("# Writing\n");
   });
 
+  it("creates an absent reviewed workspace but rejects a root that appeared after review", () => {
+    const current = fixture();
+    const absentWorkspace = path.join(current.root, "new-workspace");
+    const files = { "skills.json": "{}\n" };
+    const review = planLibraryUpdate({
+      root: absentWorkspace,
+      skills: [{ skill: "writing", path: "skills/writing", sourcePath: current.source }],
+      portableFiles: files,
+    });
+    expect(review.expectedRoot).toEqual({ kind: "absent" });
+    applyLibraryUpdatePlan(review, { portableFiles: files });
+    expect(readFileSync(path.join(absentWorkspace, "skills", "writing", "SKILL.md"), "utf8")).toBe("# Writing\n");
+
+    const replacedRoot = path.join(current.root, "replaced-root");
+    const stale = planLibraryUpdate({ root: replacedRoot, skills: [], portableFiles: files });
+    mkdirSync(replacedRoot);
+    expect(() => applyLibraryUpdatePlan(stale, { portableFiles: files })).toThrow("root changed after review");
+  });
+
   it("rejects stale files, sources, targets, secrets, and overlapping paths before writes", () => {
     const staleFile = fixture();
     const files = { "skills.json": "{}\n" };

@@ -9,6 +9,15 @@ export const LIBRARY_UPDATE_JOURNAL_VERSION = 1;
 function sha256(value) {
     return createHash("sha256").update(value).digest("hex");
 }
+function rootSnapshot(root) {
+    if (!existsSync(root))
+        return { kind: "absent" };
+    const metadata = lstatSync(root);
+    if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
+        throw new Error(`Library update root must be a regular directory: ${root}`);
+    }
+    return { kind: "directory", realPath: realpathSync(root) };
+}
 function portablePath(value) {
     const normalized = normalizePortablePath(value);
     if (!normalized || normalized !== value.replaceAll("\\", "/") || value.includes("\\")) {
@@ -77,7 +86,8 @@ function operationConflict(snapshot, kind) {
  * serializable plan; apply receives and revalidates them at the adapter seam.
  */
 export function planLibraryUpdate(input) {
-    const root = realpathSync(input.root);
+    const root = path.resolve(input.root);
+    const expectedRoot = rootSnapshot(root);
     const operations = [];
     const secretFindings = [];
     const portableFiles = Object.entries(input.portableFiles)
@@ -130,6 +140,7 @@ export function planLibraryUpdate(input) {
         kind: "library-update",
         schemaVersion: 1,
         root,
+        expectedRoot,
         operations,
         secretFindings,
         hasConflicts: operations.some((operation) => operation.reason !== undefined),
@@ -138,6 +149,12 @@ export function planLibraryUpdate(input) {
 }
 function defaultJournalPath(plan) {
     return path.join(plan.root, ".dotagent", "library-update-journal.json");
+}
+function assertRootUnchanged(plan) {
+    const current = rootSnapshot(plan.root);
+    if (JSON.stringify(current) !== JSON.stringify(plan.expectedRoot)) {
+        throw new Error("Library update root changed after review");
+    }
 }
 function writeJournal(filePath, journal) {
     mkdirSync(path.dirname(filePath), { recursive: true });
@@ -295,6 +312,7 @@ export function applyLibraryUpdatePlan(plan, options) {
     const journalPath = options.journalPath ?? defaultJournalPath(plan);
     if (existsSync(journalPath))
         throw new Error("An unfinished library update requires recovery first");
+    assertRootUnchanged(plan);
     for (const operation of plan.operations) {
         assertTargetUnchanged(operation);
         if (operation.kind === "skill")
