@@ -67,9 +67,11 @@ beautyfree-dotagent import ~/.agents \
   --owned writing="$HOME/.codex/skills/writing" \
   --out import-plan.json
 beautyfree-dotagent apply import-plan.json --yes
+beautyfree-dotagent resolve ~/.agents --out resolution-plan.json
+beautyfree-dotagent apply resolution-plan.json --yes
 ```
 
-`init` preview does not create the destination. Review the exact root files in `init-plan.json`; confirmed apply refuses every path that appeared after preview.
+`init` preview does not create the destination. Review the exact root files in `init-plan.json`; confirmed apply refuses every path that appeared after preview. Dependency resolution is also preview-only: the saved plan contains old/new commits, integrity, licenses, and exported-skill changes, and apply rechecks the current manifest before writing `skills.lock`.
 
 For mixed imports, `--candidate-file` accepts the typed JSON candidate array used by Skiller. Known Skills CLI/Git provenance is recorded as a dependency reference; it is not flattened into a duplicate folder. Local-only entries remain untouched. An import plan containing a conflict or possible secret cannot be applied.
 

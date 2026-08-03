@@ -1,14 +1,14 @@
-import path from "node:path";
 import { rename, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { loadLibrary } from "./library.js";
+import { computePlanId } from "./plan.js";
 import {
-  libraryLockSchema,
   type DependencyReference,
   type LibraryLock,
   type LibraryManifest,
+  libraryLockSchema,
   type ResolvedPackage,
 } from "./schema.js";
-import { computePlanId } from "./plan.js";
 
 export type ResolutionChange = {
   dependency: string;
@@ -29,6 +29,16 @@ export interface ResolutionPlan {
   kind: "resolve-dependencies";
   schemaVersion: 1;
   planId: string;
+  manifestHash: string;
+  lock: LibraryLock;
+  changes: ResolutionChange[];
+}
+
+export interface LibraryResolutionPlan {
+  kind: "resolve-library-dependencies";
+  schemaVersion: 1;
+  planId: string;
+  library: string;
   manifestHash: string;
   lock: LibraryLock;
   changes: ResolutionChange[];
@@ -162,10 +172,31 @@ export async function planResolveDependencies(
   return { ...payload, planId: computePlanId(payload) };
 }
 
-/** Atomically writes only a still-valid reviewed resolution plan. */
-export async function applyResolutionPlan(root: string, plan: ResolutionPlan): Promise<void> {
-  const { planId, ...payload } = plan;
-  if (computePlanId(payload) !== planId) throw new Error("Resolution plan is stale or modified");
+/** Binds a dependency-resolution preview to one local library for serialized CLI apply. */
+export async function planLibraryResolution(
+  root: string,
+  resolver: DependencyResolver,
+  generatedBy = "@beautyfree/dotagent@0.0.0",
+): Promise<LibraryResolutionPlan> {
+  const library = path.resolve(root);
+  const loaded = await loadLibrary(library);
+  if (!loaded.ok) throw new Error(loaded.issues.map((issue) => issue.message).join("; "));
+  const resolved = await planResolveDependencies(loaded.value.manifest, resolver, loaded.value.lock, generatedBy);
+  const payload = {
+    kind: "resolve-library-dependencies" as const,
+    schemaVersion: 1 as const,
+    library,
+    manifestHash: resolved.manifestHash,
+    lock: resolved.lock,
+    changes: resolved.changes,
+  };
+  return { ...payload, planId: computePlanId(payload) };
+}
+
+async function writeReviewedResolution(
+  root: string,
+  plan: Pick<ResolutionPlan, "manifestHash" | "lock">,
+): Promise<void> {
   const loaded = await loadLibrary(root);
   if (!loaded.ok) throw new Error(loaded.issues.map((issue) => issue.message).join("; "));
   if (computePlanId(loaded.value.manifest) !== plan.manifestHash)
@@ -174,4 +205,17 @@ export async function applyResolutionPlan(root: string, plan: ResolutionPlan): P
   const temporary = `${destination}.tmp-${process.pid}-${Date.now()}`;
   await writeFile(temporary, `${JSON.stringify(plan.lock, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
   await rename(temporary, destination);
+}
+
+/** Atomically writes only a still-valid reviewed resolution plan. */
+export async function applyResolutionPlan(root: string, plan: ResolutionPlan): Promise<void> {
+  const { planId, ...payload } = plan;
+  if (computePlanId(payload) !== planId) throw new Error("Resolution plan is stale or modified");
+  await writeReviewedResolution(path.resolve(root), plan);
+}
+
+export async function applyLibraryResolutionPlan(plan: LibraryResolutionPlan): Promise<void> {
+  const { planId, ...payload } = plan;
+  if (computePlanId(payload) !== planId) throw new Error("Library resolution plan is stale or modified");
+  await writeReviewedResolution(plan.library, plan);
 }

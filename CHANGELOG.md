@@ -17,6 +17,7 @@ All notable changes to `@beautyfree/dotagent` are recorded here. The project fol
 - Agent extension descriptors now require concrete data-only delivery roots; the unimplemented config-path placeholder was removed instead of advertising unsafe support.
 - CLI library initialization is preview-only until its serialized plan is explicitly applied with `--yes`.
 - Git repository initialization and origin changes now use stale-checked preview/apply plans too.
+- CLI dependency resolution no longer has a direct `--write` path; a library-bound plan must be reviewed and applied explicitly.
 - Versioned JSON Schemas, compatibility fixtures, package-content verification, and macOS/Linux/Windows CI.
 
 ### Security

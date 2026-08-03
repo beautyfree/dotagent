@@ -30,17 +30,17 @@ import { type ImportCandidate, type ImportPlan, planImport } from "./import.js";
 import { applyImportPlan, recoverImport } from "./import-apply.js";
 import { applyInitializeLibraryPlan, type InitializeLibraryPlan, planInitializeLibrary } from "./init.js";
 import { scanLibrary } from "./inventory.js";
-import { loadLibrary } from "./library.js";
 import { type MaterializationPlan, planMaterialization } from "./materialize.js";
 import { applyMaterializationPlan, recoverMaterialization } from "./materialize-apply.js";
 import { prepareMaterializationInventory } from "./prepared-library.js";
-import { applyResolutionPlan, planResolveDependencies } from "./sources.js";
+import { applyLibraryResolutionPlan, type LibraryResolutionPlan, planLibraryResolution } from "./sources.js";
 import { existingTargetsForPlan, getMaterializationStatus } from "./status.js";
 
 type ApplicablePlan =
   | InitializeLibraryPlan
   | MaterializationPlan
   | ImportPlan
+  | LibraryResolutionPlan
   | GitClonePlan
   | GitInitializePlan
   | GitCommitPlan
@@ -80,7 +80,7 @@ async function main(): Promise<number> {
   const json = args.includes("--json");
   if (command === "help" || command === "--help" || command === "-h") {
     process.stdout.write(
-      "beautyfree-dotagent init [library-directory] [--name package-name] [--out plan.json] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--out plan.json] [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n",
+      "beautyfree-dotagent init [library-directory] [--name package-name] [--out plan.json] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--out plan.json] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--out plan.json] [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n",
     );
     return 0;
   }
@@ -93,31 +93,11 @@ async function main(): Promise<number> {
   }
   if (command === "resolve") {
     const root = path.resolve(directory);
-    const loaded = await loadLibrary(root);
-    if (!loaded.ok) {
-      if (json) process.stdout.write(`${JSON.stringify({ ok: false, issues: loaded.issues }, null, 2)}\n`);
-      else for (const issue of loaded.issues) process.stderr.write(`${issue.message}\nNext: ${issue.remediation}\n`);
-      return 1;
-    }
-    const plan = await planResolveDependencies(
-      loaded.value.manifest,
-      new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") }),
-      loaded.value.lock,
-    );
-    if (args.includes("--write")) await applyResolutionPlan(root, plan);
-    const result = {
-      ok: true,
+    const plan = await planLibraryResolution(
       root,
-      plan_id: plan.planId,
-      written: args.includes("--write"),
-      changes: plan.changes,
-      lock: plan.lock,
-    };
-    process.stdout.write(
-      json
-        ? `${JSON.stringify(result, null, 2)}\n`
-        : `${plan.changes.length} dependency changes planned${args.includes("--write") ? " and written" : " (preview only; pass --write to save)"}.\n`,
+      new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") }),
     );
+    await emitPlan(plan, optionValue("--out"), json, "Dependency resolution");
     return 0;
   }
   if (command === "import") {
@@ -289,6 +269,13 @@ async function main(): Promise<number> {
         created: plan.files.map((file) => file.path),
       };
       process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Created the library at ${plan.root}.\n`);
+    } else if (plan.kind === "resolve-library-dependencies") {
+      await applyLibraryResolutionPlan(plan);
+      process.stdout.write(
+        json
+          ? `${JSON.stringify({ ok: true, root: plan.library, plan_id: plan.planId, changes: plan.changes }, null, 2)}\n`
+          : `Wrote ${plan.lock.resolved ? Object.keys(plan.lock.resolved).length : 0} immutable dependencies to ${plan.library}.\n`,
+      );
     } else if (plan.kind === "import") {
       const result = await applyImportPlan(plan);
       process.stdout.write(

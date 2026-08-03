@@ -21,6 +21,15 @@ export interface ResolutionPlan {
     lock: LibraryLock;
     changes: ResolutionChange[];
 }
+export interface LibraryResolutionPlan {
+    kind: "resolve-library-dependencies";
+    schemaVersion: 1;
+    planId: string;
+    library: string;
+    manifestHash: string;
+    lock: LibraryLock;
+    changes: ResolutionChange[];
+}
 export interface DependencyResolver {
     /** Resolve and audit in isolation. Implementations must not write to agent targets. */
     resolve(name: string, dependency: DependencyReference): Promise<ResolvedPackage>;
@@ -31,6 +40,9 @@ export declare function normalizeGitIdentity(input: string): string;
 export declare function diffLibraryLocks(currentLock: LibraryLock | null, nextLock: LibraryLock): ResolutionChange[];
 /** Dependencies resolve concurrently, then become a deterministically ordered immutable plan. */
 export declare function planResolveDependencies(manifest: LibraryManifest, resolver: DependencyResolver, currentLock?: LibraryLock | null, generatedBy?: string): Promise<ResolutionPlan>;
+/** Binds a dependency-resolution preview to one local library for serialized CLI apply. */
+export declare function planLibraryResolution(root: string, resolver: DependencyResolver, generatedBy?: string): Promise<LibraryResolutionPlan>;
 /** Atomically writes only a still-valid reviewed resolution plan. */
 export declare function applyResolutionPlan(root: string, plan: ResolutionPlan): Promise<void>;
+export declare function applyLibraryResolutionPlan(plan: LibraryResolutionPlan): Promise<void>;
 //# sourceMappingURL=sources.d.ts.map

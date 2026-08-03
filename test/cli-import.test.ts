@@ -19,6 +19,7 @@ describe("import CLI", () => {
     const source = join(root, "source");
     const planFile = join(root, "import-plan.json");
     const initPlan = join(root, "init-plan.json");
+    const resolutionPlan = join(root, "resolution-plan.json");
     mkdirSync(source);
     writeFileSync(join(source, "SKILL.md"), "---\nname: writing\ndescription: Writes clearly.\n---\n# Writing\n");
     await run("bun", ["src/cli.ts", "init", library, "--name", "portable-library", "--out", initPlan], {
@@ -26,6 +27,10 @@ describe("import CLI", () => {
     });
     expect(existsSync(library)).toBe(false);
     await run("bun", ["src/cli.ts", "apply", initPlan, "--yes"], { cwd: process.cwd() });
+    await run("bun", ["src/cli.ts", "resolve", library, "--out", resolutionPlan], { cwd: process.cwd() });
+    expect(existsSync(join(library, "skills.lock"))).toBe(false);
+    await run("bun", ["src/cli.ts", "apply", resolutionPlan, "--yes"], { cwd: process.cwd() });
+    expect(JSON.parse(readFileSync(join(library, "skills.lock"), "utf8"))).toMatchObject({ resolved: {} });
     await run("bun", ["src/cli.ts", "import", library, "--owned", `writing=${source}`, "--out", planFile], {
       cwd: process.cwd(),
     });
