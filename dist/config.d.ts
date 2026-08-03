@@ -2,6 +2,37 @@ import { z } from "zod";
 export declare const DOTAGENT_CONFIG_VERSION: 1;
 export declare const DOTAGENT_CONFIG_FILE = "dotagent.yaml";
 export declare const DOTAGENT_LOCAL_CONFIG_FILE = "dotagent.local.yaml";
+declare const vendoredOriginSchema: z.ZodEffects<z.ZodObject<{
+    url: z.ZodString;
+    commit: z.ZodString;
+    skill_path: z.ZodString;
+    integrity: z.ZodString;
+    license: z.ZodString;
+}, "strict", z.ZodTypeAny, {
+    url: string;
+    license: string;
+    commit: string;
+    integrity: string;
+    skill_path: string;
+}, {
+    url: string;
+    license: string;
+    commit: string;
+    integrity: string;
+    skill_path: string;
+}>, {
+    url: string;
+    license: string;
+    commit: string;
+    integrity: string;
+    skill_path: string;
+}, {
+    url: string;
+    license: string;
+    commit: string;
+    integrity: string;
+    skill_path: string;
+}>;
 export declare const portableConfigSchema: z.ZodObject<{
     schema_version: z.ZodLiteral<1>;
     minimum_dotagent_version: z.ZodOptional<z.ZodString>;
@@ -12,18 +43,85 @@ export declare const portableConfigSchema: z.ZodObject<{
     }, {
         include?: "all" | "owned" | "selected" | undefined;
     }>>;
-    skills: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
+    skills: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodEffects<z.ZodObject<{
         include: z.ZodOptional<z.ZodBoolean>;
         agents: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         distribution: z.ZodOptional<z.ZodEnum<["dependency", "vendored"]>>;
+        origin: z.ZodOptional<z.ZodEffects<z.ZodObject<{
+            url: z.ZodString;
+            commit: z.ZodString;
+            skill_path: z.ZodString;
+            integrity: z.ZodString;
+            license: z.ZodString;
+        }, "strict", z.ZodTypeAny, {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        }, {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        }>, {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        }, {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        }>>;
     }, "strict", z.ZodTypeAny, {
         include?: boolean | undefined;
         agents?: string[] | undefined;
         distribution?: "dependency" | "vendored" | undefined;
+        origin?: {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        } | undefined;
     }, {
         include?: boolean | undefined;
         agents?: string[] | undefined;
         distribution?: "dependency" | "vendored" | undefined;
+        origin?: {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        } | undefined;
+    }>, {
+        include?: boolean | undefined;
+        agents?: string[] | undefined;
+        distribution?: "dependency" | "vendored" | undefined;
+        origin?: {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        } | undefined;
+    }, {
+        include?: boolean | undefined;
+        agents?: string[] | undefined;
+        distribution?: "dependency" | "vendored" | undefined;
+        origin?: {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        } | undefined;
     }>>>;
 }, "strict", z.ZodTypeAny, {
     schema_version: 1;
@@ -31,6 +129,13 @@ export declare const portableConfigSchema: z.ZodObject<{
         include?: boolean | undefined;
         agents?: string[] | undefined;
         distribution?: "dependency" | "vendored" | undefined;
+        origin?: {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        } | undefined;
     }>;
     defaults: {
         include: "all" | "owned" | "selected";
@@ -42,6 +147,13 @@ export declare const portableConfigSchema: z.ZodObject<{
         include?: boolean | undefined;
         agents?: string[] | undefined;
         distribution?: "dependency" | "vendored" | undefined;
+        origin?: {
+            url: string;
+            license: string;
+            commit: string;
+            integrity: string;
+            skill_path: string;
+        } | undefined;
     }> | undefined;
     minimum_dotagent_version?: string | undefined;
     defaults?: {
@@ -83,6 +195,7 @@ export declare const localConfigSchema: z.ZodObject<{
     environment?: Record<string, string> | undefined;
 }>;
 export type PortableConfig = z.infer<typeof portableConfigSchema>;
+export type VendoredOrigin = z.infer<typeof vendoredOriginSchema>;
 export type LocalConfig = z.infer<typeof localConfigSchema>;
 export type ConfigProvenance = "portable" | "local";
 export interface EffectiveConfig {
@@ -110,4 +223,5 @@ export declare function mergeConfig(portable: PortableConfig, local?: LocalConfi
  * the final capability boundary.
  */
 export declare function resolveSkillAgentSelection(config: EffectiveConfig, skill: string, detectedAgents: Iterable<string>): SkillAgentSelection;
+export {};
 //# sourceMappingURL=config.d.ts.map

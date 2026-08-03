@@ -162,12 +162,18 @@ export async function planImport(libraryRoot, candidates) {
             requiresResolve ||= merged.changed || !(candidate.package in (loaded.value.lock?.resolved ?? {}));
             continue;
         }
-        if (candidate.kind !== "owned")
+        if (candidate.kind !== "owned" && candidate.kind !== "vendored")
             throw new Error(`Unsupported import disposition: ${candidate.kind}`);
         const source = path.resolve(candidate.sourcePath);
         const scanned = await scanOwnedSkill(path.dirname(source), path.basename(source));
         if (!scanned.ok)
             throw new DotagentError(`Cannot import ${candidate.skill}`, scanned.issues);
+        if (candidate.kind === "vendored") {
+            normalizeGitIdentity(candidate.origin.url);
+            if (candidate.origin.integrity !== scanned.value.integrity) {
+                throw new Error(`Vendored origin integrity does not match the reviewed files for ${candidate.skill}`);
+            }
+        }
         const declaredName = declaredSkillName(await readFile(path.join(source, "SKILL.md"), "utf8"));
         if (declaredName !== candidate.skill) {
             throw new DotagentError(`Cannot import ${candidate.skill}`, [
@@ -240,12 +246,16 @@ export async function planImport(libraryRoot, candidates) {
         nextManifest.skills.push(targetPath);
         nextManifest.skills.sort((left, right) => left.localeCompare(right, "en"));
         const agents = normalizeAgents(candidate.agents);
-        nextConfig.skills[candidate.skill] = { include: true, ...(agents ? { agents } : {}) };
+        nextConfig.skills[candidate.skill] = {
+            include: true,
+            ...(candidate.kind === "vendored" ? { distribution: "vendored", origin: candidate.origin } : {}),
+            ...(agents ? { agents } : {}),
+        };
         claimedNames.set(folded, `owned ${targetPath}`);
         existingOwned.set(folded, targetPath);
         operations.push({
             skill: candidate.skill,
-            action: "copy-owned",
+            action: candidate.kind === "vendored" ? "copy-vendored" : "copy-owned",
             sourceKind: candidate.kind,
             source,
             sourceIntegrity: scanned.value.integrity,

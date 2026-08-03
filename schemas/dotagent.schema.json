@@ -53,6 +53,42 @@
                   "dependency",
                   "vendored"
                 ]
+              },
+              "origin": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  },
+                  "commit": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{40}$"
+                  },
+                  "skill_path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  },
+                  "integrity": {
+                    "type": "string",
+                    "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                  },
+                  "license": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "url",
+                  "commit",
+                  "skill_path",
+                  "integrity",
+                  "license"
+                ],
+                "additionalProperties": false
               }
             },
             "additionalProperties": false

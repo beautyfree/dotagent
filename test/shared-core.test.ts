@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { parseSkillsCliLock, skillsCliLockToProvenance } from "../src/adapters/skills-cli.js";
 import { scanTextForSecrets } from "../src/audit.js";
 import { mergeConfig, parseLocalConfig, parsePortableConfig, resolveSkillAgentSelection } from "../src/config.js";
 import { classifyThreeWaySkill } from "../src/reconcile.js";
-import { parseSkillsCliLock, skillsCliLockToProvenance } from "../src/adapters/skills-cli.js";
 
 describe("portable and local configuration", () => {
   it("merges machine-local choices deterministically and exposes provenance", () => {
@@ -27,6 +27,16 @@ describe("portable and local configuration", () => {
     expect(() => parseLocalConfig("schema_version: 1\nenvironment: { token: literal-secret }\n")).toThrow(
       "environment.token",
     );
+  });
+
+  it("requires complete immutable provenance for explicit vendoring", () => {
+    expect(() => parsePortableConfig("schema_version: 1\nskills:\n  toolkit: { distribution: vendored }\n")).toThrow(
+      "skills.toolkit.origin",
+    );
+    const config = parsePortableConfig(
+      `schema_version: 1\nskills:\n  toolkit:\n    distribution: vendored\n    origin:\n      url: https://github.com/example/toolkit.git\n      commit: ${"a".repeat(40)}\n      skill_path: skills/toolkit\n      integrity: sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n      license: MIT\n`,
+    );
+    expect(config.skills.toolkit?.origin).toMatchObject({ license: "MIT", skill_path: "skills/toolkit" });
   });
 
   it("intersects portable routing, private machine choice, and detected agents", () => {

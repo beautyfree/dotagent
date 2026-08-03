@@ -31,6 +31,18 @@ export function validateImportCandidates(input) {
             }
             return value;
         }
+        if (value.kind === "vendored") {
+            if (typeof value.sourcePath !== "string")
+                throw new Error(`Vendored import candidate ${value.skill} requires sourcePath`);
+            if (!value.origin || typeof value.origin !== "object" || Array.isArray(value.origin))
+                throw new Error(`Vendored import candidate ${value.skill} requires origin metadata`);
+            const origin = value.origin;
+            for (const field of ["url", "commit", "skill_path", "integrity", "license"]) {
+                if (typeof origin[field] !== "string")
+                    throw new Error(`Vendored import candidate ${value.skill} requires origin.${field}`);
+            }
+            return value;
+        }
         if (value.kind === "local-only" || value.kind === "excluded") {
             if (typeof value.reason !== "string" || !value.reason.trim())
                 throw new Error(`${value.kind} candidate ${value.skill} requires a reason`);

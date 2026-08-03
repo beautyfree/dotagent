@@ -69,6 +69,8 @@ beautyfree-dotagent apply import-plan.json --yes
 
 For mixed imports, `--candidate-file` accepts the typed JSON candidate array used by Skiller. Known Skills CLI/Git provenance is recorded as a dependency reference; it is not flattened into a duplicate folder. Local-only entries remain untouched. An import plan containing a conflict or possible secret cannot be applied.
 
+Vendoring is a separate explicit candidate kind. It copies reviewed files only when the supplied origin URL, immutable commit, source skill path, integrity, and license are complete and the integrity matches the local source. That provenance is retained in `dotagent.yaml`; changing a dependency into redistributed files can never happen as an implicit fallback.
+
 Materialization is deliberately two-step:
 
 ```sh

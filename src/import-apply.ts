@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, mkdir, open, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, open, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { stringify } from "yaml";
 import { scanSkillForSecrets } from "./audit.js";
@@ -119,7 +119,12 @@ async function copyDirectory(source: string, target: string): Promise<void> {
 }
 
 async function assertOperationSource(operation: ImportOperation): Promise<void> {
-  if (operation.action !== "copy-owned" || !operation.source || !operation.sourceIntegrity) return;
+  if (
+    (operation.action !== "copy-owned" && operation.action !== "copy-vendored") ||
+    !operation.source ||
+    !operation.sourceIntegrity
+  )
+    return;
   const scanned = await scanOwnedSkill(path.dirname(operation.source), path.basename(operation.source));
   if (!scanned.ok || scanned.value.integrity !== operation.sourceIntegrity)
     throw new Error(`Import source changed after review: ${operation.skill}`);
@@ -149,7 +154,7 @@ async function rollbackJournal(journal: ImportJournal): Promise<void> {
   for (const entry of [...journal.operations].reverse()) {
     if (
       (entry.status !== "committing" && entry.status !== "applied") ||
-      entry.operation.action !== "copy-owned" ||
+      (entry.operation.action !== "copy-owned" && entry.operation.action !== "copy-vendored") ||
       !entry.operation.target ||
       !(await exists(entry.operation.target))
     )
@@ -159,7 +164,7 @@ async function rollbackJournal(journal: ImportJournal): Promise<void> {
   for (const entry of [...journal.operations].reverse()) {
     if (
       (entry.status === "committing" || entry.status === "applied") &&
-      entry.operation.action === "copy-owned" &&
+      (entry.operation.action === "copy-owned" || entry.operation.action === "copy-vendored") &&
       entry.operation.target &&
       (await exists(entry.operation.target))
     ) {
@@ -194,7 +199,10 @@ export async function recoverImport(libraryRoot: string): Promise<"none" | "comp
     journal.operations.every((entry) => entry.operation.action !== "copy-owned" || entry.status === "applied");
   if (complete) {
     for (const entry of journal.operations) {
-      if (entry.operation.action === "copy-owned" && entry.operation.target)
+      if (
+        (entry.operation.action === "copy-owned" || entry.operation.action === "copy-vendored") &&
+        entry.operation.target
+      )
         await assertCopiedIntegrity(entry.operation, entry.operation.target);
     }
     await rm(stageRoot(library, journal.planId), { recursive: true, force: true });
@@ -222,7 +230,9 @@ export async function applyImportPlan(plan: ImportPlan, options: ApplyImportOpti
   if (hashText(baseManifestText) !== plan.baseManifestHash || hashText(baseConfigText) !== plan.baseConfigHash) {
     throw new Error("Portable library files changed after review; rebuild the import plan");
   }
-  const mutations = plan.operations.filter((operation) => operation.action === "copy-owned");
+  const mutations = plan.operations.filter(
+    (operation) => operation.action === "copy-owned" || operation.action === "copy-vendored",
+  );
   for (const operation of mutations) {
     await assertOperationSource(operation);
     if (!operation.target) throw new Error(`Missing import target for ${operation.skill}`);

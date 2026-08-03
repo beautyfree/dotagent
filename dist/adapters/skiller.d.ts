@@ -33,17 +33,17 @@ export declare const skillerReferenceSkillSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     ref: string;
     kind: "reference";
+    skill_path: string;
     repository: string;
     id: string;
-    skill_path: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
 }, {
     ref: string;
     kind: "reference";
+    skill_path: string;
     repository: string;
     id: string;
-    skill_path: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
 }>;
@@ -58,16 +58,16 @@ export declare const skillerSkillsShSkillSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     ref: string;
     kind: "skills_sh";
-    id: string;
     skill_path: string;
+    id: string;
     source_url: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
 }, {
     ref: string;
     kind: "skills_sh";
-    id: string;
     skill_path: string;
+    id: string;
     source_url: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
@@ -130,17 +130,17 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         ref: string;
         kind: "reference";
+        skill_path: string;
         repository: string;
         id: string;
-        skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     }, {
         ref: string;
         kind: "reference";
+        skill_path: string;
         repository: string;
         id: string;
-        skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     }>, z.ZodObject<{
@@ -154,16 +154,16 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         ref: string;
         kind: "skills_sh";
-        id: string;
         skill_path: string;
+        id: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     }, {
         ref: string;
         kind: "skills_sh";
-        id: string;
         skill_path: string;
+        id: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
@@ -179,16 +179,16 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
     } | {
         ref: string;
         kind: "reference";
+        skill_path: string;
         repository: string;
         id: string;
-        skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     } | {
         ref: string;
         kind: "skills_sh";
-        id: string;
         skill_path: string;
+        id: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
@@ -214,16 +214,16 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
     } | {
         ref: string;
         kind: "reference";
+        skill_path: string;
         repository: string;
         id: string;
-        skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     } | {
         ref: string;
         kind: "skills_sh";
-        id: string;
         skill_path: string;
+        id: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;

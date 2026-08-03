@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { parse } from "yaml";
-import { applyImportPlan, recoverImport } from "../src/import-apply.js";
 import { planImport } from "../src/import.js";
+import { applyImportPlan, recoverImport } from "../src/import-apply.js";
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "../src/init.js";
-import { scanLibrary } from "../src/inventory.js";
+import { scanLibrary, scanOwnedSkill } from "../src/inventory.js";
 
 const roots: string[] = [];
 const run = promisify(execFile);
@@ -97,6 +97,44 @@ describe("canonical import planning and apply", () => {
     expect(existsSync(join(root, "skills", "unsafe"))).toBe(false);
   });
 
+  it("vendors only reviewed files with immutable origin and license metadata", async () => {
+    const root = await library();
+    const source = skill("vendored-tool");
+    const scanned = await scanLibrarySkill(source);
+    const origin = {
+      url: "https://github.com/example/toolkit.git",
+      commit: "a".repeat(40),
+      skill_path: "skills/vendored-tool",
+      integrity: scanned,
+      license: "MIT",
+    };
+    const plan = await planImport(root, [
+      { kind: "vendored", skill: "vendored-tool", sourcePath: source, origin, agents: ["codex"] },
+    ]);
+    expect(plan.operations).toContainEqual(
+      expect.objectContaining({ skill: "vendored-tool", action: "copy-vendored", sourceKind: "vendored" }),
+    );
+    expect(plan.nextConfig.skills["vendored-tool"]).toEqual({
+      include: true,
+      distribution: "vendored",
+      origin,
+      agents: ["codex"],
+    });
+    expect((await applyImportPlan(plan)).copied).toBe(1);
+    expect(readFileSync(join(root, "skills", "vendored-tool", "guide.md"), "utf8")).toBe("portable content\n");
+
+    await expect(
+      planImport(await library(), [
+        {
+          kind: "vendored",
+          skill: "vendored-tool",
+          sourcePath: source,
+          origin: { ...origin, integrity: `sha256-${Buffer.alloc(32).toString("base64")}` },
+        },
+      ]),
+    ).rejects.toThrow("integrity does not match");
+  });
+
   it("never adopts an unmanaged target implicitly", async () => {
     const root = await library();
     const source = skill("writing");
@@ -158,3 +196,9 @@ describe("canonical import planning and apply", () => {
     expect(existsSync(join(root, ".dotagent", "import-journal.json"))).toBe(false);
   });
 });
+
+async function scanLibrarySkill(source: string): Promise<string> {
+  const scanned = await scanOwnedSkill(dirname(source), basename(source));
+  if (!scanned.ok) throw new Error(scanned.issues.map((issue) => issue.message).join("; "));
+  return scanned.value.integrity;
+}

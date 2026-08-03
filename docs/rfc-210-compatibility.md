@@ -32,6 +32,7 @@ beautyfree-dotagent audit . --public --json
 | Lockfile integrity | Records package SHA-256 integrity and verifies prepared content again before materialization | Implemented |
 | Flat exported skill names | Rejects owned/dependency name collisions before writing a lock | Implemented |
 | Repository subpath selection | Uses explicit dependency `select` entries; `.` is allowed only for a dependency root skill | Implemented extension |
+| Explicit vendoring | Stores reviewed files with immutable origin, integrity, source path, and license in portable policy | Implemented extension |
 | Transitive package graph | The v1 schema accepts direct dependencies only | Deliberately deferred |
 | OCI transport | Git and local filesystems only | Deliberately deferred |
 | Publisher signatures | Git/npm provenance is release evidence; no portable signature field is claimed | Deliberately deferred |
@@ -47,6 +48,7 @@ dotagent adds behavior that a package-format RFC alone does not define:
 - managed markers, three-way state, and journals prevent unmanaged overwrites and recover interrupted writes;
 - audits report file, line, and rule for possible secrets without returning the matched value;
 - agent detection never treats `.agents/skills` by itself as proof that an agent is installed.
+- dependency, vendored, owned, local-only, and excluded dispositions are explicit import-plan actions; no unavailable source silently changes category.
 
 ## Unsupported input
 

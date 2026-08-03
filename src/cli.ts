@@ -122,7 +122,10 @@ async function main(): Promise<number> {
       const parsed = validateImportCandidates(JSON.parse(await readFile(absoluteFile, "utf8")));
       for (const candidate of parsed) {
         if (
-          (candidate.kind === "owned" || candidate.kind === "local-only" || candidate.kind === "excluded") &&
+          (candidate.kind === "owned" ||
+            candidate.kind === "vendored" ||
+            candidate.kind === "local-only" ||
+            candidate.kind === "excluded") &&
           candidate.sourcePath
         ) {
           candidate.sourcePath = path.resolve(path.dirname(absoluteFile), candidate.sourcePath);

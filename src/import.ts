@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
-import { scanSkillForSecrets, type SecretFileFinding } from "./audit.js";
-import { DOTAGENT_CONFIG_FILE, parsePortableConfig, type PortableConfig } from "./config.js";
+import { type SecretFileFinding, scanSkillForSecrets } from "./audit.js";
+import { DOTAGENT_CONFIG_FILE, type PortableConfig, parsePortableConfig, type VendoredOrigin } from "./config.js";
 import { declaredSkillName, scanOwnedSkill } from "./inventory.js";
 import { DotagentError, type DotagentIssue } from "./issues.js";
 import { loadLibrary } from "./library.js";
 import { computePlanId } from "./plan.js";
-import { libraryManifestSchema, type DependencyReference, type LibraryManifest } from "./schema.js";
+import { type DependencyReference, type LibraryManifest, libraryManifestSchema } from "./schema.js";
 import { normalizeGitIdentity } from "./sources.js";
 
 const stableSkillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -30,6 +30,14 @@ export interface DependencyImportCandidate {
   source?: "git" | "skills-cli";
 }
 
+export interface VendoredImportCandidate {
+  kind: "vendored";
+  skill: string;
+  sourcePath: string;
+  origin: VendoredOrigin;
+  agents?: string[];
+}
+
 export interface LocalOnlyImportCandidate {
   kind: "local-only" | "excluded";
   skill: string;
@@ -37,9 +45,20 @@ export interface LocalOnlyImportCandidate {
   reason: string;
 }
 
-export type ImportCandidate = OwnedImportCandidate | DependencyImportCandidate | LocalOnlyImportCandidate;
+export type ImportCandidate =
+  | OwnedImportCandidate
+  | DependencyImportCandidate
+  | VendoredImportCandidate
+  | LocalOnlyImportCandidate;
 
-export type ImportAction = "copy-owned" | "record-dependency" | "unchanged" | "leave-local" | "exclude" | "conflict";
+export type ImportAction =
+  | "copy-owned"
+  | "copy-vendored"
+  | "record-dependency"
+  | "unchanged"
+  | "leave-local"
+  | "exclude"
+  | "conflict";
 
 export interface ImportOperation {
   skill: string;
@@ -227,11 +246,18 @@ export async function planImport(libraryRoot: string, candidates: ImportCandidat
       continue;
     }
 
-    if (candidate.kind !== "owned") throw new Error(`Unsupported import disposition: ${candidate.kind}`);
+    if (candidate.kind !== "owned" && candidate.kind !== "vendored")
+      throw new Error(`Unsupported import disposition: ${candidate.kind}`);
 
     const source = path.resolve(candidate.sourcePath);
     const scanned = await scanOwnedSkill(path.dirname(source), path.basename(source));
     if (!scanned.ok) throw new DotagentError(`Cannot import ${candidate.skill}`, scanned.issues);
+    if (candidate.kind === "vendored") {
+      normalizeGitIdentity(candidate.origin.url);
+      if (candidate.origin.integrity !== scanned.value.integrity) {
+        throw new Error(`Vendored origin integrity does not match the reviewed files for ${candidate.skill}`);
+      }
+    }
     const declaredName = declaredSkillName(await readFile(path.join(source, "SKILL.md"), "utf8"));
     if (declaredName !== candidate.skill) {
       throw new DotagentError(`Cannot import ${candidate.skill}`, [
@@ -303,12 +329,16 @@ export async function planImport(libraryRoot: string, candidates: ImportCandidat
     nextManifest.skills.push(targetPath);
     nextManifest.skills.sort((left, right) => left.localeCompare(right, "en"));
     const agents = normalizeAgents(candidate.agents);
-    nextConfig.skills[candidate.skill] = { include: true, ...(agents ? { agents } : {}) };
+    nextConfig.skills[candidate.skill] = {
+      include: true,
+      ...(candidate.kind === "vendored" ? { distribution: "vendored" as const, origin: candidate.origin } : {}),
+      ...(agents ? { agents } : {}),
+    };
     claimedNames.set(folded, `owned ${targetPath}`);
     existingOwned.set(folded, targetPath);
     operations.push({
       skill: candidate.skill,
-      action: "copy-owned",
+      action: candidate.kind === "vendored" ? "copy-vendored" : "copy-owned",
       sourceKind: candidate.kind,
       source,
       sourceIntegrity: scanned.value.integrity,

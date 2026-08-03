@@ -1,16 +1,63 @@
 import { parse } from "yaml";
 import { z } from "zod";
+import { normalizeSkillPath } from "./paths.js";
+import { normalizeGitIdentity } from "./sources.js";
 export const DOTAGENT_CONFIG_VERSION = 1;
 export const DOTAGENT_CONFIG_FILE = "dotagent.yaml";
 export const DOTAGENT_LOCAL_CONFIG_FILE = "dotagent.local.yaml";
 const slug = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/);
+const vendoredOriginSchema = z
+    .object({
+    url: z.string().min(1).max(2_048),
+    commit: z.string().regex(/^[a-f0-9]{40}$/),
+    skill_path: z.string().min(1).max(2_048),
+    integrity: z.string().regex(/^sha256-[A-Za-z0-9+/]+={0,2}$/),
+    license: z.string().min(1).max(128),
+})
+    .strict()
+    .superRefine((origin, context) => {
+    try {
+        normalizeGitIdentity(origin.url);
+    }
+    catch (error) {
+        context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["url"],
+            message: error instanceof Error ? error.message : "Invalid Git identity",
+        });
+    }
+    if (origin.skill_path !== "." && !normalizeSkillPath(origin.skill_path)) {
+        context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["skill_path"],
+            message: "Vendored skill path must be '.' or stay inside the source repository",
+        });
+    }
+});
 const portableSkillPolicySchema = z
     .object({
     include: z.boolean().optional(),
     agents: z.array(slug).min(1).optional(),
     distribution: z.enum(["dependency", "vendored"]).optional(),
+    origin: vendoredOriginSchema.optional(),
 })
-    .strict();
+    .strict()
+    .superRefine((policy, context) => {
+    if (policy.distribution === "vendored" && !policy.origin) {
+        context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["origin"],
+            message: "Vendored skills require immutable origin, integrity, and license metadata",
+        });
+    }
+    if (policy.origin && policy.distribution !== "vendored") {
+        context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["origin"],
+            message: "Origin metadata is allowed only for an explicitly vendored skill",
+        });
+    }
+});
 export const portableConfigSchema = z
     .object({
     schema_version: z.literal(DOTAGENT_CONFIG_VERSION),

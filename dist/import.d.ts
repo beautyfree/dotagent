@@ -1,5 +1,5 @@
 import { type SecretFileFinding } from "./audit.js";
-import { type PortableConfig } from "./config.js";
+import { type PortableConfig, type VendoredOrigin } from "./config.js";
 import { type LibraryManifest } from "./schema.js";
 export interface OwnedImportCandidate {
     kind: "owned";
@@ -17,14 +17,21 @@ export interface DependencyImportCandidate {
     agents?: string[];
     source?: "git" | "skills-cli";
 }
+export interface VendoredImportCandidate {
+    kind: "vendored";
+    skill: string;
+    sourcePath: string;
+    origin: VendoredOrigin;
+    agents?: string[];
+}
 export interface LocalOnlyImportCandidate {
     kind: "local-only" | "excluded";
     skill: string;
     sourcePath?: string;
     reason: string;
 }
-export type ImportCandidate = OwnedImportCandidate | DependencyImportCandidate | LocalOnlyImportCandidate;
-export type ImportAction = "copy-owned" | "record-dependency" | "unchanged" | "leave-local" | "exclude" | "conflict";
+export type ImportCandidate = OwnedImportCandidate | DependencyImportCandidate | VendoredImportCandidate | LocalOnlyImportCandidate;
+export type ImportAction = "copy-owned" | "copy-vendored" | "record-dependency" | "unchanged" | "leave-local" | "exclude" | "conflict";
 export interface ImportOperation {
     skill: string;
     action: ImportAction;
