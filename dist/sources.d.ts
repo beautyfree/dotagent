@@ -2,8 +2,16 @@ import { type DependencyReference, type LibraryLock, type LibraryManifest, type 
 export type ResolutionChange = {
     dependency: string;
     action: "added" | "updated" | "unchanged" | "removed";
+    fromSource: string | null;
+    toSource: string | null;
     fromCommit: string | null;
     toCommit: string | null;
+    fromIntegrity: string | null;
+    toIntegrity: string | null;
+    fromLicense: string | null;
+    toLicense: string | null;
+    skillsAdded: string[];
+    skillsRemoved: string[];
 };
 export interface ResolutionPlan {
     kind: "resolve-dependencies";

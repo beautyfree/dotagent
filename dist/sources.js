@@ -65,6 +65,8 @@ export async function planResolveDependencies(manifest, resolver, currentLock = 
     const changes = [];
     for (const [name, entry] of resolved) {
         const previous = currentLock?.resolved[name];
+        const previousSkills = new Set(previous?.skills.map((skill) => skill.name) ?? []);
+        const nextSkills = new Set(entry.skills.map((skill) => skill.name));
         changes.push({
             dependency: name,
             action: !previous
@@ -72,13 +74,34 @@ export async function planResolveDependencies(manifest, resolver, currentLock = 
                 : previous.commit === entry.commit && previous.integrity === entry.integrity
                     ? "unchanged"
                     : "updated",
+            fromSource: previous ? normalizeGitIdentity(previous.url) : null,
+            toSource: normalizeGitIdentity(entry.url),
             fromCommit: previous?.commit ?? null,
             toCommit: entry.commit,
+            fromIntegrity: previous?.integrity ?? null,
+            toIntegrity: entry.integrity,
+            fromLicense: previous?.license ?? null,
+            toLicense: entry.license ?? null,
+            skillsAdded: [...nextSkills].filter((skill) => !previousSkills.has(skill)).sort(),
+            skillsRemoved: [...previousSkills].filter((skill) => !nextSkills.has(skill)).sort(),
         });
     }
     for (const [name, previous] of Object.entries(currentLock?.resolved ?? {}).sort(([left], [right]) => left.localeCompare(right, "en"))) {
         if (!(name in manifest.dependencies))
-            changes.push({ dependency: name, action: "removed", fromCommit: previous.commit, toCommit: null });
+            changes.push({
+                dependency: name,
+                action: "removed",
+                fromSource: normalizeGitIdentity(previous.url),
+                toSource: null,
+                fromCommit: previous.commit,
+                toCommit: null,
+                fromIntegrity: previous.integrity,
+                toIntegrity: null,
+                fromLicense: previous.license ?? null,
+                toLicense: null,
+                skillsAdded: [],
+                skillsRemoved: previous.skills.map((skill) => skill.name).sort(),
+            });
     }
     const payload = {
         kind: "resolve-dependencies",

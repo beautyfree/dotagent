@@ -53,6 +53,13 @@ describe("source resolution planning", () => {
     expect(maximum).toBe(2);
     expect(Object.keys(plan.lock.resolved)).toEqual(["alpha", "beta"]);
     expect(plan.changes.map((change) => change.action)).toEqual(["added", "added"]);
+    expect(plan.changes[0]).toMatchObject({
+      fromSource: null,
+      toSource: "https://github.com/example/alpha",
+      fromIntegrity: null,
+      skillsAdded: ["alpha"],
+      skillsRemoved: [],
+    });
     expect(plan.planId).toHaveLength(64);
   });
 
@@ -98,5 +105,71 @@ describe("source resolution planning", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("reports a complete deterministic dependency audit delta", async () => {
+    const manifest = libraryManifestSchema.parse({
+      schema_version: 1,
+      name: "example",
+      version: "1.0.0",
+      skills: [],
+      dependencies: { tools: { url: "git@github.com:example/tools.git", ref: "main", select: ["skills/new"] } },
+    });
+    const current = {
+      lockfile_version: 1 as const,
+      generated_by: "old",
+      resolved: {
+        tools: {
+          url: "https://github.com/example/tools",
+          requested_ref: "main",
+          commit: "1".repeat(40),
+          integrity: "sha256-b2xk",
+          license: "MIT",
+          skills: [{ name: "old", path: "skills/old" }],
+        },
+        removed: {
+          url: "https://github.com/example/removed",
+          requested_ref: "v1",
+          commit: "2".repeat(40),
+          integrity: "sha256-cmVtb3ZlZA==",
+          skills: [{ name: "removed", path: "." }],
+        },
+      },
+    };
+    const resolver: DependencyResolver = {
+      async resolve() {
+        return {
+          url: "https://github.com/example/tools.git",
+          requested_ref: "main",
+          commit: "3".repeat(40),
+          integrity: "sha256-bmV3",
+          license: "Apache-2.0",
+          skills: [{ name: "new", path: "skills/new" }],
+        };
+      },
+    };
+    const plan = await planResolveDependencies(manifest, resolver, current);
+    expect(plan.changes).toEqual([
+      expect.objectContaining({
+        dependency: "tools",
+        action: "updated",
+        fromSource: "https://github.com/example/tools",
+        toSource: "https://github.com/example/tools",
+        fromCommit: "1".repeat(40),
+        toCommit: "3".repeat(40),
+        fromIntegrity: "sha256-b2xk",
+        toIntegrity: "sha256-bmV3",
+        fromLicense: "MIT",
+        toLicense: "Apache-2.0",
+        skillsAdded: ["new"],
+        skillsRemoved: ["old"],
+      }),
+      expect.objectContaining({
+        dependency: "removed",
+        action: "removed",
+        skillsAdded: [],
+        skillsRemoved: ["removed"],
+      }),
+    ]);
   });
 });
