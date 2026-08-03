@@ -20,7 +20,11 @@ export const dependencyReferenceSchema = z.object({
   url: z.string().min(1).max(2_048),
   ref: z.string().min(1).max(256),
   select: z.array(portableSkillPath).min(1).optional(),
-}).strict();
+}).strict().superRefine((dependency, context) => {
+  if (/^[a-z][a-z0-9+.-]*:\/\/[^/\s@]+:[^/\s@]+@/i.test(dependency.url)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["url"], message: "Dependency URLs must not contain credentials" });
+  }
+});
 
 export const libraryManifestSchema = z.object({
   schema_version: z.literal(MANIFEST_SCHEMA_VERSION),

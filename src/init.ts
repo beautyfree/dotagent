@@ -1,0 +1,76 @@
+import { mkdir, open, stat } from "node:fs/promises";
+import path from "node:path";
+import { computePlanId } from "./plan.js";
+
+export interface InitializeLibraryPlan {
+  kind: "initialize-library";
+  schemaVersion: 1;
+  planId: string;
+  root: string;
+  files: ReadonlyArray<{ path: string; content: string }>;
+}
+
+function packageName(input: string): string {
+  const normalized = input.trim().toLocaleLowerCase("en-US")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+  if (!normalized || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) throw new Error("Library name must contain letters or numbers");
+  return normalized;
+}
+
+export function planInitializeLibrary(root: string, requestedName = path.basename(root)): InitializeLibraryPlan {
+  const absoluteRoot = path.resolve(root);
+  const name = packageName(requestedName);
+  const files = [
+    {
+      path: "skills.json",
+      content: `${JSON.stringify({ schema_version: 1, name, version: "0.1.0", skills: [], dependencies: {} }, null, 2)}\n`,
+    },
+    {
+      path: "dotagent.yaml",
+      content: "schema_version: 1\ndefaults:\n  include: all\nskills: {}\n",
+    },
+    {
+      path: ".gitignore",
+      content: "dotagent.local.yaml\n.dotagent/\n",
+    },
+    {
+      path: "README.md",
+      content: `# ${name}\n\nA portable agent skill library managed by [beautyfree/dotagent](https://github.com/beautyfree/dotagent).\n`,
+    },
+  ] as const;
+  const payload = { kind: "initialize-library" as const, schemaVersion: 1 as const, root: absoluteRoot, files };
+  return { ...payload, planId: computePlanId(payload) };
+}
+
+async function exists(filePath: string): Promise<boolean> {
+  try {
+    await stat(filePath);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+/** Applies only the exact reviewed plan and refuses to overwrite any target file. */
+export async function applyInitializeLibraryPlan(plan: InitializeLibraryPlan): Promise<void> {
+  const { planId, ...payload } = plan;
+  if (computePlanId(payload) !== planId) throw new Error("Initialize plan is stale or modified");
+  for (const file of plan.files) {
+    if (await exists(path.join(plan.root, file.path))) throw new Error(`Refusing to overwrite ${file.path}`);
+  }
+  await mkdir(path.join(plan.root, "skills"), { recursive: true });
+  await mkdir(path.join(plan.root, ".dotagent"), { recursive: true });
+  for (const file of plan.files) {
+    const destination = path.join(plan.root, file.path);
+    await mkdir(path.dirname(destination), { recursive: true });
+    const handle = await open(destination, "wx");
+    try {
+      await handle.writeFile(file.content, "utf8");
+    } finally {
+      await handle.close();
+    }
+  }
+}

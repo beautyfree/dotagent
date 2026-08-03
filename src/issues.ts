@@ -6,6 +6,9 @@ export type DotagentIssueCode =
   | "unsafe-path"
   | "duplicate-skill"
   | "integrity-mismatch"
+  | "unsafe-link"
+  | "limit-exceeded"
+  | "missing-skill-file"
   | "file-not-found"
   | "io-error";
 

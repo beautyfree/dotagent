@@ -27,12 +27,17 @@ Implemented now:
 
 - Agent Skills-style `skills.json` schema;
 - immutable `skills.lock` schema;
-- safe portable path validation;
+- portable `dotagent.yaml` and private `dotagent.local.yaml` schemas with deterministic merge provenance;
+- safe portable path validation including traversal and Windows reserved-name rejection;
 - deterministic SHA-256 skill integrity;
-- typed value-free issues;
-- library loader and `inspect` CLI.
+- bounded library inventory that rejects escaping links and oversized content;
+- typed value-free issues and shared secret findings;
+- read-only Skills CLI v3 and legacy Skiller manifest adapters;
+- shared three-way conflict classification;
+- deterministic reviewed initialization plans;
+- `init` and `inspect` CLI commands.
 
-Next: YAML portable/local configuration, source resolution, audit, materialization plans, agent capabilities, and Skiller adapters.
+Skiller already consumes the shared manifest, Skills CLI, secret-scan, and reconciliation modules through compatibility facades. Next: immutable source resolution, audit reports, materialization plans, agent capabilities, and full golden-fixture parity.
 
 ## Prior art
 

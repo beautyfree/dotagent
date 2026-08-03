@@ -21,8 +21,18 @@ describe("library manifest", () => {
   test("rejects traversal and case-folded duplicate paths", () => {
     const traversal = parseLibraryManifest(JSON.stringify({ ...manifest, skills: ["../secret"] }));
     expect(traversal.ok).toBe(false);
+    expect(parseLibraryManifest(JSON.stringify({ ...manifest, skills: ["skills/a/../secret"] })).ok).toBe(false);
+    expect(parseLibraryManifest(JSON.stringify({ ...manifest, skills: ["skills/CON"] })).ok).toBe(false);
     const duplicate = parseLibraryManifest(JSON.stringify({ ...manifest, skills: ["skills/Review", "skills/review"] }));
     expect(duplicate.ok).toBe(false);
+  });
+
+  test("rejects dependency URLs containing credentials", () => {
+    const result = parseLibraryManifest(JSON.stringify({
+      ...manifest,
+      dependencies: { private: { url: "https://user:password@example.com/skills", ref: "main" } },
+    }));
+    expect(result.ok).toBe(false);
   });
 
   test("rejects unknown schema versions instead of guessing", () => {

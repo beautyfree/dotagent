@@ -1,0 +1,53 @@
+import { afterEach, describe, expect, it } from "bun:test";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { scanLibrary } from "../src/inventory.js";
+
+const roots: string[] = [];
+afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+
+function makeLibrary(skillPath = "skills/writing"): string {
+  const root = mkdtempSync(join(tmpdir(), "dotagent-library-"));
+  roots.push(root);
+  mkdirSync(join(root, skillPath), { recursive: true });
+  writeFileSync(join(root, "skills.json"), JSON.stringify({ schema_version: 1, name: "test-library", version: "1.0.0", skills: [skillPath], dependencies: {} }));
+  writeFileSync(join(root, skillPath, "SKILL.md"), "# Writing\n");
+  return root;
+}
+
+describe("library inventory", () => {
+  it("scans owned files and produces stable integrity", async () => {
+    const root = makeLibrary();
+    writeFileSync(join(root, "skills/writing/example.md"), "example\n");
+    const first = await scanLibrary(root);
+    const second = await scanLibrary(root);
+    expect(first.ok).toBe(true);
+    if (first.ok && second.ok) {
+      expect(first.value.ownedSkills[0]).toMatchObject({ name: "writing", fileCount: 2 });
+      expect(first.value.ownedSkills[0]?.integrity).toBe(second.value.ownedSkills[0]?.integrity);
+    }
+  });
+
+  it("rejects links and missing SKILL.md without following them", async () => {
+    const root = makeLibrary();
+    symlinkSync(join(root, "skills/writing/SKILL.md"), join(root, "skills/writing/outside.md"));
+    const linked = await scanLibrary(root);
+    expect(linked.ok).toBe(false);
+    if (!linked.ok) expect(linked.issues[0]?.code).toBe("unsafe-link");
+
+    const missing = makeLibrary("skills/missing");
+    rmSync(join(missing, "skills/missing/SKILL.md"));
+    const result = await scanLibrary(missing);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.issues[0]?.code).toBe("missing-skill-file");
+  });
+
+  it("enforces file-count limits before loading unbounded content", async () => {
+    const root = makeLibrary();
+    writeFileSync(join(root, "skills/writing/extra.md"), "x");
+    const result = await scanLibrary(root, { maxFilesPerSkill: 1, maxFileBytes: 1024, maxSkillBytes: 2048 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.issues[0]?.code).toBe("limit-exceeded");
+  });
+});
