@@ -28,6 +28,9 @@ jobs:
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run release:check
       - run: bun run release:artifacts
+      - run: bun run release:verify
+        env:
+          EXPECTED_SOURCE_COMMIT: ${{ github.sha }}
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: npm-release-artifacts
@@ -60,8 +63,9 @@ jobs:
         with:
           name: npm-release-artifacts
           path: release-artifacts
-      - name: Verify validated package checksum
-        working-directory: release-artifacts
-        run: sha256sum --check *.tgz.sha256
+      - name: Verify validated package, SBOM, documentation, and source commit
+        run: bun run release:verify
+        env:
+          EXPECTED_SOURCE_COMMIT: ${{ github.sha }}
       - name: Publish the validated tarball with npm provenance
         run: npm publish release-artifacts/*.tgz --access public --provenance
