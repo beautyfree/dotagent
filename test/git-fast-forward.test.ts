@@ -21,6 +21,10 @@ function commitFile(repository: string, content: string, message: string): void 
   git(repository, "commit", "-m", message);
 }
 
+function readText(repository: string): string {
+  return readFileSync(join(repository, "library.txt"), "utf8").replaceAll("\r\n", "\n");
+}
+
 describe("generic Git fast-forward review", () => {
   it("inspects an exact remote commit without changing the worktree and rejects a stale apply", async () => {
     const root = mkdtempSync(join(tmpdir(), "dotagent-fast-forward-"));
@@ -40,19 +44,17 @@ describe("generic Git fast-forward review", () => {
     git(publisher, "push");
     const plan = await planGitFastForward(observer);
     expect(plan.files).toEqual(["library.txt"]);
-    expect(readFileSync(join(observer, "library.txt"), "utf8")).toBe("first\n");
-    expect(
-      await inspectGitFastForwardPlan(plan, (checkout) => readFileSync(join(checkout, "library.txt"), "utf8")),
-    ).toBe("second\n");
-    expect(readFileSync(join(observer, "library.txt"), "utf8")).toBe("first\n");
+    expect(readText(observer)).toBe("first\n");
+    expect(await inspectGitFastForwardPlan(plan, readText)).toBe("second\n");
+    expect(readText(observer)).toBe("first\n");
 
     await applyGitFastForwardPlan(plan);
-    expect(readFileSync(join(observer, "library.txt"), "utf8")).toBe("second\n");
+    expect(readText(observer)).toBe("second\n");
 
     const stale = await planGitFastForward(observer);
     commitFile(publisher, "third\n", "third");
     git(publisher, "push");
     await expect(applyGitFastForwardPlan(stale)).rejects.toThrow("changed after review");
-    expect(readFileSync(join(observer, "library.txt"), "utf8")).toBe("second\n");
+    expect(readText(observer)).toBe("second\n");
   }, 60_000);
 });
