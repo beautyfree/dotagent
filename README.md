@@ -21,7 +21,7 @@ bun run build
 node dist/cli.js inspect fixtures/valid-library --json
 ```
 
-The package requires Node.js 20 or later at runtime and is developed with Bun.
+The package requires Node.js 20 or later at runtime and is developed with Bun. CI runs the same typecheck, tests, build, and CLI smoke check on Linux, macOS, and Windows.
 
 ## Status
 
