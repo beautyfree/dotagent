@@ -43,6 +43,7 @@ Implemented now:
 - reusable local Git object cache with fresh ref/commit/integrity verification;
 - immutable dependency checkouts that can be rebuilt from the local mirror, re-audited, and fed into the same materialization plan as owned skills;
 - typed value-free issues and shared secret findings;
+- deterministic owned-skill export policy with bounded content, explicit exclusions, and no-follow link safety;
 - non-executing public/private metadata and license audit;
 - read-only Skills CLI v3 and legacy Skiller manifest adapters;
 - read-only cross-agent discovery that deduplicates shared skills and real agent links while preserving same-name conflicts;

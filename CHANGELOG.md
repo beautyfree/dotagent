@@ -12,6 +12,7 @@ All notable changes to `@beautyfree/dotagent` are recorded here. The project fol
 - Immutable Git dependency resolution, package integrity, license audit, prepared checkouts, and deterministic dependency update deltas.
 - Reviewed Git commit, pull, and push plans with secret-safe isolated remote inspection.
 - Reviewed Git clone plans with credential-free remotes, staging validation, stale-plan checks, and atomic destination creation.
+- Shared owned-skill export policy for Skiller and the CLI core, including deterministic file hashes and value-free findings.
 - Versioned JSON Schemas, compatibility fixtures, package-content verification, and macOS/Linux/Windows CI.
 
 ### Security

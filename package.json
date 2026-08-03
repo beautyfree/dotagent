@@ -47,6 +47,10 @@
       "types": "./dist/inventory.d.ts",
       "import": "./dist/inventory.js"
     },
+    "./export-policy": {
+      "types": "./dist/export-policy.d.ts",
+      "import": "./dist/export-policy.js"
+    },
     "./init": {
       "types": "./dist/init.d.ts",
       "import": "./dist/init.js"
