@@ -92,6 +92,10 @@
       "types": "./dist/config.d.ts",
       "import": "./dist/config.js"
     },
+    "./decisions": {
+      "types": "./dist/decisions.d.ts",
+      "import": "./dist/decisions.js"
+    },
     "./reconcile": {
       "types": "./dist/reconcile.d.ts",
       "import": "./dist/reconcile.js"

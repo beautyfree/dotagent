@@ -6,7 +6,7 @@
     {
       "subpath": ".",
       "types": "./dist/index.d.ts",
-      "sha256": "6f705673b7135c33503971399fd8c076bbae606925ab6f89234eb7b0b50b7b22"
+      "sha256": "ab2c38adf91a76c6790d6869867d122b7fbd442e592c226e915cb617dfdea20d"
     },
     {
       "subpath": "./adapters/skiller",
@@ -47,6 +47,11 @@
       "subpath": "./config",
       "types": "./dist/config.d.ts",
       "sha256": "8762a254adc295065c6ec604aefe98c3a7ad30fc5f1641eb252e66a2afed13e0"
+    },
+    {
+      "subpath": "./decisions",
+      "types": "./dist/decisions.d.ts",
+      "sha256": "8401f6c94aa126f25d40c60171bcc302d1a3c1aa05f603b03036847f6157ab78"
     },
     {
       "subpath": "./discovery",

@@ -7,6 +7,7 @@ export * from "./catalog.js";
 export * from "./cli-import.js";
 export * from "./cli-target.js";
 export * from "./config.js";
+export * from "./decisions.js";
 export * from "./discovery.js";
 export * from "./doctor.js";
 export * from "./export-policy.js";
