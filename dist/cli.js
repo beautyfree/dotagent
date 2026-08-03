@@ -7,7 +7,7 @@ import { parseOwnedImportSpec, validateImportCandidates } from "./cli-import.js"
 import { parseMaterializationTargetSpec } from "./cli-target.js";
 import { doctorLibrary } from "./doctor.js";
 import { GitDependencyResolver } from "./git-resolver.js";
-import { applyLibraryClone, applyLibraryCommit, applyLibraryPull, applyLibraryPush, getLibraryGitStatus, initializeLibraryGit, planLibraryClone, planLibraryCommit, planLibraryPull, planLibraryPush, } from "./git-workspace.js";
+import { applyLibraryClone, applyLibraryCommit, applyLibraryGitInitialization, applyLibraryPull, applyLibraryPush, getLibraryGitStatus, planLibraryClone, planLibraryCommit, planLibraryGitInitialization, planLibraryPull, planLibraryPush, } from "./git-workspace.js";
 import { planImport } from "./import.js";
 import { applyImportPlan, recoverImport } from "./import-apply.js";
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "./init.js";
@@ -49,16 +49,14 @@ async function main() {
     const directory = positional[0] ?? ".";
     const json = args.includes("--json");
     if (command === "help" || command === "--help" || command === "-h") {
-        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--out plan.json] [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
+        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--out plan.json] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--out plan.json] [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
         return 0;
     }
     if (command === "init") {
         const root = path.resolve(directory);
         const requestedName = optionValue("--name");
         const plan = planInitializeLibrary(root, requestedName);
-        await applyInitializeLibraryPlan(plan);
-        const result = { ok: true, root, plan_id: plan.planId, created: plan.files.map((file) => file.path) };
-        process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Created ${requestedName ?? path.basename(root)} at ${root}.\n`);
+        await emitPlan(plan, optionValue("--out"), json, "Initialize");
         return 0;
     }
     if (command === "resolve") {
@@ -144,11 +142,8 @@ async function main() {
     }
     if (command === "git-init") {
         const root = path.resolve(directory);
-        await initializeLibraryGit(root, optionValue("--remote"));
-        const status = await getLibraryGitStatus(root);
-        process.stdout.write(json
-            ? `${JSON.stringify(status, null, 2)}\n`
-            : `Git workspace initialized on ${status.branch}${status.remoteIdentity ? ` with ${status.remoteIdentity}` : ""}.\n`);
+        const plan = await planLibraryGitInitialization(root, optionValue("--remote"));
+        await emitPlan(plan, optionValue("--out"), json, "Git initialize");
         return 0;
     }
     if (command === "clone") {
@@ -249,7 +244,17 @@ async function main() {
         if (!args.includes("--yes"))
             throw new Error("Refusing to apply without explicit --yes confirmation");
         const plan = JSON.parse(await readFile(path.resolve(directory), "utf8"));
-        if (plan.kind === "import") {
+        if (plan.kind === "initialize-library") {
+            await applyInitializeLibraryPlan(plan);
+            const result = {
+                ok: true,
+                root: plan.root,
+                plan_id: plan.planId,
+                created: plan.files.map((file) => file.path),
+            };
+            process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Created the library at ${plan.root}.\n`);
+        }
+        else if (plan.kind === "import") {
             const result = await applyImportPlan(plan);
             process.stdout.write(json
                 ? `${JSON.stringify(result, null, 2)}\n`
@@ -260,6 +265,13 @@ async function main() {
             process.stdout.write(json
                 ? `${JSON.stringify(result, null, 2)}\n`
                 : `Applied ${result.applied} operations from plan ${result.planId}.\n`);
+        }
+        else if (plan.kind === "git-initialize") {
+            await applyLibraryGitInitialization(plan);
+            const status = await getLibraryGitStatus(plan.library);
+            process.stdout.write(json
+                ? `${JSON.stringify({ ok: true, root: plan.library, plan_id: plan.planId, ...status }, null, 2)}\n`
+                : `Git workspace initialized on ${status.branch}${status.remoteIdentity ? ` with ${status.remoteIdentity}` : ""}.\n`);
         }
         else if (plan.kind === "git-clone") {
             await applyLibraryClone(plan);

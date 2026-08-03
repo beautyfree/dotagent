@@ -60,6 +60,17 @@ export interface GitClonePlan {
   destination: string;
 }
 
+export interface GitInitializePlan {
+  kind: "git-initialize";
+  schemaVersion: 1;
+  planId: string;
+  library: string;
+  remote: string | null;
+  remoteIdentity: string | null;
+  repositoryPresent: boolean;
+  currentRemoteIdentity: string | null;
+}
+
 export interface GitCommitPlan {
   kind: "git-commit";
   schemaVersion: 1;
@@ -102,7 +113,7 @@ export interface GitPushPlan {
   ahead: number;
 }
 
-type AnyGitPlan = GitClonePlan | GitCommitPlan | GitPullPlan | GitPushPlan;
+type AnyGitPlan = GitClonePlan | GitInitializePlan | GitCommitPlan | GitPullPlan | GitPushPlan;
 
 function withPlanId<T extends Omit<AnyGitPlan, "planId">>(payload: T): T & { planId: string } {
   return { ...payload, planId: computePlanId(payload) };
@@ -260,7 +271,7 @@ function assertPlanId(plan: AnyGitPlan): void {
   if (computePlanId(payload) !== planId) throw new Error("Git plan is stale or modified");
 }
 
-function credentialFreeCloneRemote(remote: string): { remote: string; identity: string } {
+function credentialFreeGitRemote(remote: string): { remote: string; identity: string } {
   const value = remote.trim();
   if (!value || /[\r\n\0]/.test(value)) throw new Error("Git URL must be a single non-empty value");
   const identity = normalizeGitIdentity(value);
@@ -291,13 +302,50 @@ export async function setLibraryRemote(
   git: WorkspaceGitPort = new NodeWorkspaceGitPort(),
 ): Promise<void> {
   const library = await ensureLibrary(root);
-  normalizeGitIdentity(remote);
+  const validated = credentialFreeGitRemote(remote);
   try {
     await git.run(["remote", "get-url", "origin"], library);
-    await git.run(["remote", "set-url", "origin", remote], library);
+    await git.run(["remote", "set-url", "origin", validated.remote], library);
   } catch {
-    await git.run(["remote", "add", "origin", remote], library);
+    await git.run(["remote", "add", "origin", validated.remote], library);
   }
+}
+
+export async function planLibraryGitInitialization(
+  root: string,
+  remote?: string,
+  git: WorkspaceGitPort = new NodeWorkspaceGitPort(),
+): Promise<GitInitializePlan> {
+  const library = await ensureLibrary(root);
+  const repositoryPresent = await exists(path.join(library, ".git"));
+  let currentRemoteIdentity: string | null = null;
+  if (repositoryPresent) {
+    try {
+      currentRemoteIdentity = normalizeGitIdentity(await git.run(["remote", "get-url", "origin"], library));
+    } catch {
+      /* no origin */
+    }
+  }
+  const validated = remote ? credentialFreeGitRemote(remote) : null;
+  return withPlanId({
+    kind: "git-initialize" as const,
+    schemaVersion: 1 as const,
+    library,
+    remote: validated?.remote ?? null,
+    remoteIdentity: validated?.identity ?? null,
+    repositoryPresent,
+    currentRemoteIdentity,
+  });
+}
+
+export async function applyLibraryGitInitialization(
+  plan: GitInitializePlan,
+  git: WorkspaceGitPort = new NodeWorkspaceGitPort(),
+): Promise<void> {
+  assertPlanId(plan);
+  const current = await planLibraryGitInitialization(plan.library, plan.remote ?? undefined, git);
+  if (current.planId !== plan.planId) throw new Error("Git repository or remote changed after the preview");
+  await initializeLibraryGit(plan.library, plan.remote ?? undefined, git);
 }
 
 export async function cloneLibrary(
@@ -310,7 +358,7 @@ export async function cloneLibrary(
 }
 
 export async function planLibraryClone(remote: string, target: string): Promise<GitClonePlan> {
-  const validated = credentialFreeCloneRemote(remote);
+  const validated = credentialFreeGitRemote(remote);
   const destination = path.resolve(target);
   if (await exists(destination)) throw new Error("Clone destination must not already exist");
   return withPlanId({

@@ -22,9 +22,15 @@ describe("Git workspace CLI", () => {
     const commitPlan = join(parent, "commit.json");
     const pushPlan = join(parent, "push.json");
     const clonePlan = join(parent, "clone.json");
+    const initPlan = join(parent, "init.json");
+    const gitInitPlan = join(parent, "git-init.json");
     execFileSync("git", ["init", "--bare", "--initial-branch", "main", remote]);
 
-    await run("bun", ["src/cli.ts", "init", library, "--name", "portable"], { cwd: repository });
+    await run("bun", ["src/cli.ts", "init", library, "--name", "portable", "--out", initPlan], {
+      cwd: repository,
+    });
+    expect(existsSync(library)).toBe(false);
+    await run("bun", ["src/cli.ts", "apply", initPlan, "--yes"], { cwd: repository });
     mkdirSync(join(library, "skills", "writing"), { recursive: true });
     writeFileSync(
       join(library, "skills", "writing", "SKILL.md"),
@@ -33,7 +39,13 @@ describe("Git workspace CLI", () => {
     const manifest = JSON.parse(readFileSync(join(library, "skills.json"), "utf8"));
     manifest.skills = ["skills/writing"];
     writeFileSync(join(library, "skills.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-    await run("bun", ["src/cli.ts", "git-init", library, "--remote", pathToFileURL(remote).href], { cwd: repository });
+    await run(
+      "bun",
+      ["src/cli.ts", "git-init", library, "--remote", pathToFileURL(remote).href, "--out", gitInitPlan],
+      { cwd: repository },
+    );
+    expect(existsSync(join(library, ".git"))).toBe(false);
+    await run("bun", ["src/cli.ts", "apply", gitInitPlan, "--yes"], { cwd: repository });
 
     await run("bun", ["src/cli.ts", "commit", library, "--message", "Create library", "--out", commitPlan], {
       cwd: repository,

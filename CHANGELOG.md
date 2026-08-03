@@ -15,6 +15,8 @@ All notable changes to `@beautyfree/dotagent` are recorded here. The project fol
 - Shared owned-skill export policy for Skiller and the CLI core, including deterministic file hashes and value-free findings.
 - Explicit vendored imports with immutable origin, integrity, skill path, and license metadata; mismatched content is rejected before copy.
 - Agent extension descriptors now require concrete data-only delivery roots; the unimplemented config-path placeholder was removed instead of advertising unsafe support.
+- CLI library initialization is preview-only until its serialized plan is explicitly applied with `--yes`.
+- Git repository initialization and origin changes now use stale-checked preview/apply plans too.
 - Versioned JSON Schemas, compatibility fixtures, package-content verification, and macOS/Linux/Windows CI.
 
 ### Security

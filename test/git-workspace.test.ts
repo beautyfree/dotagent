@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import {
   applyLibraryClone,
   applyLibraryCommit,
+  applyLibraryGitInitialization,
   applyLibraryPull,
   applyLibraryPush,
   cloneLibrary,
@@ -14,6 +15,7 @@ import {
   initializeLibraryGit,
   planLibraryClone,
   planLibraryCommit,
+  planLibraryGitInitialization,
   planLibraryPull,
   planLibraryPush,
 } from "../src/git-workspace.js";
@@ -42,6 +44,26 @@ function addSkill(root: string, name: string, body = "portable\n"): void {
 }
 
 describe("Git-backed library workspace", () => {
+  it("initializes Git only after its repository and remote preconditions are reviewed", async () => {
+    const parent = mkdtempSync(join(tmpdir(), "dotagent-git-init-plan-"));
+    roots.push(parent);
+    const library = await initializedLibrary(parent, "library");
+    const plan = await planLibraryGitInitialization(library, "git@example.com:team/library.git");
+    expect(plan).toMatchObject({
+      kind: "git-initialize",
+      repositoryPresent: false,
+      remoteIdentity: "https://example.com/team/library",
+    });
+    expect(existsSync(join(library, ".git"))).toBe(false);
+    await applyLibraryGitInitialization(plan);
+    expect(existsSync(join(library, ".git"))).toBe(true);
+
+    const another = await initializedLibrary(parent, "another-library");
+    const stale = await planLibraryGitInitialization(another);
+    await initializeLibraryGit(another);
+    await expect(applyLibraryGitInitialization(stale)).rejects.toThrow("changed after the preview");
+  });
+
   it("clones only after an unchanged reviewed plan is applied", async () => {
     const parent = mkdtempSync(join(tmpdir(), "dotagent-git-clone-plan-"));
     roots.push(parent);
