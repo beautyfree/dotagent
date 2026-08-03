@@ -48,7 +48,8 @@ Implemented now:
 - read-only `doctor` and managed-target `status` reports;
 - journaled link/junction/copy apply with source revalidation, managed markers, rollback, and crash recovery;
 - deterministic reviewed initialization plans;
-- `init`, `inspect`, preview-only `import`, preview-by-default `resolve`, `doctor`, `audit`, `status`, explicit-target `plan`, confirmed `apply`, and `recover` CLI commands.
+- provider-neutral Git workspace operations with credential-free remote identity, non-interactive fetch, reviewed commits, and fast-forward-only pulls;
+- `init`, `inspect`, preview-only `import`, preview-by-default `resolve`, `doctor`, `audit`, `git-init`, `clone`, `commit`, `sync`, `status`, explicit-target `plan`, confirmed `apply`, and `recover` CLI commands.
 
 Import is reviewed and two-step as well:
 
@@ -73,6 +74,23 @@ beautyfree-dotagent apply materialization-plan.json --yes
 The saved plan contains exact sources, targets, hashes, and preconditions. Apply rejects modified plans, changed sources, targets that appeared after review, unmanaged content, and locally modified managed copies.
 
 When `skills.json` contains dependencies, `plan` requires a current `skills.lock`, prepares the exact locked commits under `.dotagent/cache/`, verifies their package integrity again, and includes their exported skills beside owned skills. Agent targets therefore never depend on a moving branch or an unverified working tree.
+
+The canonical library repository uses the same preview/apply boundary. Authentication remains the caller's responsibility, so the core works with GitHub, GitLab, a private server, or a local bare repository without storing credentials:
+
+```sh
+beautyfree-dotagent git-init ~/.agents --remote git@github.com:you/agent-library.git
+beautyfree-dotagent commit ~/.agents --message "Update my agent library" --out commit-plan.json
+beautyfree-dotagent apply commit-plan.json --yes
+beautyfree-dotagent sync ~/.agents --push --out push-plan.json
+beautyfree-dotagent apply push-plan.json --yes
+```
+
+Pulls are also reviewed first. dotagent fetches without an interactive prompt, checks that the update is a fast-forward, audits the remote tree in an isolated worktree, and scans changed portable files without returning matched secret values. Only the confirmed plan can advance the working library:
+
+```sh
+beautyfree-dotagent sync ~/.agents --pull --out pull-plan.json
+beautyfree-dotagent apply pull-plan.json --yes
+```
 
 Skiller already consumes the shared manifest, Skills CLI, secret-scan, reconciliation, machine-diagnostics, and catalog adapters through compatibility facades. Next: make the shared discovery/import plan renderer-facing, complete the authoritative agent-catalog migration, and finish golden-fixture parity before removing legacy implementations.
 

@@ -100,6 +100,10 @@
       "types": "./dist/sources.d.ts",
       "import": "./dist/sources.js"
     },
+    "./git-workspace": {
+      "types": "./dist/git-workspace.d.ts",
+      "import": "./dist/git-workspace.js"
+    },
     "./machine": {
       "types": "./dist/machine.d.ts",
       "import": "./dist/machine.js"

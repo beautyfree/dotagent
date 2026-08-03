@@ -91,6 +91,20 @@ export interface LibraryAuditReport {
   issues: DotagentIssue[];
 }
 
+export type LibrarySecretFinding = SecretFileFinding & { skill: string };
+
+/** Scans only owned portable files; dependency content is represented by its immutable lock. */
+export async function scanLibraryForSecrets(root: string): Promise<LibrarySecretFinding[]> {
+  const scanned = await scanLibrary(path.resolve(root));
+  if (!scanned.ok) throw new Error(scanned.issues.map((issue) => issue.message).join("; "));
+  const findings: LibrarySecretFinding[] = [];
+  for (const skill of scanned.value.ownedSkills) {
+    const skillRoot = path.join(scanned.value.root, ...skill.path.split("/"));
+    for (const finding of await scanSkillForSecrets(skillRoot)) findings.push({ ...finding, skill: skill.name });
+  }
+  return findings;
+}
+
 function auditIssue(
   code: "missing-skill-metadata" | "missing-license",
   severity: "error" | "warning",
