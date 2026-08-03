@@ -1,8 +1,14 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   createSkillerSyncManifest,
+  mergeSkillerSyncPublishUpdate,
   parseSkillerSyncManifest,
+  planSkillerSyncPublish,
   stringifySkillerSyncManifest,
+  validateSkillerSyncManifest,
 } from "../src/adapters/skiller.js";
 
 describe("Skiller compatibility adapter", () => {
@@ -53,5 +59,79 @@ describe("Skiller compatibility adapter", () => {
         `schema_version: 3\n${base}skills:\n  - { id: bad, kind: reference, repository: https://user:password@example.com/repo, ref: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, skill_path: . }\n`,
       ),
     ).toThrow("credentials");
+  });
+
+  it("plans owned and pinned skills without writing a compatibility library", () => {
+    const root = mkdtempSync(join(tmpdir(), "dotagent-skiller-publish-"));
+    try {
+      const source = join(root, "writing");
+      mkdirSync(source);
+      writeFileSync(join(source, "SKILL.md"), "# Writing\n");
+      const plan = planSkillerSyncPublish("personal", "public", [
+        { id: "writing", sourcePath: source, installationAgentSlugs: ["codex", "codex", "claude-code"] },
+        {
+          kind: "skills_sh",
+          id: "frontend-design",
+          sourceUrl: "https://github.com/vercel-labs/agent-skills",
+          ref: "a".repeat(40),
+          skillPath: "skills/frontend-design",
+        },
+      ]);
+      const bundled = plan.bundledSkills[0];
+      expect(bundled).toBeDefined();
+      if (!bundled) throw new Error("Expected one bundled skill plan");
+
+      expect(plan.manifest.skills).toEqual([
+        {
+          id: "writing",
+          kind: "bundled",
+          path: "skills/writing",
+          sha256: bundled.sha256,
+          installations: ["claude-code", "codex"],
+        },
+        {
+          id: "frontend-design",
+          kind: "skills_sh",
+          source_url: "https://github.com/vercel-labs/agent-skills",
+          ref: "a".repeat(40),
+          skill_path: "skills/frontend-design",
+        },
+      ]);
+      expect(plan.bundledDistributions).toEqual({ writing: "owned" });
+      expect(plan.secretFindings).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("merges only reviewed owned skills and preserves untouched remote entries", () => {
+    const root = mkdtempSync(join(tmpdir(), "dotagent-skiller-merge-"));
+    try {
+      const source = join(root, "writing");
+      mkdirSync(source);
+      writeFileSync(join(source, "SKILL.md"), "# Writing\n");
+      const update = planSkillerSyncPublish("personal", "private", [{ id: "writing", sourcePath: source }]);
+      const dependency = {
+        id: "frontend-design",
+        kind: "reference" as const,
+        repository: "https://github.com/vercel-labs/agent-skills",
+        ref: "b".repeat(40),
+        skill_path: "skills/frontend-design",
+      };
+      const base = validateSkillerSyncManifest({
+        ...update.manifest,
+        skills: [update.manifest.skills[0], dependency],
+      });
+
+      expect(mergeSkillerSyncPublishUpdate(base, update).manifest.skills.map((skill) => skill.id)).toEqual([
+        "writing",
+        "frontend-design",
+      ]);
+      expect(() =>
+        mergeSkillerSyncPublishUpdate(validateSkillerSyncManifest({ ...base, skills: [dependency] }), update),
+      ).toThrow("not a known bundled skill");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

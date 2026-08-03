@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { VendoredOrigin } from "../config.js";
+import { type SkillExportFinding, type SkillExportPlan } from "../export-policy.js";
 /** Compatibility format used by Skiller before beautyfree/dotagent libraries. */
 export declare const SKILLER_SYNC_MANIFEST_FILE = "skiller-sync.yaml";
 export declare const SKILLER_SYNC_MANIFEST_VERSION: 3;
@@ -241,6 +243,49 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
 }>;
 export type SkillerSyncManifest = z.infer<typeof skillerSyncManifestSchema>;
 export type SkillerSyncSkill = SkillerSyncManifest["skills"][number];
+export interface SkillerBundledPublishCandidate {
+    kind?: "bundled";
+    id: string;
+    sourcePath: string;
+    installationAgentSlugs?: string[];
+}
+export interface SkillerReferencePublishCandidate {
+    kind: "reference";
+    id: string;
+    repository: string;
+    ref: string;
+    skillPath: string;
+    contentHash?: string;
+    installationAgentSlugs?: string[];
+}
+export interface SkillerSkillsShPublishCandidate {
+    kind: "skills_sh";
+    id: string;
+    sourceUrl: string;
+    ref: string;
+    skillPath: string;
+    contentHash?: string;
+    installationAgentSlugs?: string[];
+}
+export interface SkillerVendoredPublishCandidate {
+    kind: "vendored";
+    id: string;
+    sourcePath: string;
+    origin: VendoredOrigin;
+    installationAgentSlugs?: string[];
+}
+export type SkillerSyncPublishCandidate = SkillerBundledPublishCandidate | SkillerReferencePublishCandidate | SkillerSkillsShPublishCandidate | SkillerVendoredPublishCandidate;
+export type SkillerBundledExportPlan = Omit<SkillExportPlan, "skill"> & {
+    id: string;
+    bundledPath: string;
+};
+export interface SkillerSyncPublishPlan {
+    manifest: SkillerSyncManifest;
+    bundledSkills: SkillerBundledExportPlan[];
+    bundledDistributions: Record<string, "owned" | "vendored">;
+    vendoredOrigins: Record<string, VendoredOrigin>;
+    secretFindings: SkillExportFinding[];
+}
 export declare function assertSkillerStableId(id: string): void;
 /** Legacy Skiller paths are strict POSIX-relative paths; traversal is rejected, not normalized. */
 export declare function assertSkillerPortableRelativePath(value: string): void;
@@ -251,4 +296,13 @@ export declare function validateSkillerSyncManifest(input: unknown): SkillerSync
 export declare function parseSkillerSyncManifest(text: string): SkillerSyncManifest;
 export declare function stringifySkillerSyncManifest(manifest: SkillerSyncManifest): string;
 export declare function createSkillerSyncManifest(profileId: string, mode?: SkillerSyncManifest["profile"]["mode"], agentPolicy?: SkillerSyncManifest["agent_policy"]): SkillerSyncManifest;
+/**
+ * Builds Skiller's compatibility publish payload without writing to the library.
+ * Source inspection, integrity, and secret findings come from dotagent's shared export policy.
+ */
+export declare function planSkillerSyncPublish(profileId: string, mode: SkillerSyncManifest["profile"]["mode"], candidates: SkillerSyncPublishCandidate[], agentPolicy?: SkillerSyncManifest["agent_policy"]): SkillerSyncPublishPlan;
+/** Keeps untouched remote skills while applying an explicitly reviewed owned-skill update. */
+export declare function mergeSkillerSyncPublishUpdate(base: SkillerSyncManifest, update: SkillerSyncPublishPlan, options?: {
+    allowSourceConversion?: boolean;
+}): SkillerSyncPublishPlan;
 //# sourceMappingURL=skiller.d.ts.map

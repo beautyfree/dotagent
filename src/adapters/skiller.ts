@@ -1,5 +1,7 @@
 import { parse, stringify } from "yaml";
 import { z } from "zod";
+import type { VendoredOrigin } from "../config.js";
+import { planSkillExport, type SkillExportFinding, type SkillExportPlan } from "../export-policy.js";
 
 /** Compatibility format used by Skiller before beautyfree/dotagent libraries. */
 export const SKILLER_SYNC_MANIFEST_FILE = "skiller-sync.yaml";
@@ -81,6 +83,60 @@ const v1SkillerSyncManifestSchema = manifestBaseSchema.extend({
 
 export type SkillerSyncManifest = z.infer<typeof skillerSyncManifestSchema>;
 export type SkillerSyncSkill = SkillerSyncManifest["skills"][number];
+
+export interface SkillerBundledPublishCandidate {
+  kind?: "bundled";
+  id: string;
+  sourcePath: string;
+  installationAgentSlugs?: string[];
+}
+
+export interface SkillerReferencePublishCandidate {
+  kind: "reference";
+  id: string;
+  repository: string;
+  ref: string;
+  skillPath: string;
+  contentHash?: string;
+  installationAgentSlugs?: string[];
+}
+
+export interface SkillerSkillsShPublishCandidate {
+  kind: "skills_sh";
+  id: string;
+  sourceUrl: string;
+  ref: string;
+  skillPath: string;
+  contentHash?: string;
+  installationAgentSlugs?: string[];
+}
+
+export interface SkillerVendoredPublishCandidate {
+  kind: "vendored";
+  id: string;
+  sourcePath: string;
+  origin: VendoredOrigin;
+  installationAgentSlugs?: string[];
+}
+
+export type SkillerSyncPublishCandidate =
+  | SkillerBundledPublishCandidate
+  | SkillerReferencePublishCandidate
+  | SkillerSkillsShPublishCandidate
+  | SkillerVendoredPublishCandidate;
+
+export type SkillerBundledExportPlan = Omit<SkillExportPlan, "skill"> & {
+  id: string;
+  bundledPath: string;
+};
+
+export interface SkillerSyncPublishPlan {
+  manifest: SkillerSyncManifest;
+  bundledSkills: SkillerBundledExportPlan[];
+  bundledDistributions: Record<string, "owned" | "vendored">;
+  vendoredOrigins: Record<string, VendoredOrigin>;
+  secretFindings: SkillExportFinding[];
+}
 
 export function assertSkillerStableId(id: string): void {
   if (!skillerStableIdSchema.safeParse(id).success) throw new Error(`Invalid sync stable id: ${id}`);
@@ -165,4 +221,107 @@ export function createSkillerSyncManifest(
     agent_policy: agentPolicy,
     skills: [],
   });
+}
+
+function normalizedInstallations(agentSlugs: string[] | undefined): string[] | undefined {
+  return agentSlugs?.length ? [...new Set(agentSlugs)].sort() : undefined;
+}
+
+/**
+ * Builds Skiller's compatibility publish payload without writing to the library.
+ * Source inspection, integrity, and secret findings come from dotagent's shared export policy.
+ */
+export function planSkillerSyncPublish(
+  profileId: string,
+  mode: SkillerSyncManifest["profile"]["mode"],
+  candidates: SkillerSyncPublishCandidate[],
+  agentPolicy?: SkillerSyncManifest["agent_policy"],
+): SkillerSyncPublishPlan {
+  const bundledCandidates = candidates.filter(
+    (candidate): candidate is SkillerBundledPublishCandidate | SkillerVendoredPublishCandidate =>
+      candidate.kind === undefined || candidate.kind === "bundled" || candidate.kind === "vendored",
+  );
+  const bundledSkills = bundledCandidates.map((candidate): SkillerBundledExportPlan => {
+    const plan = planSkillExport(candidate.id, candidate.sourcePath);
+    return {
+      id: candidate.id,
+      sourcePath: plan.sourcePath,
+      bundledPath: `skills/${candidate.id}`,
+      sha256: plan.sha256,
+      files: plan.files,
+      excludedPaths: plan.excludedPaths,
+      secretFindings: plan.secretFindings,
+    };
+  });
+  const bundledById = new Map(bundledSkills.map((skill) => [skill.id, skill]));
+  const manifest = createSkillerSyncManifest(profileId, mode, agentPolicy);
+  manifest.skills = candidates.map((candidate): SkillerSyncSkill => {
+    const installations = normalizedInstallations(candidate.installationAgentSlugs);
+    if (candidate.kind === "reference") {
+      return {
+        id: candidate.id,
+        kind: "reference",
+        repository: candidate.repository,
+        ref: candidate.ref,
+        skill_path: candidate.skillPath,
+        ...(candidate.contentHash ? { sha256: candidate.contentHash } : {}),
+        ...(installations ? { installations } : {}),
+      };
+    }
+    if (candidate.kind === "skills_sh") {
+      return {
+        id: candidate.id,
+        kind: "skills_sh",
+        source_url: candidate.sourceUrl,
+        ref: candidate.ref,
+        skill_path: candidate.skillPath,
+        ...(candidate.contentHash ? { sha256: candidate.contentHash } : {}),
+        ...(installations ? { installations } : {}),
+      };
+    }
+    const skill = bundledById.get(candidate.id);
+    if (!skill) throw new Error(`Missing bundled export plan: ${candidate.id}`);
+    return {
+      id: skill.id,
+      kind: "bundled",
+      path: skill.bundledPath,
+      sha256: skill.sha256,
+      ...(installations ? { installations } : {}),
+    };
+  });
+  return {
+    manifest: validateSkillerSyncManifest(manifest),
+    bundledSkills,
+    bundledDistributions: Object.fromEntries(
+      bundledCandidates.map((candidate) => [candidate.id, candidate.kind === "vendored" ? "vendored" : "owned"]),
+    ),
+    vendoredOrigins: Object.fromEntries(
+      bundledCandidates
+        .filter((candidate): candidate is SkillerVendoredPublishCandidate => candidate.kind === "vendored")
+        .map((candidate) => [candidate.id, candidate.origin]),
+    ),
+    secretFindings: bundledSkills.flatMap((skill) => skill.secretFindings),
+  };
+}
+
+/** Keeps untouched remote skills while applying an explicitly reviewed owned-skill update. */
+export function mergeSkillerSyncPublishUpdate(
+  base: SkillerSyncManifest,
+  update: SkillerSyncPublishPlan,
+  options: { allowSourceConversion?: boolean } = {},
+): SkillerSyncPublishPlan {
+  const replacement = new Map(update.manifest.skills.map((skill) => [skill.id, skill]));
+  for (const skill of update.manifest.skills) {
+    const previous = base.skills.find((item) => item.id === skill.id);
+    if (!previous || skill.kind !== "bundled" || (!options.allowSourceConversion && previous.kind !== "bundled")) {
+      throw new Error(`Granular sync update is not a known bundled skill: ${skill.id}`);
+    }
+  }
+  return {
+    ...update,
+    manifest: validateSkillerSyncManifest({
+      ...base,
+      skills: base.skills.map((skill) => replacement.get(skill.id) ?? skill),
+    }),
+  };
 }

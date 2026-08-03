@@ -11,7 +11,7 @@
     {
       "subpath": "./adapters/skiller",
       "types": "./dist/adapters/skiller.d.ts",
-      "sha256": "84f884a2963c62c80f285e47e657c209cd511e9f98adc0ae7e4b54197803b523"
+      "sha256": "9705cf3627c7082e0c6232a65ac31465322b37d42769012de43fdb4203057b90"
     },
     {
       "subpath": "./adapters/skiller-agents",
