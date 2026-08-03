@@ -25,6 +25,14 @@ export type GitWorkspaceSecretFinding = {
     line: number;
     column: number;
 };
+export interface GitClonePlan {
+    kind: "git-clone";
+    schemaVersion: 1;
+    planId: string;
+    remote: string;
+    remoteIdentity: string;
+    destination: string;
+}
 export interface GitCommitPlan {
     kind: "git-commit";
     schemaVersion: 1;
@@ -80,6 +88,8 @@ export interface GitPushPlan {
 export declare function initializeLibraryGit(root: string, remote?: string, git?: WorkspaceGitPort): Promise<void>;
 export declare function setLibraryRemote(root: string, remote: string, git?: WorkspaceGitPort): Promise<void>;
 export declare function cloneLibrary(remote: string, target: string, git?: WorkspaceGitPort): Promise<void>;
+export declare function planLibraryClone(remote: string, target: string): Promise<GitClonePlan>;
+export declare function applyLibraryClone(plan: GitClonePlan, git?: WorkspaceGitPort): Promise<void>;
 export declare function getLibraryGitStatus(root: string, git?: WorkspaceGitPort): Promise<GitWorkspaceStatus>;
 export declare function planLibraryCommit(root: string, message: string, visibility?: GitCommitPlan["visibility"], git?: WorkspaceGitPort): Promise<GitCommitPlan>;
 export declare function applyLibraryCommit(plan: GitCommitPlan, git?: WorkspaceGitPort): Promise<string | null>;

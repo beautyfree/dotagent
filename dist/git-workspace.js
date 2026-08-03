@@ -6,8 +6,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { auditLibrary, scanTextForSecrets } from "./audit.js";
 import { loadLibrary } from "./library.js";
-import { computePlanId } from "./plan.js";
 import { normalizePortablePath } from "./paths.js";
+import { computePlanId } from "./plan.js";
 import { normalizeGitIdentity } from "./sources.js";
 const execFileAsync = promisify(execFile);
 const DEFAULT_BRANCH = "main";
@@ -167,6 +167,18 @@ function assertPlanId(plan) {
     if (computePlanId(payload) !== planId)
         throw new Error("Git plan is stale or modified");
 }
+function credentialFreeCloneRemote(remote) {
+    const value = remote.trim();
+    if (!value || /[\r\n\0]/.test(value))
+        throw new Error("Git URL must be a single non-empty value");
+    const identity = normalizeGitIdentity(value);
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
+        const parsed = new URL(value.replace(/^git\+/, ""));
+        if (parsed.search || parsed.hash)
+            throw new Error("Git URL must not contain query parameters or fragments");
+    }
+    return { remote: value, identity };
+}
 export async function initializeLibraryGit(root, remote, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
     if (!(await exists(path.join(library, ".git")))) {
@@ -189,18 +201,38 @@ export async function setLibraryRemote(root, remote, git = new NodeWorkspaceGitP
     }
 }
 export async function cloneLibrary(remote, target, git = new NodeWorkspaceGitPort()) {
-    normalizeGitIdentity(remote);
+    const plan = await planLibraryClone(remote, target);
+    await applyLibraryClone(plan, git);
+}
+export async function planLibraryClone(remote, target) {
+    const validated = credentialFreeCloneRemote(remote);
     const destination = path.resolve(target);
     if (await exists(destination))
         throw new Error("Clone destination must not already exist");
+    return withPlanId({
+        kind: "git-clone",
+        schemaVersion: 1,
+        remote: validated.remote,
+        remoteIdentity: validated.identity,
+        destination,
+    });
+}
+export async function applyLibraryClone(plan, git = new NodeWorkspaceGitPort()) {
+    assertPlanId(plan);
+    const current = await planLibraryClone(plan.remote, plan.destination);
+    if (current.planId !== plan.planId)
+        throw new Error("Clone destination or remote changed after the preview");
+    const destination = plan.destination;
     await mkdir(path.dirname(destination), { recursive: true });
-    const staging = `${destination}.dotagent-clone-${process.pid}`;
-    await rm(staging, { recursive: true, force: true });
+    const staging = await mkdtemp(path.join(path.dirname(destination), `.${path.basename(destination)}.dotagent-clone-`));
     try {
-        await git.run(["clone", "--", remote, staging], path.dirname(destination));
+        await rm(staging, { recursive: true, force: true });
+        await git.run(["clone", "--", plan.remote, staging], path.dirname(destination));
         await ensureLibrary(staging);
         await git.run(["config", "user.name", GIT_NAME], staging);
         await git.run(["config", "user.email", GIT_EMAIL], staging);
+        if (await exists(destination))
+            throw new Error("Clone destination appeared after the preview");
         await rename(staging, destination);
     }
     catch (error) {
