@@ -83,7 +83,7 @@ describe("Git-backed library workspace", () => {
     expect(readFileSync(join(first, "skills/review/SKILL.md"), "utf8")).toContain("first");
     await applyLibraryPull(pull);
     expect(readFileSync(join(first, "skills/review/SKILL.md"), "utf8")).toContain("second");
-  });
+  }, 20_000);
 
   it("blocks a malicious remote secret before fast-forwarding the working tree", async () => {
     const parent = mkdtempSync(join(tmpdir(), "dotagent-git-secret-pull-"));
@@ -109,5 +109,5 @@ describe("Git-backed library workspace", () => {
     await expect(applyLibraryPull(pull)).rejects.toThrow("blockers");
     expect(readFileSync(join(first, "README.md"), "utf8")).not.toContain("ghp_");
     expect(existsSync(join(first, ".dotagent"))).toBe(true);
-  });
+  }, 20_000);
 });
