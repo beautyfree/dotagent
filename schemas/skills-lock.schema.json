@@ -1,0 +1,90 @@
+{
+  "$ref": "#/definitions/DotagentSkillsLock",
+  "definitions": {
+    "DotagentSkillsLock": {
+      "type": "object",
+      "properties": {
+        "lockfile_version": {
+          "type": "number",
+          "const": 1
+        },
+        "generated_by": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "resolved": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "requested_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "commit": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40}$"
+              },
+              "integrity": {
+                "type": "string",
+                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+              },
+              "license": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "skills": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "url",
+              "requested_ref",
+              "commit",
+              "integrity",
+              "skills"
+            ],
+            "additionalProperties": false
+          },
+          "propertyNames": {
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "lockfile_version",
+        "generated_by",
+        "resolved"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

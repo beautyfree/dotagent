@@ -9,7 +9,18 @@ const packed = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], {
   env: { ...process.env, npm_config_ignore_scripts: "true" },
 }));
 const files = new Set(packed[0]?.files?.map((entry) => entry.path) ?? []);
-const required = ["package.json", "README.md", "LICENSE", "NOTICE.md", "dist/index.js", "dist/index.d.ts", "dist/cli.js"];
+const required = [
+  "package.json",
+  "README.md",
+  "LICENSE",
+  "NOTICE.md",
+  "dist/index.js",
+  "dist/index.d.ts",
+  "dist/cli.js",
+  "schemas/skills.schema.json",
+  "schemas/skills-lock.schema.json",
+  "schemas/dotagent.schema.json",
+];
 for (const file of required) {
   if (!files.has(file)) throw new Error(`Package is missing required file: ${file}`);
 }
@@ -21,6 +32,11 @@ for (const file of files) {
 const cli = readFileSync(new URL("dist/cli.js", root), "utf8");
 if (!cli.startsWith("#!/usr/bin/env node")) throw new Error("Published CLI is missing its Node shebang");
 for (const [subpath, target] of Object.entries(manifest.exports ?? {})) {
+  if (typeof target === "string") {
+    const relative = target.replace(/^\.\//, "");
+    if (!files.has(relative)) throw new Error(`Export ${subpath} has no packaged target`);
+    continue;
+  }
   for (const field of ["types", "import"]) {
     const relative = target?.[field]?.replace(/^\.\//, "");
     if (!relative || !files.has(relative)) throw new Error(`Export ${subpath} has no packaged ${field} target`);

@@ -1,0 +1,73 @@
+{
+  "$ref": "#/definitions/DotagentPortableConfig",
+  "definitions": {
+    "DotagentPortableConfig": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "minimum_dotagent_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "defaults": {
+          "type": "object",
+          "properties": {
+            "include": {
+              "type": "string",
+              "enum": [
+                "all",
+                "owned",
+                "selected"
+              ],
+              "default": "all"
+            }
+          },
+          "additionalProperties": false,
+          "default": {
+            "include": "all"
+          }
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "include": {
+                "type": "boolean"
+              },
+              "agents": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+                },
+                "minItems": 1
+              },
+              "distribution": {
+                "type": "string",
+                "enum": [
+                  "dependency",
+                  "vendored"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "propertyNames": {
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+          },
+          "default": {}
+        }
+      },
+      "required": [
+        "schema_version"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "skills": {
+    "review": {
+      "source": "example/review-tools",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/example/review-tools",
+      "ref": "main",
+      "skillPath": "skills/review",
+      "updatedAt": "2026-08-03T00:00:00.000Z"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+schema_version: 3
+profile:
+  id: public-toolkit
+  mode: public
+agent_policy:
+  mode: selected
+  agent_slugs: [codex]
+skills:
+  - id: writing
+    kind: bundled
+    path: skills/writing
+    sha256: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+    installations: [codex]
+  - id: review
+    kind: reference
+    repository: https://github.com/example/review-tools.git
+    ref: ffffffffffffffffffffffffffffffffffffffff
+    skill_path: skills/review
+    installations: [codex]
+  - id: browser
+    kind: skills_sh
+    source_url: https://github.com/example/browser-tools.git
+    ref: '1111111111111111111111111111111111111111'
+    skill_path: skills/browser
+    installations: [codex]

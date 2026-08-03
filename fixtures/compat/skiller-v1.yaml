@@ -1,0 +1,16 @@
+schema_version: 1
+profile:
+  id: personal
+  mode: private
+agent_policy:
+  mode: detected
+skills:
+  - id: writing
+    kind: bundled
+    path: skills/writing
+    sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  - id: review
+    kind: reference
+    repository: https://github.com/example/review-tools.git
+    ref: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    skill_path: skills/review
