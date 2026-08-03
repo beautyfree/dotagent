@@ -49,7 +49,7 @@ Implemented now:
 - read-only cross-agent discovery that deduplicates shared skills and real agent links while preserving same-name conflicts;
 - reviewed canonical import plans for owned, dependency, local-only, and excluded skills;
 - journaled import apply/recovery with stale-source, unmanaged-target, and value-free secret checks;
-- shared three-way conflict classification;
+- deterministic library reconciliation plans with shared three-way classification, explicit take-remote decisions, stale-plan/source/target checks, transactional rollback, and crash recovery;
 - typed agent capabilities and deterministic materialization previews that refuse unmanaged targets;
 - guarded machine detection that separates shared skills from agent-install evidence;
 - read-only `doctor` and managed-target `status` reports;
