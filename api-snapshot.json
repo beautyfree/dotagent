@@ -6,7 +6,7 @@
     {
       "subpath": ".",
       "types": "./dist/index.d.ts",
-      "sha256": "72ad87509f98f60eaad8303b03ff4ddd1b651db431e967afbe2e5561886de527"
+      "sha256": "ec8b74696ea5079bcf4e9d31687297735c872927cf9442f22f9c91b6c3e099ce"
     },
     {
       "subpath": "./adapters/skiller",
@@ -67,6 +67,11 @@
       "subpath": "./export-policy",
       "types": "./dist/export-policy.d.ts",
       "sha256": "a3f334f67bbe726514415a5f684cacfecab8b7487811e296a3fe1bd32060fb21"
+    },
+    {
+      "subpath": "./git-fast-forward",
+      "types": "./dist/git-fast-forward.d.ts",
+      "sha256": "ab6f270654e6c426c8b6e36141243f2eb8d32df540cad16ab1a0b2c39d965d87"
     },
     {
       "subpath": "./git-workspace",

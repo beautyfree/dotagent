@@ -12,6 +12,7 @@ export * from "./discovery.js";
 export * from "./doctor.js";
 export * from "./export-policy.js";
 export * from "./git-resolver.js";
+export * from "./git-fast-forward.js";
 export * from "./git-workspace.js";
 export * from "./import.js";
 export * from "./import-apply.js";

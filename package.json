@@ -135,6 +135,10 @@
       "types": "./dist/git-workspace.d.ts",
       "import": "./dist/git-workspace.js"
     },
+    "./git-fast-forward": {
+      "types": "./dist/git-fast-forward.d.ts",
+      "import": "./dist/git-fast-forward.js"
+    },
     "./machine": {
       "types": "./dist/machine.d.ts",
       "import": "./dist/machine.js"
