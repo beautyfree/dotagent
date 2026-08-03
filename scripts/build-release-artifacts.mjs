@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
+import { extractReleaseNotes } from "./release-notes.mjs";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
 const output = resolve(root, process.argv[2] ?? "release-artifacts");
@@ -62,6 +63,11 @@ const documentation = [
   { source: "docs/rfc-210-compatibility.md", target: "rfc-210-compatibility.md" },
 ];
 for (const entry of documentation) copyFileSync(resolve(root, entry.source), resolve(output, entry.target));
+const releaseNotes = extractReleaseNotes(readFileSync(resolve(root, "CHANGELOG.md"), "utf8"), manifest.version, {
+  allowUnreleased: manifest.private === true || manifest.version === "0.0.0",
+});
+writeFileSync(resolve(output, "RELEASE_NOTES.md"), releaseNotes);
+const releaseDocumentation = [...documentation.map((entry) => entry.target), "RELEASE_NOTES.md"];
 
 const releaseManifest = {
   package: manifest.name,
@@ -80,9 +86,9 @@ const releaseManifest = {
     file: "dotagent.sbom.cdx.json",
     sha256: sha256File(resolve(output, "dotagent.sbom.cdx.json")),
   },
-  documentation: documentation.map((entry) => ({
-    file: entry.target,
-    sha256: sha256File(resolve(output, entry.target)),
+  documentation: releaseDocumentation.map((file) => ({
+    file,
+    sha256: sha256File(resolve(output, file)),
   })),
 };
 writeFileSync(resolve(output, "release-manifest.json"), `${JSON.stringify(releaseManifest, null, 2)}\n`);
@@ -90,7 +96,7 @@ writeFileSync(resolve(output, "release-manifest.json"), `${JSON.stringify(releas
 const checksummed = [
   filename,
   "dotagent.sbom.cdx.json",
-  ...documentation.map((entry) => entry.target),
+  ...releaseDocumentation,
   "release-manifest.json",
 ];
 writeFileSync(

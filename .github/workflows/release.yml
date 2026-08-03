@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v6.0.2
@@ -67,5 +67,7 @@ jobs:
         run: bun run release:verify
         env:
           EXPECTED_SOURCE_COMMIT: ${{ github.sha }}
-      - name: Publish the validated tarball with npm provenance
-        run: npm publish release-artifacts/*.tgz --access public --provenance
+      - name: Publish npm provenance and permanent GitHub release artifacts
+        run: node scripts/publish-release-artifacts.mjs release-artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}

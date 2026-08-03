@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, resolve } from "node:path";
+import { extractReleaseNotes } from "./release-notes.mjs";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
 const artifactRoot = resolve(root, process.argv[2] ?? "release-artifacts");
@@ -29,6 +30,23 @@ if (!tarballName.endsWith(".tgz") || tarballName !== releaseManifest.tarball)
   throw new Error("Release tarball name is unsafe or missing");
 const tarball = resolve(artifactRoot, tarballName);
 if (!existsSync(tarball)) throw new Error("Release tarball is missing");
+const expectedArtifacts = new Set([
+  tarballName,
+  `${tarballName}.sha256`,
+  "SHA256SUMS",
+  "dotagent.sbom.cdx.json",
+  "CHANGELOG.md",
+  "RELEASE_NOTES.md",
+  "migrating-from-skiller.md",
+  "rfc-210-compatibility.md",
+  "release-manifest.json",
+]);
+const actualArtifacts = readdirSync(artifactRoot);
+for (const file of actualArtifacts) {
+  if (!expectedArtifacts.delete(file)) throw new Error(`Unexpected release artifact: ${file}`);
+  if (!statSync(resolve(artifactRoot, file)).isFile()) throw new Error(`Release artifact is not a file: ${file}`);
+}
+if (expectedArtifacts.size > 0) throw new Error(`Missing release artifacts: ${[...expectedArtifacts].join(", ")}`);
 requireEqual(sha(tarball, "sha256"), releaseManifest.tarball_sha256, "Tarball SHA-256");
 requireEqual(sha(tarball, "sha1"), releaseManifest.npm_shasum, "npm shasum");
 requireEqual(`sha512-${sha(tarball, "sha512", "base64")}`, releaseManifest.npm_integrity, "npm integrity");
@@ -44,6 +62,7 @@ const requiredChecksums = new Set([
   tarballName,
   "dotagent.sbom.cdx.json",
   "CHANGELOG.md",
+  "RELEASE_NOTES.md",
   "migrating-from-skiller.md",
   "rfc-210-compatibility.md",
   "release-manifest.json",
@@ -67,13 +86,25 @@ requireEqual(sbom.metadata?.component?.version, packageManifest.version, "SBOM p
 if (!String(sbom.metadata?.component?.purl ?? "").includes("%40beautyfree/dotagent"))
   throw new Error("SBOM package identity is missing");
 
-const requiredDocumentation = new Set(["CHANGELOG.md", "migrating-from-skiller.md", "rfc-210-compatibility.md"]);
+const requiredDocumentation = new Set([
+  "CHANGELOG.md",
+  "RELEASE_NOTES.md",
+  "migrating-from-skiller.md",
+  "rfc-210-compatibility.md",
+]);
 for (const entry of releaseManifest.documentation ?? []) {
   if (!requiredDocumentation.delete(entry.file)) throw new Error(`Unexpected or duplicate release document: ${entry.file}`);
   requireEqual(sha(resolve(artifactRoot, entry.file), "sha256"), entry.sha256, `Documentation ${entry.file}`);
 }
 if (requiredDocumentation.size > 0)
   throw new Error(`Missing release documentation: ${[...requiredDocumentation].join(", ")}`);
+requireEqual(
+  readFileSync(resolve(artifactRoot, "RELEASE_NOTES.md"), "utf8"),
+  extractReleaseNotes(readFileSync(resolve(root, "CHANGELOG.md"), "utf8"), packageManifest.version, {
+    allowUnreleased: packageManifest.private === true || packageManifest.version === "0.0.0",
+  }),
+  "Release notes",
+);
 
 const packageEntries = new Set(
   execFileSync("tar", ["-tzf", tarball], { encoding: "utf8" }).trim().split("\n"),

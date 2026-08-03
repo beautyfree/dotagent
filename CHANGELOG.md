@@ -25,6 +25,7 @@ All notable changes to `@beautyfree/dotagent` are recorded here. The project fol
 - A shared, runtime-validated import-decision contract covers suggested, owned, dependency, vendored, local-only, and excluded outcomes; vendoring requires an explicit upstream license.
 - Interrupted import and materialization recovery now has a value-redacted no-write preview and a stale-checked plan ID before `--yes` can modify local state.
 - Release artifacts now bind the npm tarball, CycloneDX SBOM, changelog, migration/RFC documentation, package integrity, and immutable source commit through verified checksums.
+- Release publication is retry-safe: an existing npm version must match the reviewed tarball integrity, and a permanent GitHub Release stays draft until every verified artifact is uploaded.
 
 ### Security
 

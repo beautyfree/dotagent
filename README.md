@@ -29,6 +29,21 @@ The package requires Node.js 20 or later at runtime and is developed with Bun. C
 - [Migrate from a Skiller sync repository](docs/migrating-from-skiller.md)
 - [Changelog](CHANGELOG.md)
 
+## Release boundary
+
+The manual `Release package` workflow is the only publication path. Validation
+always builds and verifies the npm tarball, CycloneDX SBOM, checksums,
+version-specific release notes, changelog, migration guide, RFC compatibility
+guide, and source-commit manifest before the protected publish job can run.
+
+The publish job requires a reviewed real version and `private: false`. It first
+publishes the exact verified tarball with npm provenance, or accepts an already
+published retry only when registry integrity is identical. It then creates a
+GitHub Release as a draft, uploads the complete artifact set, verifies every
+asset and the exact tag commit, and only then makes the release public. This
+keeps retries safe after a partial external failure without replacing a
+different npm version or Git tag.
+
 ## Status
 
 Implemented now:
