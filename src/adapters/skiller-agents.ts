@@ -28,9 +28,10 @@ export function skillerAgentConfigToDescriptor(
   options: SkillerAgentCatalogOptions = {},
 ): AgentDescriptor {
   const sharedSkillsPath = options.sharedSkillsPath ?? "~/.agents/skills";
-  const readsShared = config.additional_readable_paths?.some((entry) =>
-    entry.source_agent === "shared" || entry.path === sharedSkillsPath
-  ) ?? false;
+  const readsShared =
+    config.additional_readable_paths?.some(
+      (entry) => entry.source_agent === "shared" || entry.path === sharedSkillsPath,
+    ) ?? false;
   const skills: SkillDelivery[] = [
     ...(readsShared ? [{ kind: "native-shared" as const }] : []),
     ...(config.global_paths.length > 0 ? [{ kind: "per-skill-link" as const, roots: [...config.global_paths] }] : []),

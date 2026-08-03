@@ -30,11 +30,16 @@ async function emitPlan(plan, output, json, label) {
 async function main() {
     const [command = "help", ...args] = process.argv.slice(2);
     const valueOptions = new Set(["--name", "--out", "--target", "--owned", "--candidate-file", "--remote", "--message"]);
-    const optionValues = (name) => args.flatMap((argument, index) => argument === name && args[index + 1] ? [args[index + 1]] : []);
+    const optionValues = (name) => args.flatMap((argument, index) => {
+        const value = args[index + 1];
+        return argument === name && value ? [value] : [];
+    });
     const optionValue = (name) => optionValues(name)[0];
     const positional = [];
     for (let index = 0; index < args.length; index += 1) {
         const argument = args[index];
+        if (!argument)
+            continue;
         if (valueOptions.has(argument)) {
             index += 1;
             continue;
@@ -71,8 +76,17 @@ async function main() {
         const plan = await planResolveDependencies(loaded.value.manifest, new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") }), loaded.value.lock);
         if (args.includes("--write"))
             await applyResolutionPlan(root, plan);
-        const result = { ok: true, root, plan_id: plan.planId, written: args.includes("--write"), changes: plan.changes, lock: plan.lock };
-        process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `${plan.changes.length} dependency changes planned${args.includes("--write") ? " and written" : " (preview only; pass --write to save)"}.\n`);
+        const result = {
+            ok: true,
+            root,
+            plan_id: plan.planId,
+            written: args.includes("--write"),
+            changes: plan.changes,
+            lock: plan.lock,
+        };
+        process.stdout.write(json
+            ? `${JSON.stringify(result, null, 2)}\n`
+            : `${plan.changes.length} dependency changes planned${args.includes("--write") ? " and written" : " (preview only; pass --write to save)"}.\n`);
         return 0;
     }
     if (command === "import") {
@@ -82,7 +96,8 @@ async function main() {
             const absoluteFile = path.resolve(candidateFile);
             const parsed = validateImportCandidates(JSON.parse(await readFile(absoluteFile, "utf8")));
             for (const candidate of parsed) {
-                if ((candidate.kind === "owned" || candidate.kind === "local-only" || candidate.kind === "excluded") && candidate.sourcePath) {
+                if ((candidate.kind === "owned" || candidate.kind === "local-only" || candidate.kind === "excluded") &&
+                    candidate.sourcePath) {
                     candidate.sourcePath = path.resolve(path.dirname(absoluteFile), candidate.sourcePath);
                 }
                 candidates.push(candidate);
@@ -112,7 +127,10 @@ async function main() {
         return report.ok ? 0 : 1;
     }
     if (command === "audit") {
-        const report = await auditLibrary({ root: path.resolve(directory), visibility: args.includes("--public") ? "public" : "private" });
+        const report = await auditLibrary({
+            root: path.resolve(directory),
+            visibility: args.includes("--public") ? "public" : "private",
+        });
         if (json)
             process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
         else if (report.issues.length === 0)
@@ -126,7 +144,9 @@ async function main() {
         const root = path.resolve(directory);
         await initializeLibraryGit(root, optionValue("--remote"));
         const status = await getLibraryGitStatus(root);
-        process.stdout.write(json ? `${JSON.stringify(status, null, 2)}\n` : `Git workspace initialized on ${status.branch}${status.remoteIdentity ? ` with ${status.remoteIdentity}` : ""}.\n`);
+        process.stdout.write(json
+            ? `${JSON.stringify(status, null, 2)}\n`
+            : `Git workspace initialized on ${status.branch}${status.remoteIdentity ? ` with ${status.remoteIdentity}` : ""}.\n`);
         return 0;
     }
     if (command === "clone") {
@@ -137,7 +157,9 @@ async function main() {
         const destination = path.resolve(target);
         await cloneLibrary(remote, destination);
         const status = await getLibraryGitStatus(destination);
-        process.stdout.write(json ? `${JSON.stringify({ ok: true, root: destination, ...status }, null, 2)}\n` : `Cloned the library to ${destination}.\n`);
+        process.stdout.write(json
+            ? `${JSON.stringify({ ok: true, root: destination, ...status }, null, 2)}\n`
+            : `Cloned the library to ${destination}.\n`);
         return 0;
     }
     if (command === "commit") {
@@ -165,7 +187,9 @@ async function main() {
             return 0;
         }
         const gitStatus = await getLibraryGitStatus(root);
-        process.stdout.write(json ? `${JSON.stringify(gitStatus, null, 2)}\n` : `${gitStatus.branch}: ${gitStatus.changed ? "uncommitted changes" : "clean"}, ${gitStatus.ahead} ahead, ${gitStatus.behind} behind.\n`);
+        process.stdout.write(json
+            ? `${JSON.stringify(gitStatus, null, 2)}\n`
+            : `${gitStatus.branch}: ${gitStatus.changed ? "uncommitted changes" : "clean"}, ${gitStatus.ahead} ahead, ${gitStatus.behind} behind.\n`);
         return 0;
     }
     if (command === "status") {
@@ -189,20 +213,27 @@ async function main() {
         if (!["darwin", "linux", "win32"].includes(platform))
             throw new Error(`Unsupported platform: ${process.platform}`);
         const targets = await Promise.all(targetSpecs.map(async (spec) => {
+            const root = spec.root;
             const delivery = spec.mode === "native"
                 ? { kind: "native-shared" }
                 : spec.mode === "copy"
-                    ? { kind: "copy-only", roots: [spec.root] }
-                    : { kind: "per-skill-link", roots: [spec.root] };
-            const descriptor = { slug: spec.slug, displayName: spec.slug, platforms: [platform], detection: [], skills: [delivery] };
+                    ? { kind: "copy-only", roots: [root ?? ""] }
+                    : { kind: "per-skill-link", roots: [root ?? ""] };
+            const descriptor = {
+                slug: spec.slug,
+                displayName: spec.slug,
+                platforms: [platform],
+                detection: [],
+                skills: [delivery],
+            };
             return {
                 descriptor,
                 platform,
                 detected: true,
                 mode: spec.mode,
-                ...(spec.root ? { root: path.resolve(spec.root) } : {}),
-                existing: spec.root
-                    ? await existingTargetsForPlan(root, spec.slug, path.resolve(spec.root), inventory.ownedSkills.map((skill) => skill.name))
+                ...(root ? { root: path.resolve(root) } : {}),
+                existing: root
+                    ? await existingTargetsForPlan(root, spec.slug, path.resolve(root), inventory.ownedSkills.map((skill) => skill.name))
                     : {},
             };
         }));
@@ -222,15 +253,23 @@ async function main() {
         const plan = JSON.parse(await readFile(path.resolve(directory), "utf8"));
         if (plan.kind === "import") {
             const result = await applyImportPlan(plan);
-            process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Imported ${result.copied} owned skills and recorded ${result.dependenciesRecorded} dependencies from plan ${result.planId}.\n`);
+            process.stdout.write(json
+                ? `${JSON.stringify(result, null, 2)}\n`
+                : `Imported ${result.copied} owned skills and recorded ${result.dependenciesRecorded} dependencies from plan ${result.planId}.\n`);
         }
         else if (plan.kind === "materialize") {
             const result = await applyMaterializationPlan(plan);
-            process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Applied ${result.applied} operations from plan ${result.planId}.\n`);
+            process.stdout.write(json
+                ? `${JSON.stringify(result, null, 2)}\n`
+                : `Applied ${result.applied} operations from plan ${result.planId}.\n`);
         }
         else if (plan.kind === "git-commit") {
             const head = await applyLibraryCommit(plan);
-            process.stdout.write(json ? `${JSON.stringify({ ok: true, head }, null, 2)}\n` : head ? `Created commit ${head}.\n` : "No portable changes to commit.\n");
+            process.stdout.write(json
+                ? `${JSON.stringify({ ok: true, head }, null, 2)}\n`
+                : head
+                    ? `Created commit ${head}.\n`
+                    : "No portable changes to commit.\n");
         }
         else if (plan.kind === "git-pull") {
             const head = await applyLibraryPull(plan);
@@ -238,7 +277,9 @@ async function main() {
         }
         else if (plan.kind === "git-push") {
             await applyLibraryPush(plan);
-            process.stdout.write(json ? `${JSON.stringify({ ok: true, head: plan.head }, null, 2)}\n` : `Pushed ${plan.head} to ${plan.remoteIdentity}.\n`);
+            process.stdout.write(json
+                ? `${JSON.stringify({ ok: true, head: plan.head }, null, 2)}\n`
+                : `Pushed ${plan.head} to ${plan.remoteIdentity}.\n`);
         }
         else {
             throw new Error("Unsupported plan kind");
@@ -253,7 +294,11 @@ async function main() {
         const materialized = await recoverMaterialization(root);
         const recovered = imported !== "none" || materialized;
         const result = { recovered, import: imported, materialization: materialized };
-        process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : recovered ? "Recovered unfinished dotagent operations.\n" : "No unfinished operation found.\n");
+        process.stdout.write(json
+            ? `${JSON.stringify(result, null, 2)}\n`
+            : recovered
+                ? "Recovered unfinished dotagent operations.\n"
+                : "No unfinished operation found.\n");
         return 0;
     }
     if (command !== "inspect") {
@@ -281,7 +326,9 @@ async function main() {
         dependencies: result.value.dependencyCount,
         lockfile: result.value.locked,
     };
-    process.stdout.write(json ? `${JSON.stringify(summary, null, 2)}\n` : `${summary.name}@${summary.version}: ${summary.owned_skills} owned skills, ${summary.dependencies} dependencies${summary.lockfile ? ", locked" : ", no lockfile"}\n`);
+    process.stdout.write(json
+        ? `${JSON.stringify(summary, null, 2)}\n`
+        : `${summary.name}@${summary.version}: ${summary.owned_skills} owned skills, ${summary.dependencies} dependencies${summary.lockfile ? ", locked" : ", no lockfile"}\n`);
     return 0;
 }
 process.exitCode = await main();

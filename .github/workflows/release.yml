@@ -1,0 +1,53 @@
+name: Release package
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the already-versioned package to npm after validation
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: 1.3.14
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run release:check
+
+  publish:
+    if: inputs.publish
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: 1.3.14
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run release:check
+      - name: Refuse placeholder or private manifests
+        run: node -e "const p=require('./package.json'); if(p.private || p.version==='0.0.0') throw new Error('Set a real version and private:false in a reviewed release commit')"
+      - run: npm publish --access public

@@ -19,7 +19,14 @@ describe("library manifest", () => {
   });
 
   test("allows an explicit repository-root dependency skill without allowing an owned root export", () => {
-    expect(parseLibraryManifest(JSON.stringify({ ...manifest, dependencies: { root: { url: "https://github.com/example/root-skill", ref: "main", select: ["."] } } })).ok).toBe(true);
+    expect(
+      parseLibraryManifest(
+        JSON.stringify({
+          ...manifest,
+          dependencies: { root: { url: "https://github.com/example/root-skill", ref: "main", select: ["."] } },
+        }),
+      ).ok,
+    ).toBe(true);
     expect(parseLibraryManifest(JSON.stringify({ ...manifest, skills: ["."] })).ok).toBe(false);
   });
 
@@ -33,10 +40,12 @@ describe("library manifest", () => {
   });
 
   test("rejects dependency URLs containing credentials", () => {
-    const result = parseLibraryManifest(JSON.stringify({
-      ...manifest,
-      dependencies: { private: { url: "https://user:password@example.com/skills", ref: "main" } },
-    }));
+    const result = parseLibraryManifest(
+      JSON.stringify({
+        ...manifest,
+        dependencies: { private: { url: "https://user:password@example.com/skills", ref: "main" } },
+      }),
+    );
     expect(result.ok).toBe(false);
   });
 
@@ -48,19 +57,21 @@ describe("library manifest", () => {
 
 describe("library lock", () => {
   test("requires immutable commits and integrity", () => {
-    const result = parseLibraryLock(JSON.stringify({
-      lockfile_version: 1,
-      generated_by: "@beautyfree/dotagent@0.0.0",
-      resolved: {
-        community: {
-          url: "https://github.com/example/skills",
-          requested_ref: "v1.2.0",
-          commit: "a".repeat(40),
-          integrity: "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-          skills: [{ name: "git", path: "skills/git" }],
+    const result = parseLibraryLock(
+      JSON.stringify({
+        lockfile_version: 1,
+        generated_by: "@beautyfree/dotagent@0.0.0",
+        resolved: {
+          community: {
+            url: "https://github.com/example/skills",
+            requested_ref: "v1.2.0",
+            commit: "a".repeat(40),
+            integrity: "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            skills: [{ name: "git", path: "skills/git" }],
+          },
         },
-      },
-    }));
+      }),
+    );
     expect(result.ok).toBe(true);
   });
 });

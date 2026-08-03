@@ -18,7 +18,11 @@ function metadata(text) {
     }
 }
 function portableKey(name) {
-    return name.toLocaleLowerCase("en-US").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "skill";
+    return (name
+        .toLocaleLowerCase("en-US")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 48) || "skill");
 }
 function integritySuffix(integrity) {
     return createHash("sha256").update(integrity).digest("hex").slice(0, 8);
@@ -111,7 +115,7 @@ export async function discoverSkills(roots, limits = DEFAULT_DISCOVERY_LIMITS) {
     let linkedAliases = 0;
     const sortedRoots = [...roots].sort((left, right) => `${left.kind}:${left.agent ?? ""}:${left.path}`.localeCompare(`${right.kind}:${right.agent ?? ""}:${right.path}`, "en"));
     for (const root of sortedRoots) {
-        if (!await exists(root.path))
+        if (!(await exists(root.path)))
             continue;
         let collected;
         try {
@@ -169,10 +173,15 @@ export async function discoverSkills(roots, limits = DEFAULT_DISCOVERY_LIMITS) {
         const folded = skill.name.toLocaleLowerCase("en-US");
         names.set(folded, [...(names.get(folded) ?? []), skill]);
     }
-    const collisions = [...names.values()].filter((group) => group.length > 1).map((group) => {
+    const collisions = [...names.values()]
+        .filter((group) => group.length > 1)
+        .map((group) => {
+        const first = group[0];
+        if (!first)
+            throw new Error("Collision group cannot be empty");
         for (const skill of group)
             skill.candidateKey = `${portableKey(skill.name)}-${integritySuffix(skill.integrity)}`;
-        return { name: group[0].name, candidateKeys: group.map((skill) => skill.candidateKey) };
+        return { name: first.name, candidateKeys: group.map((skill) => skill.candidateKey) };
     });
     return { skills, collisions, issues, linkedAliases };
 }
@@ -181,12 +190,28 @@ export function suggestImportCandidates(report, provenance = []) {
     const conflicting = new Set(report.collisions.flatMap((collision) => collision.candidateKeys));
     return report.skills.map((skill) => {
         if (conflicting.has(skill.candidateKey) || !skill.metadataValid) {
-            return { kind: "local-only", skill: portableKey(skill.name), sourcePath: skill.sourcePath, reason: conflicting.has(skill.candidateKey) ? "Same-name content conflict requires a decision" : "SKILL.md metadata needs review" };
+            return {
+                kind: "local-only",
+                skill: portableKey(skill.name),
+                sourcePath: skill.sourcePath,
+                reason: conflicting.has(skill.candidateKey)
+                    ? "Same-name content conflict requires a decision"
+                    : "SKILL.md metadata needs review",
+            };
         }
         const source = provenance.find((entry) => entry.skill === skill.name && (!entry.integrity || entry.integrity === skill.integrity));
-        const agents = [...new Set(skill.locations.flatMap((location) => location.agent ? [location.agent] : []))].sort();
+        const agents = [...new Set(skill.locations.flatMap((location) => (location.agent ? [location.agent] : [])))].sort();
         if (source)
-            return { kind: "dependency", skill: skill.name, package: source.package, url: source.url, ref: source.ref, skillPath: source.skillPath, ...(source.source ? { source: source.source } : {}), ...(agents.length ? { agents } : {}) };
+            return {
+                kind: "dependency",
+                skill: skill.name,
+                package: source.package,
+                url: source.url,
+                ref: source.ref,
+                skillPath: source.skillPath,
+                ...(source.source ? { source: source.source } : {}),
+                ...(agents.length ? { agents } : {}),
+            };
         return { kind: "owned", skill: skill.name, sourcePath: skill.sourcePath, ...(agents.length ? { agents } : {}) };
     });
 }

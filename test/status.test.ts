@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { getMaterializationStatus } from "../src/status.js";
 
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 describe("materialization status", () => {
   it("reports local copy changes with a three-way planning snapshot", async () => {
@@ -16,9 +18,21 @@ describe("materialization status", () => {
     writeFileSync(join(target, "SKILL.md"), "# Changed locally\n");
     writeFileSync(join(target, ".dotagent-managed.json"), JSON.stringify({ schemaVersion: 1, planId: "old" }));
     mkdirSync(join(root, ".dotagent"));
-    writeFileSync(join(root, ".dotagent/materialization-state.json"), JSON.stringify({ schemaVersion: 1, targets: {
-      [target]: { agent: "codex", skill: "writing", mode: "copy", source: join(root, "skills/writing"), sourceIntegrity: "sha256-old" },
-    } }));
+    writeFileSync(
+      join(root, ".dotagent/materialization-state.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        targets: {
+          [target]: {
+            agent: "codex",
+            skill: "writing",
+            mode: "copy",
+            source: join(root, "skills/writing"),
+            sourceIntegrity: "sha256-old",
+          },
+        },
+      }),
+    );
     const status = await getMaterializationStatus(root);
     expect(status.targets[0]).toMatchObject({ health: "locally-modified" });
     expect(status.byAgent.codex?.writing).toMatchObject({ state: "managed-copy", baseIntegrity: "sha256-old" });

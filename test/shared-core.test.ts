@@ -6,19 +6,27 @@ import { parseSkillsCliLock, skillsCliLockToProvenance } from "../src/adapters/s
 
 describe("portable and local configuration", () => {
   it("merges machine-local choices deterministically and exposes provenance", () => {
-    const portable = parsePortableConfig("schema_version: 1\ndefaults: { include: owned }\nskills:\n  writing: { agents: [codex] }\n");
-    const local = parseLocalConfig("schema_version: 1\nagents: { selected: [codex] }\nmaterialization: symlink\nexclusions: [private, scratch]\nenvironment: { github_token: '${GITHUB_TOKEN}' }\n");
-    expect(mergeConfig(portable, local)).toEqual(expect.objectContaining({
-      defaults: { include: "owned" },
-      agents: { selected: ["codex"] },
-      materialization: "symlink",
-      exclusions: ["private", "scratch"],
-      provenance: expect.objectContaining({ skills: "portable", agents: "local" }),
-    }));
+    const portable = parsePortableConfig(
+      "schema_version: 1\ndefaults: { include: owned }\nskills:\n  writing: { agents: [codex] }\n",
+    );
+    const local = parseLocalConfig(
+      `schema_version: 1\nagents: { selected: [codex] }\nmaterialization: symlink\nexclusions: [private, scratch]\nenvironment: { github_token: '\${GITHUB_TOKEN}' }\n`,
+    );
+    expect(mergeConfig(portable, local)).toEqual(
+      expect.objectContaining({
+        defaults: { include: "owned" },
+        agents: { selected: ["codex"] },
+        materialization: "symlink",
+        exclusions: ["private", "scratch"],
+        provenance: expect.objectContaining({ skills: "portable", agents: "local" }),
+      }),
+    );
   });
 
   it("rejects literal environment secrets in local configuration", () => {
-    expect(() => parseLocalConfig("schema_version: 1\nenvironment: { token: literal-secret }\n")).toThrow("environment.token");
+    expect(() => parseLocalConfig("schema_version: 1\nenvironment: { token: literal-secret }\n")).toThrow(
+      "environment.token",
+    );
   });
 });
 
@@ -37,12 +45,33 @@ describe("shared safety primitives", () => {
 
 describe("Skills CLI adapter", () => {
   it("reads v3 and rejects unknown schemas", () => {
-    const lock = parseSkillsCliLock(JSON.stringify({ version: 3, skills: {
-      writing: { source: "owner/repo", sourceType: "github", sourceUrl: "https://github.com/owner/repo", ref: "main", skillPath: "skills/writing" },
-    } }));
+    const lock = parseSkillsCliLock(
+      JSON.stringify({
+        version: 3,
+        skills: {
+          writing: {
+            source: "owner/repo",
+            sourceType: "github",
+            sourceUrl: "https://github.com/owner/repo",
+            ref: "main",
+            skillPath: "skills/writing",
+          },
+        },
+      }),
+    );
     expect(lock).toMatchObject({ version: 3, skills: [{ name: "writing", ref: "main" }] });
-    expect(skillsCliLockToProvenance(lock!)).toEqual({
-      provenance: [{ skill: "writing", package: "owner-repo", url: "https://github.com/owner/repo", ref: "main", skillPath: "skills/writing", source: "skills-cli" }],
+    if (!lock) throw new Error("fixture lock did not parse");
+    expect(skillsCliLockToProvenance(lock)).toEqual({
+      provenance: [
+        {
+          skill: "writing",
+          package: "owner-repo",
+          url: "https://github.com/owner/repo",
+          ref: "main",
+          skillPath: "skills/writing",
+          source: "skills-cli",
+        },
+      ],
       skipped: [],
     });
     expect(parseSkillsCliLock('{"version":999,"skills":{}}')).toBeNull();

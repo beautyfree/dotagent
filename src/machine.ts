@@ -32,9 +32,8 @@ export class NodeMachinePort implements MachinePort {
       candidates.push(command);
     } else {
       const directories = (this.#env.PATH ?? "").split(path.delimiter).filter(Boolean);
-      const extensions = this.#platform === "win32"
-        ? (this.#env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
-        : [""];
+      const extensions =
+        this.#platform === "win32" ? (this.#env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean) : [""];
       for (const directory of directories) {
         for (const extension of extensions) candidates.push(pathApi.join(directory, `${command}${extension}`));
       }
@@ -99,7 +98,7 @@ export function expandMachinePath(template: string, home: string, platform: Plat
 
 function deliveryRoots(descriptor: AgentDescriptor, home: string, platform: Platform): string[] {
   return descriptor.skills.flatMap((delivery) =>
-    "roots" in delivery ? delivery.roots.map((root) => expandMachinePath(root, home, platform)) : []
+    "roots" in delivery ? delivery.roots.map((root) => expandMachinePath(root, home, platform)) : [],
   );
 }
 
@@ -120,7 +119,11 @@ async function containsOnlySkillBranches(
     const matching = paths.filter(([head]) => head === entry);
     if (matching.length === 0) return false;
     const descendants = matching.filter((segments) => segments.length > 1).map(([, ...rest]) => rest);
-    if (descendants.length > 0 && !await containsOnlySkillBranches(pathApi.join(directory, entry), descendants, pathApi, port)) return false;
+    if (
+      descendants.length > 0 &&
+      !(await containsOnlySkillBranches(pathApi.join(directory, entry), descendants, pathApi, port))
+    )
+      return false;
   }
   return true;
 }
@@ -151,14 +154,26 @@ export async function scanMachineAgents(
   const agents: MachineAgentInventory[] = [];
   for (const descriptor of [...descriptors].sort((left, right) => left.slug.localeCompare(right.slug, "en"))) {
     if (!descriptor.platforms.includes(options.platform)) {
-      agents.push({ slug: descriptor.slug, displayName: descriptor.displayName, detected: false, reason: "unsupported-platform", evidence: null });
+      agents.push({
+        slug: descriptor.slug,
+        displayName: descriptor.displayName,
+        detected: false,
+        reason: "unsupported-platform",
+        evidence: null,
+      });
       continue;
     }
     let result: MachineAgentInventory | null = null;
     for (const rule of descriptor.detection) {
       if (rule.kind === "command") {
         if (await port.commandExists(rule.command)) {
-          result = { slug: descriptor.slug, displayName: descriptor.displayName, detected: true, reason: "command", evidence: rule.command };
+          result = {
+            slug: descriptor.slug,
+            displayName: descriptor.displayName,
+            detected: true,
+            reason: "command",
+            evidence: rule.command,
+          };
           break;
         }
         continue;
@@ -166,14 +181,47 @@ export async function scanMachineAgents(
       const marker = expandMachinePath(rule.path, options.home, options.platform);
       const kind = await port.pathKind(marker);
       if (kind !== "directory" && kind !== "file") continue;
-      if (kind === "directory" && rule.ignoreSkillsOnly && await isSkillsOnlyMarker(marker, deliveryRoots(descriptor, options.home, options.platform), options.platform, port)) {
-        result = { slug: descriptor.slug, displayName: descriptor.displayName, detected: false, reason: "skills-only", evidence: marker };
+      if (
+        kind === "directory" &&
+        rule.ignoreSkillsOnly &&
+        (await isSkillsOnlyMarker(
+          marker,
+          deliveryRoots(descriptor, options.home, options.platform),
+          options.platform,
+          port,
+        ))
+      ) {
+        result = {
+          slug: descriptor.slug,
+          displayName: descriptor.displayName,
+          detected: false,
+          reason: "skills-only",
+          evidence: marker,
+        };
         continue;
       }
-      result = { slug: descriptor.slug, displayName: descriptor.displayName, detected: true, reason: "marker", evidence: marker };
+      result = {
+        slug: descriptor.slug,
+        displayName: descriptor.displayName,
+        detected: true,
+        reason: "marker",
+        evidence: marker,
+      };
       break;
     }
-    agents.push(result ?? { slug: descriptor.slug, displayName: descriptor.displayName, detected: false, reason: "not-found", evidence: null });
+    agents.push(
+      result ?? {
+        slug: descriptor.slug,
+        displayName: descriptor.displayName,
+        detected: false,
+        reason: "not-found",
+        evidence: null,
+      },
+    );
   }
-  return { platform: options.platform, agents, detectedSlugs: agents.filter((agent) => agent.detected).map((agent) => agent.slug) };
+  return {
+    platform: options.platform,
+    agents,
+    detectedSlugs: agents.filter((agent) => agent.detected).map((agent) => agent.slug),
+  };
 }

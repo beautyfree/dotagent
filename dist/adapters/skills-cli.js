@@ -3,7 +3,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 export const SKILLS_CLI_LOCK_VERSION = 3;
 function sourcePackageName(source, skill) {
-    const normalized = source.toLocaleLowerCase("en-US")
+    const normalized = source
+        .toLocaleLowerCase("en-US")
         .replace(/\.git$/i, "")
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
@@ -34,9 +35,12 @@ export function parseSkillsCliLock(input, sourcePath = "<memory>") {
         if (!value || typeof value !== "object")
             return [];
         const entry = value;
-        if (typeof entry.source !== "string" || typeof entry.sourceType !== "string" || typeof entry.sourceUrl !== "string")
+        if (typeof entry.source !== "string" ||
+            typeof entry.sourceType !== "string" ||
+            typeof entry.sourceUrl !== "string")
             return [];
-        return [{
+        return [
+            {
                 name,
                 source: entry.source,
                 source_type: entry.sourceType,
@@ -44,7 +48,8 @@ export function parseSkillsCliLock(input, sourcePath = "<memory>") {
                 ref: typeof entry.ref === "string" ? entry.ref : null,
                 skill_path: typeof entry.skillPath === "string" ? entry.skillPath : null,
                 updated_at: typeof entry.updatedAt === "string" ? entry.updatedAt : "",
-            }];
+            },
+        ];
     })
         .sort((a, b) => a.name.localeCompare(b.name));
     return { path: sourcePath, version: SKILLS_CLI_LOCK_VERSION, skills };

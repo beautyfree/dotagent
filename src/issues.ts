@@ -27,9 +27,7 @@ export interface DotagentIssue {
   severity?: "error" | "warning" | "info";
 }
 
-export type DotagentResult<T> =
-  | { ok: true; value: T; issues: [] }
-  | { ok: false; issues: DotagentIssue[] };
+export type DotagentResult<T> = { ok: true; value: T; issues: [] } | { ok: false; issues: DotagentIssue[] };
 
 export class DotagentError extends Error {
   readonly issues: DotagentIssue[];

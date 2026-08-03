@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
 import { normalizePortablePath } from "./paths.js";
 export function computeSkillIntegrity(files) {
-    const normalized = files.map((file) => {
+    const normalized = files
+        .map((file) => {
         const portablePath = normalizePortablePath(file.path);
         if (!portablePath)
             throw new Error(`Unsafe integrity path: ${file.path}`);
         return { path: portablePath, content: file.content };
-    }).sort((left, right) => left.path.localeCompare(right.path, "en"));
+    })
+        .sort((left, right) => left.path.localeCompare(right.path, "en"));
     const hash = createHash("sha256");
     for (const file of normalized) {
         const pathBytes = Buffer.from(file.path, "utf8");

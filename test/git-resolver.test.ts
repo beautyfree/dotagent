@@ -7,7 +7,9 @@ import { pathToFileURL } from "node:url";
 import { GitDependencyResolver } from "../src/git-resolver.js";
 
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 function createRepository(): { root: string; commit: string } {
   const root = mkdtempSync(join(tmpdir(), "dotagent-source-"));
@@ -17,7 +19,16 @@ function createRepository(): { root: string; commit: string } {
   execFileSync("git", ["config", "user.name", "dotagent test"], { cwd: root });
   mkdirSync(join(root, "skills/writing"), { recursive: true });
   writeFileSync(join(root, "skills/writing/SKILL.md"), "# Writing\n");
-  writeFileSync(join(root, "skills.json"), JSON.stringify({ schema_version: 1, name: "source", version: "1.0.0", skills: ["skills/writing"], dependencies: {} }));
+  writeFileSync(
+    join(root, "skills.json"),
+    JSON.stringify({
+      schema_version: 1,
+      name: "source",
+      version: "1.0.0",
+      skills: ["skills/writing"],
+      dependencies: {},
+    }),
+  );
   execFileSync("git", ["add", "."], { cwd: root });
   execFileSync("git", ["commit", "-m", "fixture"], { cwd: root });
   return { root, commit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim() };
@@ -30,7 +41,11 @@ describe("Git dependency resolver", () => {
     roots.push(temporaryRoot);
     const resolver = new GitDependencyResolver({ temporaryRoot });
     const result = await resolver.resolve("source", { url: pathToFileURL(repository.root).href, ref: "HEAD" });
-    expect(result).toMatchObject({ commit: repository.commit, requested_ref: "HEAD", skills: [{ name: "writing", path: "skills/writing" }] });
+    expect(result).toMatchObject({
+      commit: repository.commit,
+      requested_ref: "HEAD",
+      skills: [{ name: "writing", path: "skills/writing" }],
+    });
     expect(result.integrity).toMatch(/^sha256-/);
   });
 

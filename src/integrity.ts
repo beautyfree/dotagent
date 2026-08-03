@@ -7,11 +7,13 @@ export interface IntegrityFile {
 }
 
 export function computeSkillIntegrity(files: IntegrityFile[]): string {
-  const normalized = files.map((file) => {
-    const portablePath = normalizePortablePath(file.path);
-    if (!portablePath) throw new Error(`Unsafe integrity path: ${file.path}`);
-    return { path: portablePath, content: file.content };
-  }).sort((left, right) => left.path.localeCompare(right.path, "en"));
+  const normalized = files
+    .map((file) => {
+      const portablePath = normalizePortablePath(file.path);
+      if (!portablePath) throw new Error(`Unsafe integrity path: ${file.path}`);
+      return { path: portablePath, content: file.content };
+    })
+    .sort((left, right) => left.path.localeCompare(right.path, "en"));
 
   const hash = createHash("sha256");
   for (const file of normalized) {

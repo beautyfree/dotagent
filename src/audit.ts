@@ -6,7 +6,13 @@ import { scanLibrary, type LibraryInventory } from "./inventory.js";
 import { loadLibrary } from "./library.js";
 
 export type SecretFinding = {
-  rule: "private-key" | "github-token" | "provider-token" | "aws-access-key" | "connection-string" | "credential-assignment";
+  rule:
+    | "private-key"
+    | "github-token"
+    | "provider-token"
+    | "aws-access-key"
+    | "connection-string"
+    | "credential-assignment";
   line: number;
   column: number;
 };
@@ -27,7 +33,9 @@ const secretRules: SecretRule[] = [
 ];
 
 function isDocumentedConnectionExample(line: string): boolean {
-  return /(?:\b(?:placeholder|sample|replace(?:\s+me)?|your[_ -]?(?:database|password|url|credential)|real values?)\b|\be\.g\.)/i.test(line);
+  return /(?:\b(?:placeholder|sample|replace(?:\s+me)?|your[_ -]?(?:database|password|url|credential)|real values?)\b|\be\.g\.)/i.test(
+    line,
+  );
 }
 
 /** Returns locations and rule IDs only; matched values never cross the API boundary. */
@@ -37,10 +45,12 @@ export function scanTextForSecrets(text: string): SecretFinding[] {
   for (const [lineIndex, line] of lines.entries()) {
     for (const rule of secretRules) {
       rule.pattern.lastIndex = 0;
-      let match: RegExpExecArray | null;
-      while ((match = rule.pattern.exec(line)) !== null) {
-        if (rule.id === "connection-string" && isDocumentedConnectionExample(line)) continue;
-        findings.push({ rule: rule.id, line: lineIndex + 1, column: match.index + 1 });
+      let match = rule.pattern.exec(line);
+      while (match !== null) {
+        if (rule.id !== "connection-string" || !isDocumentedConnectionExample(line)) {
+          findings.push({ rule: rule.id, line: lineIndex + 1, column: match.index + 1 });
+        }
+        match = rule.pattern.exec(line);
       }
     }
   }
@@ -122,8 +132,10 @@ function skillFrontmatter(input: string): Record<string, unknown> | null {
   if (!match) return null;
   try {
     const value = parse(match[1] ?? "");
-    return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
-  } catch { return null; }
+    return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Structural audit only: reads bounded files already accepted by inventory and never executes skill content. */
@@ -131,43 +143,85 @@ export async function auditLibrary(options: AuditLibraryOptions): Promise<Librar
   const root = path.resolve(options.root);
   const issues: DotagentIssue[] = [];
   const scanned = await scanLibrary(root);
-  if (!scanned.ok) return { ok: false, publicReady: false, library: null, issues: scanned.issues.map((issue) => ({ ...issue, severity: issue.severity ?? "error" })) };
+  if (!scanned.ok)
+    return {
+      ok: false,
+      publicReady: false,
+      library: null,
+      issues: scanned.issues.map((issue) => ({ ...issue, severity: issue.severity ?? "error" })),
+    };
   const loaded = await loadLibrary(root);
-  if (!loaded.ok) return { ok: false, publicReady: false, library: scanned.value, issues: loaded.issues.map((issue) => ({ ...issue, severity: issue.severity ?? "error" })) };
+  if (!loaded.ok)
+    return {
+      ok: false,
+      publicReady: false,
+      library: scanned.value,
+      issues: loaded.issues.map((issue) => ({ ...issue, severity: issue.severity ?? "error" })),
+    };
 
   const publicVisibility = options.visibility === "public";
   if (!loaded.value.manifest.license) {
-    issues.push(auditIssue(
-      "missing-license",
-      publicVisibility ? "error" : "warning",
-      "The library manifest has no license.",
-      publicVisibility ? "Choose a license before publishing this library publicly." : "Add a license before sharing or redistributing the library.",
-      "license",
-    ));
+    issues.push(
+      auditIssue(
+        "missing-license",
+        publicVisibility ? "error" : "warning",
+        "The library manifest has no license.",
+        publicVisibility
+          ? "Choose a license before publishing this library publicly."
+          : "Add a license before sharing or redistributing the library.",
+        "license",
+      ),
+    );
   }
   for (const skill of scanned.value.ownedSkills) {
     const content = await readFile(path.join(root, ...skill.path.split("/"), "SKILL.md"), "utf8");
     const frontmatter = skillFrontmatter(content);
     if (!frontmatter) {
-      issues.push(auditIssue("missing-skill-metadata", "error", `${skill.name}/SKILL.md has no valid YAML frontmatter.`, "Add frontmatter with name and description.", `${skill.path}/SKILL.md`));
+      issues.push(
+        auditIssue(
+          "missing-skill-metadata",
+          "error",
+          `${skill.name}/SKILL.md has no valid YAML frontmatter.`,
+          "Add frontmatter with name and description.",
+          `${skill.path}/SKILL.md`,
+        ),
+      );
       continue;
     }
     if (frontmatter.name !== skill.name) {
-      issues.push(auditIssue("missing-skill-metadata", "error", `${skill.name}/SKILL.md must declare name: ${skill.name}.`, "Make the frontmatter name match the exported skill folder.", `${skill.path}/SKILL.md:name`));
+      issues.push(
+        auditIssue(
+          "missing-skill-metadata",
+          "error",
+          `${skill.name}/SKILL.md must declare name: ${skill.name}.`,
+          "Make the frontmatter name match the exported skill folder.",
+          `${skill.path}/SKILL.md:name`,
+        ),
+      );
     }
     if (typeof frontmatter.description !== "string" || !frontmatter.description.trim()) {
-      issues.push(auditIssue("missing-skill-metadata", "error", `${skill.name}/SKILL.md has no description.`, "Add a concise frontmatter description so agents can select the skill.", `${skill.path}/SKILL.md:description`));
+      issues.push(
+        auditIssue(
+          "missing-skill-metadata",
+          "error",
+          `${skill.name}/SKILL.md has no description.`,
+          "Add a concise frontmatter description so agents can select the skill.",
+          `${skill.path}/SKILL.md:description`,
+        ),
+      );
     }
   }
   for (const [name, dependency] of Object.entries(loaded.value.lock?.resolved ?? {})) {
     if (!dependency.license) {
-      issues.push(auditIssue(
-        "missing-license",
-        publicVisibility ? "error" : "warning",
-        `Dependency ${name} has no recorded license metadata.`,
-        "Review the upstream repository license before redistributing or vendoring it.",
-        `dependencies.${name}.license`,
-      ));
+      issues.push(
+        auditIssue(
+          "missing-license",
+          publicVisibility ? "error" : "warning",
+          `Dependency ${name} has no recorded license metadata.`,
+          "Review the upstream repository license before redistributing or vendoring it.",
+          `dependencies.${name}.license`,
+        ),
+      );
     }
   }
   const hasError = issues.some((issue) => issue.severity === "error");

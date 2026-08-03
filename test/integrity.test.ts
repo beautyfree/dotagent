@@ -15,6 +15,8 @@ describe("skill integrity", () => {
   });
 
   test("rejects paths outside the skill root", () => {
-    expect(() => computeSkillIntegrity([{ path: "../secret", content: Buffer.from("x") }])).toThrow("Unsafe integrity path");
+    expect(() => computeSkillIntegrity([{ path: "../secret", content: Buffer.from("x") }])).toThrow(
+      "Unsafe integrity path",
+    );
   });
 });

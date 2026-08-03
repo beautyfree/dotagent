@@ -3,6 +3,14 @@
   "version": "0.0.0",
   "description": "Canonical agent skill library engine and CLI",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beautyfree/dotagent.git"
+  },
+  "homepage": "https://github.com/beautyfree/dotagent#readme",
+  "bugs": {
+    "url": "https://github.com/beautyfree/dotagent/issues"
+  },
   "type": "module",
   "private": true,
   "engines": {
@@ -124,14 +132,20 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "check": "bun run typecheck && bun test && bun run build",
-    "ci": "bun run check && node dist/cli.js inspect fixtures/valid-library --json && node dist/cli.js audit fixtures/valid-library --public --json"
+    "lint": "biome lint src test scripts",
+    "format": "biome format --write src test scripts *.json",
+    "format:check": "biome format src test scripts *.json",
+    "check": "bun run lint && bun run format:check && bun run typecheck && bun test && bun run build",
+    "package:check": "bun run build && node scripts/verify-package.mjs",
+    "ci": "bun run check && node dist/cli.js inspect fixtures/valid-library --json && node dist/cli.js audit fixtures/valid-library --public --json",
+    "release:check": "bun run ci && bun run package:check"
   },
   "dependencies": {
     "yaml": "^2.8.3",
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.6",
     "@types/bun": "^1.3.12",
     "@types/node": "^24.0.0",
     "typescript": "~5.8.3"

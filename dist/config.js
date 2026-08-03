@@ -4,30 +4,42 @@ export const DOTAGENT_CONFIG_VERSION = 1;
 export const DOTAGENT_CONFIG_FILE = "dotagent.yaml";
 export const DOTAGENT_LOCAL_CONFIG_FILE = "dotagent.local.yaml";
 const slug = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/);
-const portableSkillPolicySchema = z.object({
+const portableSkillPolicySchema = z
+    .object({
     include: z.boolean().optional(),
     agents: z.array(slug).min(1).optional(),
     distribution: z.enum(["dependency", "vendored"]).optional(),
-}).strict();
-export const portableConfigSchema = z.object({
+})
+    .strict();
+export const portableConfigSchema = z
+    .object({
     schema_version: z.literal(DOTAGENT_CONFIG_VERSION),
     minimum_dotagent_version: z.string().min(1).max(128).optional(),
-    defaults: z.object({
+    defaults: z
+        .object({
         include: z.enum(["all", "owned", "selected"]).default("all"),
-    }).strict().default({ include: "all" }),
+    })
+        .strict()
+        .default({ include: "all" }),
     skills: z.record(slug, portableSkillPolicySchema).default({}),
-}).strict();
+})
+    .strict();
 const envReference = z.string().regex(/^\$\{[A-Z_][A-Z0-9_]*\}$/);
-export const localConfigSchema = z.object({
+export const localConfigSchema = z
+    .object({
     schema_version: z.literal(DOTAGENT_CONFIG_VERSION),
-    agents: z.object({
+    agents: z
+        .object({
         selected: z.array(slug).optional(),
         roots: z.record(slug, z.string().min(1).max(2_048)).optional(),
-    }).strict().optional(),
+    })
+        .strict()
+        .optional(),
     materialization: z.enum(["auto", "native", "symlink", "junction", "copy"]).optional(),
     exclusions: z.array(slug).default([]),
     environment: z.record(slug, envReference).default({}),
-}).strict();
+})
+    .strict();
 function parseYamlSchema(input, schema, filename) {
     let value;
     try {

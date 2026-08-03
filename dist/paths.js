@@ -2,7 +2,10 @@ import path from "node:path";
 const windowsReservedName = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
 export function normalizePortablePath(input) {
     const normalized = input.replaceAll("\\", "/");
-    if (normalized.length === 0 || normalized.startsWith("/") || /^[A-Za-z]:\//.test(normalized) || normalized.includes("\0"))
+    if (normalized.length === 0 ||
+        normalized.startsWith("/") ||
+        /^[A-Za-z]:\//.test(normalized) ||
+        normalized.includes("\0"))
         return null;
     const rawSegments = normalized.split("/");
     if (rawSegments.some((segment) => segment === ".."))
@@ -12,7 +15,7 @@ export function normalizePortablePath(input) {
         return null;
     const segments = clean.split("/");
     if (segments.some((segment) => segment.length === 0 ||
-        /[\u0000-\u001f]/.test(segment) ||
+        [...segment].some((character) => character.charCodeAt(0) <= 0x1f) ||
         segment.endsWith(".") ||
         segment.endsWith(" ") ||
         windowsReservedName.test(segment)))

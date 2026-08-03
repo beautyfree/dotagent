@@ -39,7 +39,13 @@ function normalizeAgents(agents) {
     return normalized;
 }
 function importIssue(message, remediation, issuePath) {
-    return { code: "invalid-manifest", severity: "error", message, remediation, ...(issuePath ? { path: issuePath } : {}) };
+    return {
+        code: "invalid-manifest",
+        severity: "error",
+        message,
+        remediation,
+        ...(issuePath ? { path: issuePath } : {}),
+    };
 }
 function mergeDependency(dependencies, candidate) {
     const existing = dependencies[candidate.package];
@@ -83,7 +89,9 @@ export async function planImport(libraryRoot, candidates) {
         ]);
     }
     catch (error) {
-        throw new DotagentError("Cannot read the portable library files", [importIssue("The library manifest or portable config could not be read.", "Run doctor, restore skills.json and dotagent.yaml, then retry.", error instanceof Error ? error.message : undefined)]);
+        throw new DotagentError("Cannot read the portable library files", [
+            importIssue("The library manifest or portable config could not be read.", "Run doctor, restore skills.json and dotagent.yaml, then retry.", error instanceof Error ? error.message : undefined),
+        ]);
     }
     const config = parsePortableConfig(configText);
     const nextManifest = structuredClone(loaded.value.manifest);
@@ -117,12 +125,24 @@ export async function planImport(libraryRoot, candidates) {
         if (candidate.kind === "dependency") {
             assertName(candidate.package, "Dependency package name");
             if (alreadyClaimed && !alreadyClaimed.startsWith(`dependency ${candidate.package}`)) {
-                operations.push({ skill: candidate.skill, action: "conflict", sourceKind: candidate.kind, package: candidate.package, reason: `${candidate.skill} is already provided by ${alreadyClaimed}` });
+                operations.push({
+                    skill: candidate.skill,
+                    action: "conflict",
+                    sourceKind: candidate.kind,
+                    package: candidate.package,
+                    reason: `${candidate.skill} is already provided by ${alreadyClaimed}`,
+                });
                 continue;
             }
             const merged = mergeDependency(nextManifest.dependencies, candidate);
             if (merged.conflict) {
-                operations.push({ skill: candidate.skill, action: "conflict", sourceKind: candidate.kind, package: candidate.package, reason: merged.conflict });
+                operations.push({
+                    skill: candidate.skill,
+                    action: "conflict",
+                    sourceKind: candidate.kind,
+                    package: candidate.package,
+                    reason: merged.conflict,
+                });
                 continue;
             }
             claimedNames.set(folded, `dependency ${candidate.package}`);
@@ -150,34 +170,69 @@ export async function planImport(libraryRoot, candidates) {
             throw new DotagentError(`Cannot import ${candidate.skill}`, scanned.issues);
         const declaredName = declaredSkillName(await readFile(path.join(source, "SKILL.md"), "utf8"));
         if (declaredName !== candidate.skill) {
-            throw new DotagentError(`Cannot import ${candidate.skill}`, [{
+            throw new DotagentError(`Cannot import ${candidate.skill}`, [
+                {
                     code: "missing-skill-metadata",
                     severity: "error",
                     message: `${candidate.skill}/SKILL.md must declare name: ${candidate.skill}.`,
                     remediation: "Choose the declared skill name or update SKILL.md before importing.",
                     path: path.join(source, "SKILL.md"),
-                }]);
+                },
+            ]);
         }
         const targetPath = `skills/${candidate.skill}`;
         const target = path.join(library, "skills", candidate.skill);
         const existingPath = existingOwned.get(folded);
         if (alreadyClaimed && existingPath !== targetPath) {
-            operations.push({ skill: candidate.skill, action: "conflict", sourceKind: candidate.kind, source, sourceIntegrity: scanned.value.integrity, target, reason: `${candidate.skill} is already provided by ${alreadyClaimed}` });
+            operations.push({
+                skill: candidate.skill,
+                action: "conflict",
+                sourceKind: candidate.kind,
+                source,
+                sourceIntegrity: scanned.value.integrity,
+                target,
+                reason: `${candidate.skill} is already provided by ${alreadyClaimed}`,
+            });
             continue;
         }
         const targetPresent = await pathExists(target);
         if (existingPath === targetPath && targetPresent) {
             const current = await scanOwnedSkill(library, targetPath);
             if (current.ok && current.value.integrity === scanned.value.integrity) {
-                operations.push({ skill: candidate.skill, action: "unchanged", sourceKind: candidate.kind, source, sourceIntegrity: scanned.value.integrity, target });
+                operations.push({
+                    skill: candidate.skill,
+                    action: "unchanged",
+                    sourceKind: candidate.kind,
+                    source,
+                    sourceIntegrity: scanned.value.integrity,
+                    target,
+                });
             }
             else {
-                operations.push({ skill: candidate.skill, action: "conflict", sourceKind: candidate.kind, source, sourceIntegrity: scanned.value.integrity, target, reason: "The library already contains a different version of this owned skill" });
+                operations.push({
+                    skill: candidate.skill,
+                    action: "conflict",
+                    sourceKind: candidate.kind,
+                    source,
+                    sourceIntegrity: scanned.value.integrity,
+                    target,
+                    reason: "The library already contains a different version of this owned skill",
+                });
             }
             continue;
         }
         if (targetPresent || existingPath) {
-            operations.push({ skill: candidate.skill, action: "conflict", sourceKind: candidate.kind, source, sourceIntegrity: scanned.value.integrity, target, reason: targetPresent ? "The target folder already exists but is not managed by the manifest" : "The manifest points this name to a different path" });
+            operations.push({
+                skill: candidate.skill,
+                action: "conflict",
+                sourceKind: candidate.kind,
+                source,
+                sourceIntegrity: scanned.value.integrity,
+                target,
+                reason: targetPresent
+                    ? "The target folder already exists but is not managed by the manifest"
+                    : "The manifest points this name to a different path",
+            });
             continue;
         }
         for (const finding of await scanSkillForSecrets(source))
@@ -188,7 +243,14 @@ export async function planImport(libraryRoot, candidates) {
         nextConfig.skills[candidate.skill] = { include: true, ...(agents ? { agents } : {}) };
         claimedNames.set(folded, `owned ${targetPath}`);
         existingOwned.set(folded, targetPath);
-        operations.push({ skill: candidate.skill, action: "copy-owned", sourceKind: candidate.kind, source, sourceIntegrity: scanned.value.integrity, target });
+        operations.push({
+            skill: candidate.skill,
+            action: "copy-owned",
+            sourceKind: candidate.kind,
+            source,
+            sourceIntegrity: scanned.value.integrity,
+            target,
+        });
     }
     const validatedManifest = libraryManifestSchema.parse(nextManifest);
     const payload = {

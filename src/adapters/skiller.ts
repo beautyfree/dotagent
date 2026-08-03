@@ -54,27 +54,29 @@ const manifestBaseSchema = z.object({
 
 export const skillerSyncManifestSchema = manifestBaseSchema.extend({
   schema_version: z.literal(SKILLER_SYNC_MANIFEST_VERSION),
-  skills: z.array(z.discriminatedUnion("kind", [
-    skillerBundledSkillSchema,
-    skillerReferenceSkillSchema,
-    skillerSkillsShSkillSchema,
-  ])),
+  skills: z.array(
+    z.discriminatedUnion("kind", [skillerBundledSkillSchema, skillerReferenceSkillSchema, skillerSkillsShSkillSchema]),
+  ),
 });
 
 const v2SkillerSyncManifestSchema = manifestBaseSchema.extend({
   schema_version: z.literal(2),
-  skills: z.array(z.discriminatedUnion("kind", [
-    skillerBundledSkillSchema,
-    skillerReferenceSkillSchema.omit({ installations: true }),
-  ])),
+  skills: z.array(
+    z.discriminatedUnion("kind", [
+      skillerBundledSkillSchema,
+      skillerReferenceSkillSchema.omit({ installations: true }),
+    ]),
+  ),
 });
 
 const v1SkillerSyncManifestSchema = manifestBaseSchema.extend({
   schema_version: z.literal(1),
-  skills: z.array(z.discriminatedUnion("kind", [
-    skillerBundledSkillSchema.omit({ installations: true }),
-    skillerReferenceSkillSchema.omit({ installations: true }),
-  ])),
+  skills: z.array(
+    z.discriminatedUnion("kind", [
+      skillerBundledSkillSchema.omit({ installations: true }),
+      skillerReferenceSkillSchema.omit({ installations: true }),
+    ]),
+  ),
 });
 
 export type SkillerSyncManifest = z.infer<typeof skillerSyncManifestSchema>;
@@ -140,7 +142,9 @@ export function parseSkillerSyncManifest(text: string): SkillerSyncManifest {
   try {
     parsed = parse(text);
   } catch (error) {
-    throw new Error(`Invalid ${SKILLER_SYNC_MANIFEST_FILE}: ${error instanceof Error ? error.message : "YAML parse failed"}`);
+    throw new Error(
+      `Invalid ${SKILLER_SYNC_MANIFEST_FILE}: ${error instanceof Error ? error.message : "YAML parse failed"}`,
+    );
   }
   return validateSkillerSyncManifest(parsed);
 }

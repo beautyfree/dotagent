@@ -10,11 +10,7 @@ export function classifyThreeWaySkill(id, baseSha256, localSha256, remoteSha256,
         };
     }
     if (baseSha256 === null) {
-        const action = localSha256 === null
-            ? "take-remote"
-            : localSha256 === remoteSha256
-                ? "unchanged"
-                : "unmanaged";
+        const action = localSha256 === null ? "take-remote" : localSha256 === remoteSha256 ? "unchanged" : "unmanaged";
         return { id, baseSha256, localSha256, remoteSha256, action };
     }
     const localChanged = localSha256 !== baseSha256;

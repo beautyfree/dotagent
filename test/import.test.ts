@@ -13,7 +13,9 @@ import { scanLibrary } from "../src/inventory.js";
 
 const roots: string[] = [];
 const run = promisify(execFile);
-afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 async function library(): Promise<string> {
   const root = mkdtempSync(join(tmpdir(), "dotagent-import-library-"));
@@ -27,7 +29,10 @@ function skill(name: string, extra = ""): string {
   roots.push(parent);
   const root = join(parent, name);
   mkdirSync(root);
-  writeFileSync(join(root, "SKILL.md"), `---\nname: ${name}\ndescription: Helps with ${name}.\n---\n# ${name}\n${extra}`);
+  writeFileSync(
+    join(root, "SKILL.md"),
+    `---\nname: ${name}\ndescription: Helps with ${name}.\n---\n# ${name}\n${extra}`,
+  );
   writeFileSync(join(root, "guide.md"), "portable content\n");
   return root;
 }
@@ -38,13 +43,31 @@ describe("canonical import planning and apply", () => {
     const owned = skill("writing");
     const plan = await planImport(root, [
       { kind: "owned", skill: "writing", sourcePath: owned, agents: ["codex", "claude-code", "codex"] },
-      { kind: "dependency", skill: "review", package: "review-tools", url: "https://github.com/example/review-tools.git", ref: "main", skillPath: ".", source: "skills-cli", agents: ["codex"] },
-      { kind: "local-only", skill: "private-notes", sourcePath: join(root, "elsewhere"), reason: "Contains machine-specific notes" },
+      {
+        kind: "dependency",
+        skill: "review",
+        package: "review-tools",
+        url: "https://github.com/example/review-tools.git",
+        ref: "main",
+        skillPath: ".",
+        source: "skills-cli",
+        agents: ["codex"],
+      },
+      {
+        kind: "local-only",
+        skill: "private-notes",
+        sourcePath: join(root, "elsewhere"),
+        reason: "Contains machine-specific notes",
+      },
     ]);
 
     expect(plan.hasConflicts).toBe(false);
     expect(plan.requiresResolve).toBe(true);
-    expect(plan.operations.map((operation) => operation.action)).toEqual(["leave-local", "record-dependency", "copy-owned"]);
+    expect(plan.operations.map((operation) => operation.action)).toEqual([
+      "leave-local",
+      "record-dependency",
+      "copy-owned",
+    ]);
     expect(plan.nextManifest).toMatchObject({
       skills: ["skills/writing"],
       dependencies: { "review-tools": { ref: "main", select: ["."] } },
@@ -67,7 +90,9 @@ describe("canonical import planning and apply", () => {
     const root = await library();
     const source = skill("unsafe", "\ngithub_pat_abcdefghijklmnopqrstuvwxyz123456\n");
     const plan = await planImport(root, [{ kind: "owned", skill: "unsafe", sourcePath: source }]);
-    expect(plan.secretFindings).toEqual([{ skill: "unsafe", relativePath: "SKILL.md", rule: "github-token", line: 7, column: 1 }]);
+    expect(plan.secretFindings).toEqual([
+      { skill: "unsafe", relativePath: "SKILL.md", rule: "github-token", line: 7, column: 1 },
+    ]);
     await expect(applyImportPlan(plan)).rejects.toThrow("possible secret");
     expect(existsSync(join(root, "skills", "unsafe"))).toBe(false);
   });
@@ -79,7 +104,10 @@ describe("canonical import planning and apply", () => {
     writeFileSync(join(root, "skills", "writing", "SKILL.md"), "unmanaged\n");
     const plan = await planImport(root, [{ kind: "owned", skill: "writing", sourcePath: source }]);
     expect(plan.hasConflicts).toBe(true);
-    expect(plan.operations[0]).toMatchObject({ action: "conflict", reason: "The target folder already exists but is not managed by the manifest" });
+    expect(plan.operations[0]).toMatchObject({
+      action: "conflict",
+      reason: "The target folder already exists but is not managed by the manifest",
+    });
     await expect(applyImportPlan(plan)).rejects.toThrow("contains conflicts");
   });
 
@@ -96,9 +124,13 @@ describe("canonical import planning and apply", () => {
       { kind: "owned", skill: "first", sourcePath: first },
       { kind: "owned", skill: "second", sourcePath: second },
     ]);
-    await expect(applyImportPlan(plan, {
-      beforeOperation: (_operation, index) => { if (index === 1) throw new Error("simulated failure"); },
-    })).rejects.toThrow("simulated failure");
+    await expect(
+      applyImportPlan(plan, {
+        beforeOperation: (_operation, index) => {
+          if (index === 1) throw new Error("simulated failure");
+        },
+      }),
+    ).rejects.toThrow("simulated failure");
     expect(existsSync(join(root, "skills", "first"))).toBe(false);
     expect(existsSync(join(root, "skills", "second"))).toBe(false);
     expect(JSON.parse(readFileSync(join(root, "skills.json"), "utf8")).skills).toEqual([]);
@@ -114,7 +146,10 @@ describe("canonical import planning and apply", () => {
     ]);
     const runner = join(root, "crash-import.ts");
     const moduleUrl = pathToFileURL(join(process.cwd(), "src", "import-apply.ts")).href;
-    writeFileSync(runner, `import { applyImportPlan } from ${JSON.stringify(moduleUrl)};\nconst plan = ${JSON.stringify(plan)};\nawait applyImportPlan(plan, { beforeOperation: (_operation, index) => { if (index === 1) process.exit(86); } });\n`);
+    writeFileSync(
+      runner,
+      `import { applyImportPlan } from ${JSON.stringify(moduleUrl)};\nconst plan = ${JSON.stringify(plan)};\nawait applyImportPlan(plan, { beforeOperation: (_operation, index) => { if (index === 1) process.exit(86); } });\n`,
+    );
     await expect(run(process.execPath, [runner], { cwd: process.cwd() })).rejects.toThrow();
     expect(existsSync(join(root, "skills", "first"))).toBe(true);
     expect(existsSync(join(root, ".dotagent", "import-journal.json"))).toBe(true);

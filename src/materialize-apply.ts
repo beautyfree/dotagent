@@ -1,4 +1,16 @@
-import { lstat, mkdir, open, readFile, readlink, readdir, rename, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  readlink,
+  readdir,
+  rename,
+  rm,
+  symlink,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { scanOwnedSkill } from "./inventory.js";
 import type { MaterializationOperation, MaterializationPlan } from "./materialize.js";
@@ -45,13 +57,24 @@ export interface ApplyMaterializationResult {
   unchanged: number;
 }
 
-function metadataRoot(libraryRoot: string): string { return path.join(libraryRoot, ".dotagent"); }
-function statePath(libraryRoot: string): string { return path.join(metadataRoot(libraryRoot), "materialization-state.json"); }
-function journalPath(libraryRoot: string): string { return path.join(metadataRoot(libraryRoot), "journal.json"); }
+function metadataRoot(libraryRoot: string): string {
+  return path.join(libraryRoot, ".dotagent");
+}
+function statePath(libraryRoot: string): string {
+  return path.join(metadataRoot(libraryRoot), "materialization-state.json");
+}
+function journalPath(libraryRoot: string): string {
+  return path.join(metadataRoot(libraryRoot), "journal.json");
+}
 
 async function exists(filePath: string): Promise<boolean> {
-  try { await lstat(filePath); return true; }
-  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return false; throw error; }
+  try {
+    await lstat(filePath);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 async function writeAtomic(filePath: string, value: unknown): Promise<void> {
@@ -64,10 +87,12 @@ async function writeAtomic(filePath: string, value: unknown): Promise<void> {
 export async function readMaterializationState(libraryRoot: string): Promise<MaterializationState> {
   try {
     const parsed = JSON.parse(await readFile(statePath(libraryRoot), "utf8")) as Partial<MaterializationState>;
-    if (parsed.schemaVersion !== MATERIALIZATION_STATE_VERSION || !parsed.targets || typeof parsed.targets !== "object") throw new Error("Unsupported materialization state");
+    if (parsed.schemaVersion !== MATERIALIZATION_STATE_VERSION || !parsed.targets || typeof parsed.targets !== "object")
+      throw new Error("Unsupported materialization state");
     return parsed as MaterializationState;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { schemaVersion: MATERIALIZATION_STATE_VERSION, targets: {} };
+    if ((error as NodeJS.ErrnoException).code === "ENOENT")
+      return { schemaVersion: MATERIALIZATION_STATE_VERSION, targets: {} };
     throw error;
   }
 }
@@ -96,8 +121,12 @@ async function copyDirectory(source: string, destination: string): Promise<void>
     else if (entry.isFile()) {
       const sourceHandle = await open(from, "r");
       const targetHandle = await open(to, "wx");
-      try { await targetHandle.writeFile(await sourceHandle.readFile()); }
-      finally { await sourceHandle.close(); await targetHandle.close(); }
+      try {
+        await targetHandle.writeFile(await sourceHandle.readFile());
+      } finally {
+        await sourceHandle.close();
+        await targetHandle.close();
+      }
     }
   }
 }
@@ -110,22 +139,39 @@ function stagePath(operation: MaterializationOperation, planId: string): string 
   return `${operation.target}.dotagent-stage-${planId}`;
 }
 
-async function writeCopyMarker(destination: string, planId: string, operation: MaterializationOperation): Promise<void> {
-  await writeFile(path.join(destination, COPY_MARKER), `${JSON.stringify({
-    schemaVersion: 1,
-    planId,
-    agent: operation.agent,
-    skill: operation.skill,
-    source: operation.source,
-    sourceIntegrity: operation.sourceIntegrity,
-  }, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+async function writeCopyMarker(
+  destination: string,
+  planId: string,
+  operation: MaterializationOperation,
+): Promise<void> {
+  await writeFile(
+    path.join(destination, COPY_MARKER),
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        planId,
+        agent: operation.agent,
+        skill: operation.skill,
+        source: operation.source,
+        sourceIntegrity: operation.sourceIntegrity,
+      },
+      null,
+      2,
+    )}\n`,
+    { encoding: "utf8", flag: "wx" },
+  );
 }
 
 async function markerMatches(target: string, planId?: string): Promise<boolean> {
   try {
-    const parsed = JSON.parse(await readFile(path.join(target, COPY_MARKER), "utf8")) as { schemaVersion?: unknown; planId?: unknown };
+    const parsed = JSON.parse(await readFile(path.join(target, COPY_MARKER), "utf8")) as {
+      schemaVersion?: unknown;
+      planId?: unknown;
+    };
     return parsed.schemaVersion === 1 && (planId === undefined || parsed.planId === planId);
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 async function validatePrecondition(operation: MaterializationOperation, state: MaterializationState): Promise<void> {
@@ -142,11 +188,14 @@ async function validatePrecondition(operation: MaterializationOperation, state: 
   if (!managed) throw new Error(`Target is not recorded as managed: ${operation.target}`);
   if (operation.expectedTarget.state === "managed-link") {
     const actual = await readlink(operation.target);
-    if (path.resolve(path.dirname(operation.target), actual) !== path.resolve(operation.expectedTarget.source)) throw new Error(`Managed link changed after review: ${operation.target}`);
+    if (path.resolve(path.dirname(operation.target), actual) !== path.resolve(operation.expectedTarget.source))
+      throw new Error(`Managed link changed after review: ${operation.target}`);
   } else {
     const scanned = await scanOwnedSkill(path.dirname(operation.target), path.basename(operation.target));
-    if (!scanned.ok || scanned.value.integrity !== operation.expectedTarget.integrity) throw new Error(`Managed copy changed after review: ${operation.target}`);
-    if (!await markerMatches(operation.target)) throw new Error(`Managed copy marker is missing: ${operation.target}`);
+    if (!scanned.ok || scanned.value.integrity !== operation.expectedTarget.integrity)
+      throw new Error(`Managed copy changed after review: ${operation.target}`);
+    if (!(await markerMatches(operation.target)))
+      throw new Error(`Managed copy marker is missing: ${operation.target}`);
   }
 }
 
@@ -179,13 +228,18 @@ async function rollbackJournal(libraryRoot: string, journal: MaterializationJour
     if (operation.action === "create-symlink" || operation.action === "create-junction") {
       try {
         const actual = await readlink(operation.target);
-        if (path.resolve(path.dirname(operation.target), actual) === path.resolve(operation.source)) await unlink(operation.target);
-      } catch { /* Target was not created or is no longer our link. */ }
+        if (path.resolve(path.dirname(operation.target), actual) === path.resolve(operation.source))
+          await unlink(operation.target);
+      } catch {
+        /* Target was not created or is no longer our link. */
+      }
     } else if (operation.action === "create-copy") {
-      if (await markerMatches(operation.target, journal.planId)) await rm(operation.target, { recursive: true, force: true });
+      if (await markerMatches(operation.target, journal.planId))
+        await rm(operation.target, { recursive: true, force: true });
     } else if (operation.action === "update-copy") {
-      if (await markerMatches(operation.target, journal.planId)) await rm(operation.target, { recursive: true, force: true });
-      if (await exists(backup) && !await exists(operation.target)) await rename(backup, operation.target);
+      if (await markerMatches(operation.target, journal.planId))
+        await rm(operation.target, { recursive: true, force: true });
+      if ((await exists(backup)) && !(await exists(operation.target))) await rename(backup, operation.target);
     }
   }
   await writeAtomic(statePath(libraryRoot), journal.previousState);
@@ -195,7 +249,8 @@ async function rollbackJournal(libraryRoot: string, journal: MaterializationJour
 export async function recoverMaterialization(libraryRoot: string): Promise<boolean> {
   try {
     const parsed = JSON.parse(await readFile(journalPath(libraryRoot), "utf8")) as MaterializationJournal;
-    if (parsed.schemaVersion !== MATERIALIZATION_JOURNAL_VERSION || !Array.isArray(parsed.operations)) throw new Error("Unsupported materialization journal");
+    if (parsed.schemaVersion !== MATERIALIZATION_JOURNAL_VERSION || !Array.isArray(parsed.operations))
+      throw new Error("Unsupported materialization journal");
     await rollbackJournal(libraryRoot, parsed);
     return true;
   } catch (error) {
@@ -210,12 +265,17 @@ export async function applyMaterializationPlan(
 ): Promise<ApplyMaterializationResult> {
   const { planId, ...payload } = plan;
   if (computePlanId(payload) !== planId) throw new Error("Materialization plan is stale or modified");
-  if (plan.hasConflicts || plan.operations.some((operation) => operation.action === "conflict")) throw new Error("Materialization plan contains conflicts");
-  if (await exists(journalPath(plan.library))) throw new Error("An unfinished materialization journal requires recovery first");
+  if (plan.hasConflicts || plan.operations.some((operation) => operation.action === "conflict"))
+    throw new Error("Materialization plan contains conflicts");
+  if (await exists(journalPath(plan.library)))
+    throw new Error("An unfinished materialization journal requires recovery first");
   const state = await readMaterializationState(plan.library);
-  const mutations = plan.operations.filter((operation) => ["create-symlink", "create-junction", "create-copy", "update-copy"].includes(operation.action));
+  const mutations = plan.operations.filter((operation) =>
+    ["create-symlink", "create-junction", "create-copy", "update-copy"].includes(operation.action),
+  );
   for (const operation of mutations) {
-    if (await sourceIntegrity(operation) !== operation.sourceIntegrity) throw new Error(`Source changed after review: ${operation.skill}`);
+    if ((await sourceIntegrity(operation)) !== operation.sourceIntegrity)
+      throw new Error(`Source changed after review: ${operation.skill}`);
     await validatePrecondition(operation, state);
   }
   const journal: MaterializationJournal = {
@@ -236,7 +296,12 @@ export async function applyMaterializationPlan(
         state.targets[path.resolve(entry.operation.target)] = {
           agent: entry.operation.agent,
           skill: entry.operation.skill,
-          mode: entry.operation.action === "create-symlink" ? "symlink" : entry.operation.action === "create-junction" ? "junction" : "copy",
+          mode:
+            entry.operation.action === "create-symlink"
+              ? "symlink"
+              : entry.operation.action === "create-junction"
+                ? "junction"
+                : "copy",
           source: entry.operation.source,
           sourceIntegrity: entry.operation.sourceIntegrity,
         };

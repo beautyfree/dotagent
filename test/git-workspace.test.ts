@@ -18,7 +18,9 @@ import {
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "../src/init.js";
 
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 async function initializedLibrary(parent: string, name: string): Promise<string> {
   const root = join(parent, name);
@@ -28,7 +30,10 @@ async function initializedLibrary(parent: string, name: string): Promise<string>
 
 function addSkill(root: string, name: string, body = "portable\n"): void {
   mkdirSync(join(root, "skills", name), { recursive: true });
-  writeFileSync(join(root, "skills", name, "SKILL.md"), `---\nname: ${name}\ndescription: ${name} description.\n---\n# ${name}\n${body}`);
+  writeFileSync(
+    join(root, "skills", name, "SKILL.md"),
+    `---\nname: ${name}\ndescription: ${name} description.\n---\n# ${name}\n${body}`,
+  );
   const manifest = JSON.parse(readFileSync(join(root, "skills.json"), "utf8"));
   manifest.skills = [...new Set([...(manifest.skills ?? []), `skills/${name}`])].sort();
   writeFileSync(join(root, "skills.json"), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -74,7 +79,10 @@ describe("Git-backed library workspace", () => {
 
     const second = join(parent, "second-library");
     await cloneLibrary(pathToFileURL(remote).href, second);
-    writeFileSync(join(second, "skills/review/SKILL.md"), "---\nname: review\ndescription: review description.\n---\n# review\nsecond\n");
+    writeFileSync(
+      join(second, "skills/review/SKILL.md"),
+      "---\nname: review\ndescription: review description.\n---\n# review\nsecond\n",
+    );
     await applyLibraryCommit(await planLibraryCommit(second, "Update review"));
     await applyLibraryPush(await planLibraryPush(second));
 

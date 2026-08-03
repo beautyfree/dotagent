@@ -79,13 +79,28 @@ export async function scanOwnedSkill(root, skillPath, limits = DEFAULT_SCAN_LIMI
         metadata = await lstat(skillRoot);
     }
     catch {
-        return { ok: false, issues: [issue("file-not-found", `Exported skill directory is missing: ${skillPath}.`, "Restore the directory or remove it from the manifest.", skillRoot)] };
+        return {
+            ok: false,
+            issues: [
+                issue("file-not-found", `Exported skill directory is missing: ${skillPath}.`, "Restore the directory or remove it from the manifest.", skillRoot),
+            ],
+        };
     }
     if (metadata.isSymbolicLink()) {
-        return { ok: false, issues: [issue("unsafe-link", `Exported skill root is a symbolic link: ${skillPath}.`, "Use an external dependency or materialize reviewed files inside the library.", skillRoot)] };
+        return {
+            ok: false,
+            issues: [
+                issue("unsafe-link", `Exported skill root is a symbolic link: ${skillPath}.`, "Use an external dependency or materialize reviewed files inside the library.", skillRoot),
+            ],
+        };
     }
     if (!metadata.isDirectory()) {
-        return { ok: false, issues: [issue("invalid-manifest", `Exported skill is not a directory: ${skillPath}.`, "Point skills.json to a directory containing SKILL.md.", skillRoot)] };
+        return {
+            ok: false,
+            issues: [
+                issue("invalid-manifest", `Exported skill is not a directory: ${skillPath}.`, "Point skills.json to a directory containing SKILL.md.", skillRoot),
+            ],
+        };
     }
     const skillFile = path.join(skillRoot, "SKILL.md");
     let skillFileMetadata;
@@ -93,31 +108,53 @@ export async function scanOwnedSkill(root, skillPath, limits = DEFAULT_SCAN_LIMI
         skillFileMetadata = await lstat(skillFile);
     }
     catch {
-        return { ok: false, issues: [issue("missing-skill-file", `${skillPath} has no regular SKILL.md.`, "Add SKILL.md or remove this export.", skillFile)] };
+        return {
+            ok: false,
+            issues: [
+                issue("missing-skill-file", `${skillPath} has no regular SKILL.md.`, "Add SKILL.md or remove this export.", skillFile),
+            ],
+        };
     }
     if (skillFileMetadata.isSymbolicLink()) {
-        return { ok: false, issues: [issue("unsafe-link", `${skillPath}/SKILL.md is a symbolic link.`, "Replace it with a regular file inside the skill or use an external dependency.", skillFile)] };
+        return {
+            ok: false,
+            issues: [
+                issue("unsafe-link", `${skillPath}/SKILL.md is a symbolic link.`, "Replace it with a regular file inside the skill or use an external dependency.", skillFile),
+            ],
+        };
     }
     if (!skillFileMetadata.isFile()) {
-        return { ok: false, issues: [issue("missing-skill-file", `${skillPath} has no regular SKILL.md.`, "Add SKILL.md or remove this export.", skillFile)] };
+        return {
+            ok: false,
+            issues: [
+                issue("missing-skill-file", `${skillPath} has no regular SKILL.md.`, "Add SKILL.md or remove this export.", skillFile),
+            ],
+        };
     }
-    const name = skillPath === "."
-        ? declaredSkillName(await readFile(skillFile, "utf8"))
-        : path.posix.basename(skillPath);
+    const name = skillPath === "." ? declaredSkillName(await readFile(skillFile, "utf8")) : path.posix.basename(skillPath);
     if (!name) {
-        return { ok: false, issues: [issue("missing-skill-metadata", "A repository-root skill must declare a portable name in SKILL.md frontmatter.", "Add a lowercase kebab-case name field to SKILL.md.", skillFile)] };
+        return {
+            ok: false,
+            issues: [
+                issue("missing-skill-metadata", "A repository-root skill must declare a portable name in SKILL.md frontmatter.", "Add a lowercase kebab-case name field to SKILL.md.", skillFile),
+            ],
+        };
     }
     const collected = await collectSkillFiles(skillRoot, limits);
     if (!collected.ok)
         return collected;
-    return { ok: true, value: {
+    return {
+        ok: true,
+        value: {
             name,
             path: skillPath,
             root: skillRoot,
             fileCount: collected.value.files.length,
             bytes: collected.value.bytes,
             integrity: computeSkillIntegrity(collected.value.files),
-        }, issues: [] };
+        },
+        issues: [],
+    };
 }
 export async function scanLibrary(root, limits = DEFAULT_SCAN_LIMITS) {
     const loaded = await loadLibrary(root);
@@ -131,20 +168,29 @@ export async function scanLibrary(root, limits = DEFAULT_SCAN_LIMITS) {
             return scanned;
         const folded = scanned.value.name.toLocaleLowerCase("en-US");
         if (names.has(folded)) {
-            return { ok: false, issues: [issue("duplicate-skill", `Multiple exported skills use the name ${scanned.value.name}.`, "Rename one skill so flat package names are unique.", skillPath)] };
+            return {
+                ok: false,
+                issues: [
+                    issue("duplicate-skill", `Multiple exported skills use the name ${scanned.value.name}.`, "Rename one skill so flat package names are unique.", skillPath),
+                ],
+            };
         }
         names.add(folded);
         const { root: _skillRoot, ...inventory } = scanned.value;
         ownedSkills.push(inventory);
     }
     ownedSkills.sort((left, right) => left.name.localeCompare(right.name, "en"));
-    return { ok: true, value: {
+    return {
+        ok: true,
+        value: {
             root,
             name: loaded.value.manifest.name,
             version: loaded.value.manifest.version,
             ownedSkills,
             dependencyCount: Object.keys(loaded.value.manifest.dependencies).length,
             locked: loaded.value.lock !== null,
-        }, issues: [] };
+        },
+        issues: [],
+    };
 }
 //# sourceMappingURL=inventory.js.map

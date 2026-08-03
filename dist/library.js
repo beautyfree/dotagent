@@ -15,10 +15,17 @@ function parseJson(input, schema, code) {
         raw = JSON.parse(input);
     }
     catch {
-        return { ok: false, issues: [{ code: "invalid-json", message: "The file is not valid JSON.", remediation: "Fix the JSON syntax and retry." }] };
+        return {
+            ok: false,
+            issues: [
+                { code: "invalid-json", message: "The file is not valid JSON.", remediation: "Fix the JSON syntax and retry." },
+            ],
+        };
     }
     const parsed = schema.safeParse(raw);
-    return parsed.success ? { ok: true, value: parsed.data, issues: [] } : { ok: false, issues: schemaIssues(parsed.error, code) };
+    return parsed.success
+        ? { ok: true, value: parsed.data, issues: [] }
+        : { ok: false, issues: schemaIssues(parsed.error, code) };
 }
 export function parseLibraryManifest(input) {
     return parseJson(input, libraryManifestSchema, "invalid-manifest");
@@ -44,12 +51,19 @@ export async function loadLibrary(root) {
     }
     catch (error) {
         const missing = error.code === "ENOENT";
-        return { ok: false, issues: [{
+        return {
+            ok: false,
+            issues: [
+                {
                     code: missing ? "file-not-found" : "io-error",
                     message: missing ? `No skills.json found at ${manifestPath}.` : `Could not read ${manifestPath}.`,
-                    remediation: missing ? "Run beautyfree-dotagent init or choose a library directory." : "Check file permissions and retry.",
+                    remediation: missing
+                        ? "Run beautyfree-dotagent init or choose a library directory."
+                        : "Check file permissions and retry.",
                     path: manifestPath,
-                }] };
+                },
+            ],
+        };
     }
     const manifest = parseLibraryManifest(manifestText);
     if (!manifest.ok)

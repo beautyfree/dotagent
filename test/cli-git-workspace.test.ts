@@ -9,7 +9,9 @@ import { promisify } from "node:util";
 const run = promisify(execFile);
 const repository = join(import.meta.dir, "..");
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 describe("Git workspace CLI", () => {
   it("keeps commit and push previews separate from confirmed mutations", async () => {
@@ -23,13 +25,18 @@ describe("Git workspace CLI", () => {
 
     await run("bun", ["src/cli.ts", "init", library, "--name", "portable"], { cwd: repository });
     mkdirSync(join(library, "skills", "writing"), { recursive: true });
-    writeFileSync(join(library, "skills", "writing", "SKILL.md"), "---\nname: writing\ndescription: Writes clearly.\n---\n# Writing\n");
+    writeFileSync(
+      join(library, "skills", "writing", "SKILL.md"),
+      "---\nname: writing\ndescription: Writes clearly.\n---\n# Writing\n",
+    );
     const manifest = JSON.parse(readFileSync(join(library, "skills.json"), "utf8"));
     manifest.skills = ["skills/writing"];
     writeFileSync(join(library, "skills.json"), `${JSON.stringify(manifest, null, 2)}\n`);
     await run("bun", ["src/cli.ts", "git-init", library, "--remote", pathToFileURL(remote).href], { cwd: repository });
 
-    await run("bun", ["src/cli.ts", "commit", library, "--message", "Create library", "--out", commitPlan], { cwd: repository });
+    await run("bun", ["src/cli.ts", "commit", library, "--message", "Create library", "--out", commitPlan], {
+      cwd: repository,
+    });
     expect(existsSync(join(library, ".git", "refs", "heads", "main"))).toBe(false);
     await expect(run("bun", ["src/cli.ts", "apply", commitPlan], { cwd: repository })).rejects.toThrow();
     await run("bun", ["src/cli.ts", "apply", commitPlan, "--yes"], { cwd: repository });
@@ -40,7 +47,9 @@ describe("Git workspace CLI", () => {
     expect(execFileSync("git", ["--git-dir", remote, "show-ref"], { encoding: "utf8" })).toContain("refs/heads/main");
 
     const clone = join(parent, "clone");
-    const result = await run("bun", ["src/cli.ts", "clone", pathToFileURL(remote).href, clone, "--json"], { cwd: repository });
+    const result = await run("bun", ["src/cli.ts", "clone", pathToFileURL(remote).href, clone, "--json"], {
+      cwd: repository,
+    });
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: true, root: clone, branch: "main", changed: false });
     expect(readFileSync(join(clone, "skills", "writing", "SKILL.md"), "utf8")).toContain("Writes clearly");
   });

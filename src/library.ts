@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { z, type ZodError } from "zod";
+import type { z, ZodError } from "zod";
 import { libraryLockSchema, libraryManifestSchema, type LibraryLock, type LibraryManifest } from "./schema.js";
 import type { DotagentIssue, DotagentResult } from "./issues.js";
 
@@ -13,15 +13,26 @@ function schemaIssues(error: ZodError, code: "invalid-manifest" | "invalid-lockf
   }));
 }
 
-function parseJson<TSchema extends z.ZodTypeAny>(input: string, schema: TSchema, code: "invalid-manifest" | "invalid-lockfile"): DotagentResult<z.output<TSchema>> {
+function parseJson<TSchema extends z.ZodTypeAny>(
+  input: string,
+  schema: TSchema,
+  code: "invalid-manifest" | "invalid-lockfile",
+): DotagentResult<z.output<TSchema>> {
   let raw: unknown;
   try {
     raw = JSON.parse(input);
   } catch {
-    return { ok: false, issues: [{ code: "invalid-json", message: "The file is not valid JSON.", remediation: "Fix the JSON syntax and retry." }] };
+    return {
+      ok: false,
+      issues: [
+        { code: "invalid-json", message: "The file is not valid JSON.", remediation: "Fix the JSON syntax and retry." },
+      ],
+    };
   }
   const parsed = schema.safeParse(raw);
-  return parsed.success ? { ok: true, value: parsed.data, issues: [] } : { ok: false, issues: schemaIssues(parsed.error, code) };
+  return parsed.success
+    ? { ok: true, value: parsed.data, issues: [] }
+    : { ok: false, issues: schemaIssues(parsed.error, code) };
 }
 
 export function parseLibraryManifest(input: string): DotagentResult<LibraryManifest> {
@@ -54,12 +65,19 @@ export async function loadLibrary(root: string): Promise<DotagentResult<LibraryF
     manifestText = await readFile(manifestPath, "utf8");
   } catch (error) {
     const missing = (error as NodeJS.ErrnoException).code === "ENOENT";
-    return { ok: false, issues: [{
-      code: missing ? "file-not-found" : "io-error",
-      message: missing ? `No skills.json found at ${manifestPath}.` : `Could not read ${manifestPath}.`,
-      remediation: missing ? "Run beautyfree-dotagent init or choose a library directory." : "Check file permissions and retry.",
-      path: manifestPath,
-    }] };
+    return {
+      ok: false,
+      issues: [
+        {
+          code: missing ? "file-not-found" : "io-error",
+          message: missing ? `No skills.json found at ${manifestPath}.` : `Could not read ${manifestPath}.`,
+          remediation: missing
+            ? "Run beautyfree-dotagent init or choose a library directory."
+            : "Check file permissions and retry.",
+          path: manifestPath,
+        },
+      ],
+    };
   }
   const manifest = parseLibraryManifest(manifestText);
   if (!manifest.ok) return manifest;

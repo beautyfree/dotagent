@@ -19,7 +19,9 @@ export class NodeWorkspaceGitPort {
             cwd,
             encoding: "utf8",
             maxBuffer: 10 * 1024 * 1024,
-            env: options.nonInteractive ? { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: "ssh -o BatchMode=yes" } : process.env,
+            env: options.nonInteractive
+                ? { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: "ssh -o BatchMode=yes" }
+                : process.env,
         });
         // Porcelain `-z` records can legitimately start with a space (for example
         // " M file"). Trimming those records corrupts both the status and path.
@@ -74,13 +76,22 @@ function parseChangedPaths(output) {
             continue;
         const status = record.slice(0, 2);
         paths.add(record.slice(3).replaceAll("\\", "/"));
-        if (/[RC]/.test(status) && records[index + 1])
-            paths.add(records[++index].replaceAll("\\", "/"));
+        const renamedPath = records[index + 1];
+        if (/[RC]/.test(status) && renamedPath) {
+            paths.add(renamedPath.replaceAll("\\", "/"));
+            index += 1;
+        }
     }
     return [...paths].sort((left, right) => left.localeCompare(right, "en"));
 }
 function parseNullPaths(output) {
-    return output ? output.split("\0").filter(Boolean).map((entry) => entry.replaceAll("\\", "/")).sort((left, right) => left.localeCompare(right, "en")) : [];
+    return output
+        ? output
+            .split("\0")
+            .filter(Boolean)
+            .map((entry) => entry.replaceAll("\\", "/"))
+            .sort((left, right) => left.localeCompare(right, "en"))
+        : [];
 }
 function isMachineLocalIgnoredPath(filePath) {
     const normalized = filePath.replaceAll("\\", "/").replace(/^\.\//, "");
@@ -118,7 +129,7 @@ async function snapshotFiles(root, files) {
             continue;
         }
         const absolute = path.join(root, ...portable.split("/"));
-        if (!await exists(absolute)) {
+        if (!(await exists(absolute))) {
             snapshots.push({ path: portable, hash: null });
             continue;
         }
@@ -142,7 +153,14 @@ async function snapshotFiles(root, files) {
     return { snapshots, unsafePaths, secretFindings };
 }
 function auditErrors(report) {
-    return report.issues.filter((issue) => issue.severity === "error").map((issue) => ({ code: issue.code, message: issue.message, remediation: issue.remediation, ...(issue.field ? { field: issue.field } : {}) }));
+    return report.issues
+        .filter((issue) => issue.severity === "error")
+        .map((issue) => ({
+        code: issue.code,
+        message: issue.message,
+        remediation: issue.remediation,
+        ...(issue.field ? { field: issue.field } : {}),
+    }));
 }
 function assertPlanId(plan) {
     const { planId, ...payload } = plan;
@@ -151,7 +169,7 @@ function assertPlanId(plan) {
 }
 export async function initializeLibraryGit(root, remote, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
-    if (!await exists(path.join(library, ".git"))) {
+    if (!(await exists(path.join(library, ".git")))) {
         await git.run(["init", "--initial-branch", DEFAULT_BRANCH], library);
         await git.run(["config", "user.name", GIT_NAME], library);
         await git.run(["config", "user.email", GIT_EMAIL], library);
@@ -192,20 +210,30 @@ export async function cloneLibrary(remote, target, git = new NodeWorkspaceGitPor
 }
 export async function getLibraryGitStatus(root, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
-    const [branch, head, paths] = await Promise.all([gitBranch(library, git), gitHead(library, git), changedLibraryPaths(library, git)]);
+    const [branch, head, paths] = await Promise.all([
+        gitBranch(library, git),
+        gitHead(library, git),
+        changedLibraryPaths(library, git),
+    ]);
     let remoteIdentity = null;
     try {
         remoteIdentity = normalizeGitIdentity(await git.run(["remote", "get-url", "origin"], library));
     }
-    catch { /* no remote */ }
+    catch {
+        /* no remote */
+    }
     let ahead = 0;
     let behind = 0;
     try {
-        const counts = (await git.run(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], library)).split(/\s+/).map(Number);
+        const counts = (await git.run(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], library))
+            .split(/\s+/)
+            .map(Number);
         ahead = counts[0] ?? 0;
         behind = counts[1] ?? 0;
     }
-    catch { /* no upstream yet */ }
+    catch {
+        /* no upstream yet */
+    }
     return { branch, changed: paths.changed.length > 0 || paths.ignored.length > 0, ahead, behind, remoteIdentity, head };
 }
 export async function planLibraryCommit(root, message, visibility = "private", git = new NodeWorkspaceGitPort()) {
@@ -214,12 +242,27 @@ export async function planLibraryCommit(root, message, visibility = "private", g
     if (!commitMessage || commitMessage.length > 200 || /[\r\n\0]/.test(commitMessage))
         throw new Error("Commit message must be one line between 1 and 200 characters");
     const paths = await changedLibraryPaths(library, git);
-    const [snapshot, report, baseHead] = await Promise.all([snapshotFiles(library, paths.changed), auditLibrary({ root: library, visibility }), gitHead(library, git)]);
+    const [snapshot, report, baseHead] = await Promise.all([
+        snapshotFiles(library, paths.changed),
+        auditLibrary({ root: library, visibility }),
+        gitHead(library, git),
+    ]);
     const errors = auditErrors(report);
     const payload = {
-        kind: "git-commit", schemaVersion: 1, library, visibility, message: commitMessage, baseHead,
-        files: snapshot.snapshots, secretFindings: snapshot.secretFindings, unsafePaths: [...new Set([...snapshot.unsafePaths, ...paths.ignored])].sort(), auditErrors: errors,
-        hasBlockers: snapshot.secretFindings.length > 0 || snapshot.unsafePaths.length > 0 || paths.ignored.length > 0 || errors.length > 0,
+        kind: "git-commit",
+        schemaVersion: 1,
+        library,
+        visibility,
+        message: commitMessage,
+        baseHead,
+        files: snapshot.snapshots,
+        secretFindings: snapshot.secretFindings,
+        unsafePaths: [...new Set([...snapshot.unsafePaths, ...paths.ignored])].sort(),
+        auditErrors: errors,
+        hasBlockers: snapshot.secretFindings.length > 0 ||
+            snapshot.unsafePaths.length > 0 ||
+            paths.ignored.length > 0 ||
+            errors.length > 0,
     };
     return withPlanId(payload);
 }
@@ -238,7 +281,9 @@ export async function applyLibraryCommit(plan, git = new NodeWorkspaceGitPort())
 }
 export async function fetchLibrary(root, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
-    await git.run(["-c", "credential.interactive=false", "fetch", "origin", "--prune", "--no-tags"], library, { nonInteractive: true });
+    await git.run(["-c", "credential.interactive=false", "fetch", "origin", "--prune", "--no-tags"], library, {
+        nonInteractive: true,
+    });
 }
 export async function planLibraryPull(root, visibility = "private", git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
@@ -253,7 +298,9 @@ export async function planLibraryPull(root, visibility = "private", git = new No
     const ancestry = await git.run(["merge-base", "--is-ancestor", before.head, remoteHead], library).then(() => true, () => false);
     if (!ancestry)
         throw new Error("Remote history is not a fast-forward; reconcile it explicitly");
-    const files = before.head === remoteHead ? [] : parseNullPaths(await git.run(["diff", "--name-only", "-z", `${before.head}..${remoteHead}`], library, { raw: true }));
+    const files = before.head === remoteHead
+        ? []
+        : parseNullPaths(await git.run(["diff", "--name-only", "-z", `${before.head}..${remoteHead}`], library, { raw: true }));
     const worktreeParent = await mkdtemp(path.join(tmpdir(), "dotagent-pull-review-"));
     const worktree = path.join(worktreeParent, "checkout");
     let snapshot = { snapshots: [], unsafePaths: [], secretFindings: [] };
@@ -273,8 +320,17 @@ export async function planLibraryPull(root, visibility = "private", git = new No
         await rm(worktreeParent, { recursive: true, force: true });
     }
     const payload = {
-        kind: "git-pull", schemaVersion: 1, library, visibility, branch, baseHead: before.head, remoteHead, files,
-        secretFindings: snapshot.secretFindings, unsafePaths: snapshot.unsafePaths, auditErrors: errors,
+        kind: "git-pull",
+        schemaVersion: 1,
+        library,
+        visibility,
+        branch,
+        baseHead: before.head,
+        remoteHead,
+        files,
+        secretFindings: snapshot.secretFindings,
+        unsafePaths: snapshot.unsafePaths,
+        auditErrors: errors,
         hasBlockers: snapshot.secretFindings.length > 0 || snapshot.unsafePaths.length > 0 || errors.length > 0,
     };
     return withPlanId(payload);
@@ -288,7 +344,10 @@ export async function applyLibraryPull(plan, git = new NodeWorkspaceGitPort()) {
         throw new Error("Pull plan contains security or portability blockers");
     if (plan.baseHead !== plan.remoteHead)
         await git.run(["merge", "--ff-only", plan.remoteHead], plan.library);
-    return (await gitHead(plan.library, git));
+    const head = await gitHead(plan.library, git);
+    if (!head)
+        throw new Error("Pull completed without a readable Git HEAD");
+    return head;
 }
 export async function planLibraryPush(root, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
@@ -299,7 +358,15 @@ export async function planLibraryPush(root, git = new NodeWorkspaceGitPort()) {
         throw new Error("Library has no commit to push");
     if (!status.remoteIdentity)
         throw new Error("Library has no origin remote");
-    const payload = { kind: "git-push", schemaVersion: 1, library, branch: status.branch || DEFAULT_BRANCH, head: status.head, remoteIdentity: status.remoteIdentity, ahead: status.ahead };
+    const payload = {
+        kind: "git-push",
+        schemaVersion: 1,
+        library,
+        branch: status.branch || DEFAULT_BRANCH,
+        head: status.head,
+        remoteIdentity: status.remoteIdentity,
+        ahead: status.ahead,
+    };
     return withPlanId(payload);
 }
 export async function applyLibraryPush(plan, git = new NodeWorkspaceGitPort()) {

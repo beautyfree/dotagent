@@ -2,7 +2,9 @@ import { mkdir, open, stat } from "node:fs/promises";
 import path from "node:path";
 import { computePlanId } from "./plan.js";
 function packageName(input) {
-    const normalized = input.trim().toLocaleLowerCase("en-US")
+    const normalized = input
+        .trim()
+        .toLocaleLowerCase("en-US")
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
         .slice(0, 64);

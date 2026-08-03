@@ -20,11 +20,12 @@ export function scanTextForSecrets(text) {
     for (const [lineIndex, line] of lines.entries()) {
         for (const rule of secretRules) {
             rule.pattern.lastIndex = 0;
-            let match;
-            while ((match = rule.pattern.exec(line)) !== null) {
-                if (rule.id === "connection-string" && isDocumentedConnectionExample(line))
-                    continue;
-                findings.push({ rule: rule.id, line: lineIndex + 1, column: match.index + 1 });
+            let match = rule.pattern.exec(line);
+            while (match !== null) {
+                if (rule.id !== "connection-string" || !isDocumentedConnectionExample(line)) {
+                    findings.push({ rule: rule.id, line: lineIndex + 1, column: match.index + 1 });
+                }
+                match = rule.pattern.exec(line);
             }
         }
     }
@@ -103,13 +104,25 @@ export async function auditLibrary(options) {
     const issues = [];
     const scanned = await scanLibrary(root);
     if (!scanned.ok)
-        return { ok: false, publicReady: false, library: null, issues: scanned.issues.map((issue) => ({ ...issue, severity: issue.severity ?? "error" })) };
+        return {
+            ok: false,
+            publicReady: false,
+            library: null,
+            issues: scanned.issues.map((issue) => ({ ...issue, severity: issue.severity ?? "error" })),
+        };
     const loaded = await loadLibrary(root);
     if (!loaded.ok)
-        return { ok: false, publicReady: false, library: scanned.value, issues: loaded.issues.map((issue) => ({ ...issue, severity: issue.severity ?? "error" })) };
+        return {
+            ok: false,
+            publicReady: false,
+            library: scanned.value,
+            issues: loaded.issues.map((issue) => ({ ...issue, severity: issue.severity ?? "error" })),
+        };
     const publicVisibility = options.visibility === "public";
     if (!loaded.value.manifest.license) {
-        issues.push(auditIssue("missing-license", publicVisibility ? "error" : "warning", "The library manifest has no license.", publicVisibility ? "Choose a license before publishing this library publicly." : "Add a license before sharing or redistributing the library.", "license"));
+        issues.push(auditIssue("missing-license", publicVisibility ? "error" : "warning", "The library manifest has no license.", publicVisibility
+            ? "Choose a license before publishing this library publicly."
+            : "Add a license before sharing or redistributing the library.", "license"));
     }
     for (const skill of scanned.value.ownedSkills) {
         const content = await readFile(path.join(root, ...skill.path.split("/"), "SKILL.md"), "utf8");

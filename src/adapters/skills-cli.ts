@@ -27,7 +27,8 @@ export interface SkillsCliProvenanceResult {
 }
 
 function sourcePackageName(source: string, skill: string): string {
-  const normalized = source.toLocaleLowerCase("en-US")
+  const normalized = source
+    .toLocaleLowerCase("en-US")
     .replace(/\.git$/i, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
@@ -56,16 +57,23 @@ export function parseSkillsCliLock(input: string, sourcePath = "<memory>"): Skil
     .flatMap(([name, value]) => {
       if (!value || typeof value !== "object") return [];
       const entry = value as Record<string, unknown>;
-      if (typeof entry.source !== "string" || typeof entry.sourceType !== "string" || typeof entry.sourceUrl !== "string") return [];
-      return [{
-        name,
-        source: entry.source,
-        source_type: entry.sourceType,
-        source_url: entry.sourceUrl,
-        ref: typeof entry.ref === "string" ? entry.ref : null,
-        skill_path: typeof entry.skillPath === "string" ? entry.skillPath : null,
-        updated_at: typeof entry.updatedAt === "string" ? entry.updatedAt : "",
-      }];
+      if (
+        typeof entry.source !== "string" ||
+        typeof entry.sourceType !== "string" ||
+        typeof entry.sourceUrl !== "string"
+      )
+        return [];
+      return [
+        {
+          name,
+          source: entry.source,
+          source_type: entry.sourceType,
+          source_url: entry.sourceUrl,
+          ref: typeof entry.ref === "string" ? entry.ref : null,
+          skill_path: typeof entry.skillPath === "string" ? entry.skillPath : null,
+          updated_at: typeof entry.updatedAt === "string" ? entry.updatedAt : "",
+        },
+      ];
     })
     .sort((a, b) => a.name.localeCompare(b.name));
   return { path: sourcePath, version: SKILLS_CLI_LOCK_VERSION, skills };

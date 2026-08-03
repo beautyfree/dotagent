@@ -40,19 +40,38 @@ export interface ApplyImportResult {
   requiresResolve: boolean;
 }
 
-function hashText(value: string): string { return createHash("sha256").update(value).digest("hex"); }
-function metadataRoot(library: string): string { return path.join(library, ".dotagent"); }
-function journalPath(library: string): string { return path.join(metadataRoot(library), "import-journal.json"); }
-function stageRoot(library: string, planId: string): string { return path.join(metadataRoot(library), "import-stage", planId); }
-function stagePath(library: string, planId: string, skill: string): string { return path.join(stageRoot(library, planId), skill); }
-
-async function exists(value: string): Promise<boolean> {
-  try { await lstat(value); return true; }
-  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return false; throw error; }
+function hashText(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+function metadataRoot(library: string): string {
+  return path.join(library, ".dotagent");
+}
+function journalPath(library: string): string {
+  return path.join(metadataRoot(library), "import-journal.json");
+}
+function stageRoot(library: string, planId: string): string {
+  return path.join(metadataRoot(library), "import-stage", planId);
+}
+function stagePath(library: string, planId: string, skill: string): string {
+  return path.join(stageRoot(library, planId), skill);
 }
 
-function manifestText(plan: ImportPlan): string { return `${JSON.stringify(plan.nextManifest, null, 2)}\n`; }
-function configText(plan: ImportPlan): string { return stringify(plan.nextConfig, { lineWidth: 0 }); }
+async function exists(value: string): Promise<boolean> {
+  try {
+    await lstat(value);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function manifestText(plan: ImportPlan): string {
+  return `${JSON.stringify(plan.nextManifest, null, 2)}\n`;
+}
+function configText(plan: ImportPlan): string {
+  return stringify(plan.nextConfig, { lineWidth: 0 });
+}
 
 async function writeAtomic(filePath: string, content: string): Promise<void> {
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -67,7 +86,7 @@ async function writeAtomic(filePath: string, content: string): Promise<void> {
     if (hadPrevious) await rm(backup, { force: true });
   } catch (error) {
     await rm(temporary, { force: true });
-    if (hadPrevious && await exists(backup) && !await exists(filePath)) await rename(backup, filePath);
+    if (hadPrevious && (await exists(backup)) && !(await exists(filePath))) await rename(backup, filePath);
     throw error;
   }
 }
@@ -89,8 +108,12 @@ async function copyDirectory(source: string, target: string): Promise<void> {
     else if (entry.isFile()) {
       const sourceHandle = await open(from, "r");
       const targetHandle = await open(to, "wx");
-      try { await targetHandle.writeFile(await sourceHandle.readFile()); }
-      finally { await sourceHandle.close(); await targetHandle.close(); }
+      try {
+        await targetHandle.writeFile(await sourceHandle.readFile());
+      } finally {
+        await sourceHandle.close();
+        await targetHandle.close();
+      }
     }
   }
 }
@@ -98,14 +121,17 @@ async function copyDirectory(source: string, target: string): Promise<void> {
 async function assertOperationSource(operation: ImportOperation): Promise<void> {
   if (operation.action !== "copy-owned" || !operation.source || !operation.sourceIntegrity) return;
   const scanned = await scanOwnedSkill(path.dirname(operation.source), path.basename(operation.source));
-  if (!scanned.ok || scanned.value.integrity !== operation.sourceIntegrity) throw new Error(`Import source changed after review: ${operation.skill}`);
-  if ((await scanSkillForSecrets(operation.source)).length > 0) throw new Error(`Import source now contains possible secrets: ${operation.skill}`);
+  if (!scanned.ok || scanned.value.integrity !== operation.sourceIntegrity)
+    throw new Error(`Import source changed after review: ${operation.skill}`);
+  if ((await scanSkillForSecrets(operation.source)).length > 0)
+    throw new Error(`Import source now contains possible secrets: ${operation.skill}`);
 }
 
 async function assertCopiedIntegrity(operation: ImportOperation, root: string): Promise<void> {
   if (!operation.sourceIntegrity) throw new Error(`Missing source integrity for ${operation.skill}`);
   const scanned = await scanOwnedSkill(path.dirname(root), path.basename(root));
-  if (!scanned.ok || scanned.value.integrity !== operation.sourceIntegrity) throw new Error(`Imported content changed for ${operation.skill}`);
+  if (!scanned.ok || scanned.value.integrity !== operation.sourceIntegrity)
+    throw new Error(`Imported content changed for ${operation.skill}`);
 }
 
 async function rollbackJournal(journal: ImportJournal): Promise<void> {
@@ -121,11 +147,22 @@ async function rollbackJournal(journal: ImportJournal): Promise<void> {
     throw new Error("Portable library files changed after the interrupted import; refusing automatic rollback");
   }
   for (const entry of [...journal.operations].reverse()) {
-    if ((entry.status !== "committing" && entry.status !== "applied") || entry.operation.action !== "copy-owned" || !entry.operation.target || !await exists(entry.operation.target)) continue;
+    if (
+      (entry.status !== "committing" && entry.status !== "applied") ||
+      entry.operation.action !== "copy-owned" ||
+      !entry.operation.target ||
+      !(await exists(entry.operation.target))
+    )
+      continue;
     await assertCopiedIntegrity(entry.operation, entry.operation.target);
   }
   for (const entry of [...journal.operations].reverse()) {
-    if ((entry.status === "committing" || entry.status === "applied") && entry.operation.action === "copy-owned" && entry.operation.target && await exists(entry.operation.target)) {
+    if (
+      (entry.status === "committing" || entry.status === "applied") &&
+      entry.operation.action === "copy-owned" &&
+      entry.operation.target &&
+      (await exists(entry.operation.target))
+    ) {
       await rm(entry.operation.target, { recursive: true, force: true });
     }
   }
@@ -145,17 +182,20 @@ export async function recoverImport(libraryRoot: string): Promise<"none" | "comp
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return "none";
     throw error;
   }
-  if (journal.schemaVersion !== IMPORT_JOURNAL_VERSION || journal.library !== library) throw new Error("Unsupported or misplaced import journal");
+  if (journal.schemaVersion !== IMPORT_JOURNAL_VERSION || journal.library !== library)
+    throw new Error("Unsupported or misplaced import journal");
   const [currentManifest, currentConfig] = await Promise.all([
     readFile(path.join(library, "skills.json"), "utf8"),
     readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
   ]);
-  const complete = hashText(currentManifest) === hashText(journal.nextManifestText)
-    && hashText(currentConfig) === hashText(journal.nextConfigText)
-    && journal.operations.every((entry) => entry.operation.action !== "copy-owned" || entry.status === "applied");
+  const complete =
+    hashText(currentManifest) === hashText(journal.nextManifestText) &&
+    hashText(currentConfig) === hashText(journal.nextConfigText) &&
+    journal.operations.every((entry) => entry.operation.action !== "copy-owned" || entry.status === "applied");
   if (complete) {
     for (const entry of journal.operations) {
-      if (entry.operation.action === "copy-owned" && entry.operation.target) await assertCopiedIntegrity(entry.operation, entry.operation.target);
+      if (entry.operation.action === "copy-owned" && entry.operation.target)
+        await assertCopiedIntegrity(entry.operation, entry.operation.target);
     }
     await rm(stageRoot(library, journal.planId), { recursive: true, force: true });
     await rm(journalPath(library), { force: true });
@@ -168,12 +208,17 @@ export async function recoverImport(libraryRoot: string): Promise<"none" | "comp
 export async function applyImportPlan(plan: ImportPlan, options: ApplyImportOptions = {}): Promise<ApplyImportResult> {
   const { planId, ...payload } = plan;
   if (computePlanId(payload) !== planId) throw new Error("Import plan is stale or modified");
-  if (plan.hasConflicts || plan.operations.some((operation) => operation.action === "conflict")) throw new Error("Import plan contains conflicts");
-  if (plan.secretFindings.length > 0) throw new Error(`Import is blocked by ${plan.secretFindings.length} possible secret finding(s)`);
+  if (plan.hasConflicts || plan.operations.some((operation) => operation.action === "conflict"))
+    throw new Error("Import plan contains conflicts");
+  if (plan.secretFindings.length > 0)
+    throw new Error(`Import is blocked by ${plan.secretFindings.length} possible secret finding(s)`);
   if (await exists(journalPath(plan.library))) throw new Error("An unfinished import journal requires recovery first");
   const manifestPath = path.join(plan.library, "skills.json");
   const configPath = path.join(plan.library, DOTAGENT_CONFIG_FILE);
-  const [baseManifestText, baseConfigText] = await Promise.all([readFile(manifestPath, "utf8"), readFile(configPath, "utf8")]);
+  const [baseManifestText, baseConfigText] = await Promise.all([
+    readFile(manifestPath, "utf8"),
+    readFile(configPath, "utf8"),
+  ]);
   if (hashText(baseManifestText) !== plan.baseManifestHash || hashText(baseConfigText) !== plan.baseConfigHash) {
     throw new Error("Portable library files changed after review; rebuild the import plan");
   }
@@ -198,17 +243,19 @@ export async function applyImportPlan(plan: ImportPlan, options: ApplyImportOpti
   try {
     for (const [index, entry] of journal.operations.entries()) {
       await options.beforeOperation?.(entry.operation, index);
+      const { source, target } = entry.operation;
+      if (!source || !target) throw new Error(`Import operation is incomplete for ${entry.operation.skill}`);
       const staged = stagePath(plan.library, planId, entry.operation.skill);
       await rm(staged, { recursive: true, force: true });
       await mkdir(path.dirname(staged), { recursive: true });
-      await copyDirectory(entry.operation.source!, staged);
+      await copyDirectory(source, staged);
       await assertCopiedIntegrity(entry.operation, staged);
       entry.status = "staged";
       await writeJournal(journal);
-      await mkdir(path.dirname(entry.operation.target!), { recursive: true });
+      await mkdir(path.dirname(target), { recursive: true });
       entry.status = "committing";
       await writeJournal(journal);
-      await rename(staged, entry.operation.target!);
+      await rename(staged, target);
       entry.status = "applied";
       await writeJournal(journal);
     }

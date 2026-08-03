@@ -17,12 +17,13 @@ export async function prepareMaterializationInventory(options) {
     const dependencies = Object.entries(loaded.value.manifest.dependencies).sort(([left], [right]) => left.localeCompare(right, "en"));
     if (dependencies.length === 0)
         return inventory.value;
-    if (!loaded.value.lock)
+    const lock = loaded.value.lock;
+    if (!lock)
         throw new Error("Dependencies require a reviewed skills.lock before materialization");
     const resolver = options.resolver ?? new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") });
     const checkoutRoot = path.resolve(options.checkoutRoot ?? path.join(root, ".dotagent", "cache", "checkouts"));
     const prepared = await Promise.all(dependencies.map(async ([name, dependency]) => {
-        const locked = loaded.value.lock.resolved[name];
+        const locked = lock.resolved[name];
         if (!locked)
             throw new Error(`skills.lock has no entry for dependency ${name}`);
         return resolver.prepareLocked(name, dependency, locked, checkoutRoot);

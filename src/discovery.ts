@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { Dirent } from "node:fs";
 import { lstat, readFile, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
@@ -59,13 +60,22 @@ function metadata(text: string): SkillMetadata {
   if (!match) return { name: null, description: null, whenToUse: null };
   try {
     const value = parse(match[1] ?? "") as Record<string, unknown> | null;
-    const string = (key: string): string | null => typeof value?.[key] === "string" && (value[key] as string).trim() ? (value[key] as string).trim() : null;
+    const string = (key: string): string | null =>
+      typeof value?.[key] === "string" && (value[key] as string).trim() ? (value[key] as string).trim() : null;
     return { name: string("name"), description: string("description"), whenToUse: string("when_to_use") };
-  } catch { return { name: null, description: null, whenToUse: null }; }
+  } catch {
+    return { name: null, description: null, whenToUse: null };
+  }
 }
 
 function portableKey(name: string): string {
-  return name.toLocaleLowerCase("en-US").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "skill";
+  return (
+    name
+      .toLocaleLowerCase("en-US")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48) || "skill"
+  );
 }
 
 function integritySuffix(integrity: string): string {
@@ -77,8 +87,13 @@ function issue(code: DotagentIssue["code"], message: string, remediation: string
 }
 
 async function exists(filePath: string): Promise<boolean> {
-  try { await lstat(filePath); return true; }
-  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return false; throw error; }
+  try {
+    await lstat(filePath);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 async function internalSkillMarkdownAlias(skillRoot: string, discoveryRoot: string): Promise<boolean> {
@@ -88,10 +103,15 @@ async function internalSkillMarkdownAlias(skillRoot: string, discoveryRoot: stri
     const [target, root] = await Promise.all([realpath(skillMd), realpath(discoveryRoot)]);
     const relative = path.relative(root, target);
     return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
-async function collectRoots(root: SkillDiscoveryRoot, limits: DiscoveryLimits): Promise<{ paths: string[]; aliases: number; issues: DotagentIssue[] }> {
+async function collectRoots(
+  root: SkillDiscoveryRoot,
+  limits: DiscoveryLimits,
+): Promise<{ paths: string[]; aliases: number; issues: DotagentIssue[] }> {
   const paths: string[] = [];
   const issues: DotagentIssue[] = [];
   let aliases = 0;
@@ -100,10 +120,18 @@ async function collectRoots(root: SkillDiscoveryRoot, limits: DiscoveryLimits): 
     if (depth > limits.maxDepth) return;
     visited += 1;
     if (visited > limits.maxDirectories) throw new Error(`Discovery root exceeds ${limits.maxDirectories} directories`);
-    let entries;
-    try { entries = await readdir(directory, { withFileTypes: true }); }
-    catch {
-      issues.push(issue("io-error", "A skill directory could not be read safely.", "Check its permissions or leave it local.", directory));
+    let entries: Dirent[];
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      issues.push(
+        issue(
+          "io-error",
+          "A skill directory could not be read safely.",
+          "Check its permissions or leave it local.",
+          directory,
+        ),
+      );
       return;
     }
     entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
@@ -112,9 +140,17 @@ async function collectRoots(root: SkillDiscoveryRoot, limits: DiscoveryLimits): 
       const candidate = path.join(directory, entry.name);
       let directoryLike = entry.isDirectory();
       if (entry.isSymbolicLink()) {
-        try { directoryLike = (await stat(candidate)).isDirectory(); }
-        catch {
-          issues.push(issue("unsafe-link", "A dangling linked skill folder was left untouched.", "Repair or remove the link before importing it.", candidate));
+        try {
+          directoryLike = (await stat(candidate)).isDirectory();
+        } catch {
+          issues.push(
+            issue(
+              "unsafe-link",
+              "A dangling linked skill folder was left untouched.",
+              "Repair or remove the link before importing it.",
+              candidate,
+            ),
+          );
           continue;
         }
       }
@@ -134,26 +170,50 @@ async function collectRoots(root: SkillDiscoveryRoot, limits: DiscoveryLimits): 
  * Read-only cross-agent discovery. Byte-identical aliases are one skill with
  * multiple locations; same-name content differences remain explicit conflicts.
  */
-export async function discoverSkills(roots: SkillDiscoveryRoot[], limits: DiscoveryLimits = DEFAULT_DISCOVERY_LIMITS): Promise<SkillDiscoveryReport> {
+export async function discoverSkills(
+  roots: SkillDiscoveryRoot[],
+  limits: DiscoveryLimits = DEFAULT_DISCOVERY_LIMITS,
+): Promise<SkillDiscoveryReport> {
   const byIntegrity = new Map<string, DiscoveredSkill>();
   const issues: DotagentIssue[] = [];
   let linkedAliases = 0;
-  const sortedRoots = [...roots].sort((left, right) => `${left.kind}:${left.agent ?? ""}:${left.path}`.localeCompare(`${right.kind}:${right.agent ?? ""}:${right.path}`, "en"));
+  const sortedRoots = [...roots].sort((left, right) =>
+    `${left.kind}:${left.agent ?? ""}:${left.path}`.localeCompare(
+      `${right.kind}:${right.agent ?? ""}:${right.path}`,
+      "en",
+    ),
+  );
   for (const root of sortedRoots) {
-    if (!await exists(root.path)) continue;
-    let collected;
-    try { collected = await collectRoots(root, limits); }
-    catch (error) {
-      issues.push(issue("limit-exceeded", error instanceof Error ? error.message : "Discovery limit exceeded.", "Narrow this discovery root or remove generated directories.", root.path));
+    if (!(await exists(root.path))) continue;
+    let collected: Awaited<ReturnType<typeof collectRoots>>;
+    try {
+      collected = await collectRoots(root, limits);
+    } catch (error) {
+      issues.push(
+        issue(
+          "limit-exceeded",
+          error instanceof Error ? error.message : "Discovery limit exceeded.",
+          "Narrow this discovery root or remove generated directories.",
+          root.path,
+        ),
+      );
       continue;
     }
     linkedAliases += collected.aliases;
     issues.push(...collected.issues);
     for (const candidate of collected.paths) {
       let actual: string;
-      try { actual = await realpath(candidate); }
-      catch {
-        issues.push(issue("file-not-found", "A discovered skill path no longer resolves.", "Refresh discovery after repairing the path.", candidate));
+      try {
+        actual = await realpath(candidate);
+      } catch {
+        issues.push(
+          issue(
+            "file-not-found",
+            "A discovered skill path no longer resolves.",
+            "Refresh discovery after repairing the path.",
+            candidate,
+          ),
+        );
         continue;
       }
       const scanned = await scanOwnedSkill(path.dirname(actual), path.basename(actual));
@@ -167,7 +227,8 @@ export async function discoverSkills(roots: SkillDiscoveryRoot[], limits: Discov
       const existing = byIntegrity.get(scanned.value.integrity);
       const location: SkillDiscoveryLocation = { kind: root.kind, ...(root.agent ? { agent: root.agent } : {}) };
       if (existing) {
-        if (!existing.locations.some((entry) => entry.kind === location.kind && entry.agent === location.agent)) existing.locations.push(location);
+        if (!existing.locations.some((entry) => entry.kind === location.kind && entry.agent === location.agent))
+          existing.locations.push(location);
         continue;
       }
       byIntegrity.set(scanned.value.integrity, {
@@ -185,16 +246,23 @@ export async function discoverSkills(roots: SkillDiscoveryRoot[], limits: Discov
     }
   }
   const skills = [...byIntegrity.values()].sort((left, right) => left.name.localeCompare(right.name, "en"));
-  for (const skill of skills) skill.locations.sort((left, right) => `${left.kind}:${left.agent ?? ""}`.localeCompare(`${right.kind}:${right.agent ?? ""}`, "en"));
+  for (const skill of skills)
+    skill.locations.sort((left, right) =>
+      `${left.kind}:${left.agent ?? ""}`.localeCompare(`${right.kind}:${right.agent ?? ""}`, "en"),
+    );
   const names = new Map<string, DiscoveredSkill[]>();
   for (const skill of skills) {
     const folded = skill.name.toLocaleLowerCase("en-US");
     names.set(folded, [...(names.get(folded) ?? []), skill]);
   }
-  const collisions = [...names.values()].filter((group) => group.length > 1).map((group) => {
-    for (const skill of group) skill.candidateKey = `${portableKey(skill.name)}-${integritySuffix(skill.integrity)}`;
-    return { name: group[0]!.name, candidateKeys: group.map((skill) => skill.candidateKey) };
-  });
+  const collisions = [...names.values()]
+    .filter((group) => group.length > 1)
+    .map((group) => {
+      const first = group[0];
+      if (!first) throw new Error("Collision group cannot be empty");
+      for (const skill of group) skill.candidateKey = `${portableKey(skill.name)}-${integritySuffix(skill.integrity)}`;
+      return { name: first.name, candidateKeys: group.map((skill) => skill.candidateKey) };
+    });
   return { skills, collisions, issues, linkedAliases };
 }
 
@@ -209,15 +277,37 @@ export interface DiscoveredProvenance {
 }
 
 /** Produces conservative defaults: verified provenance is referenced; everything else is owned. */
-export function suggestImportCandidates(report: SkillDiscoveryReport, provenance: DiscoveredProvenance[] = []): ImportCandidate[] {
+export function suggestImportCandidates(
+  report: SkillDiscoveryReport,
+  provenance: DiscoveredProvenance[] = [],
+): ImportCandidate[] {
   const conflicting = new Set(report.collisions.flatMap((collision) => collision.candidateKeys));
   return report.skills.map((skill): ImportCandidate => {
     if (conflicting.has(skill.candidateKey) || !skill.metadataValid) {
-      return { kind: "local-only", skill: portableKey(skill.name), sourcePath: skill.sourcePath, reason: conflicting.has(skill.candidateKey) ? "Same-name content conflict requires a decision" : "SKILL.md metadata needs review" };
+      return {
+        kind: "local-only",
+        skill: portableKey(skill.name),
+        sourcePath: skill.sourcePath,
+        reason: conflicting.has(skill.candidateKey)
+          ? "Same-name content conflict requires a decision"
+          : "SKILL.md metadata needs review",
+      };
     }
-    const source = provenance.find((entry) => entry.skill === skill.name && (!entry.integrity || entry.integrity === skill.integrity));
-    const agents = [...new Set(skill.locations.flatMap((location) => location.agent ? [location.agent] : []))].sort();
-    if (source) return { kind: "dependency", skill: skill.name, package: source.package, url: source.url, ref: source.ref, skillPath: source.skillPath, ...(source.source ? { source: source.source } : {}), ...(agents.length ? { agents } : {}) };
+    const source = provenance.find(
+      (entry) => entry.skill === skill.name && (!entry.integrity || entry.integrity === skill.integrity),
+    );
+    const agents = [...new Set(skill.locations.flatMap((location) => (location.agent ? [location.agent] : [])))].sort();
+    if (source)
+      return {
+        kind: "dependency",
+        skill: skill.name,
+        package: source.package,
+        url: source.url,
+        ref: source.ref,
+        skillPath: source.skillPath,
+        ...(source.source ? { source: source.source } : {}),
+        ...(agents.length ? { agents } : {}),
+      };
     return { kind: "owned", skill: skill.name, sourcePath: skill.sourcePath, ...(agents.length ? { agents } : {}) };
   });
 }

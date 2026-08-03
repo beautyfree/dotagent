@@ -41,7 +41,9 @@ export async function getMaterializationStatus(libraryRoot: string): Promise<Mat
   const state = await readMaterializationState(root);
   const targets: ManagedTargetStatus[] = [];
   const byAgent: Record<string, Record<string, ExistingTarget>> = {};
-  for (const [target, managed] of Object.entries(state.targets).sort(([left], [right]) => left.localeCompare(right, "en"))) {
+  for (const [target, managed] of Object.entries(state.targets).sort(([left], [right]) =>
+    left.localeCompare(right, "en"),
+  )) {
     const kind = await pathKind(target);
     let health: ManagedTargetHealth;
     let currentIntegrity: string | null = null;
@@ -67,8 +69,19 @@ export async function getMaterializationStatus(libraryRoot: string): Promise<Mat
       health = "invalid";
       existing = { state: "unmanaged" };
     }
-    (byAgent[managed.agent] ??= {})[managed.skill] = existing;
-    targets.push({ target, agent: managed.agent, skill: managed.skill, mode: managed.mode, health, source: managed.source, sourceIntegrity: managed.sourceIntegrity, currentIntegrity });
+    const agentTargets = byAgent[managed.agent] ?? {};
+    agentTargets[managed.skill] = existing;
+    byAgent[managed.agent] = agentTargets;
+    targets.push({
+      target,
+      agent: managed.agent,
+      skill: managed.skill,
+      mode: managed.mode,
+      health,
+      source: managed.source,
+      sourceIntegrity: managed.sourceIntegrity,
+      currentIntegrity,
+    });
   }
   return { library: root, targets, byAgent };
 }
@@ -88,9 +101,8 @@ export async function existingTargetsForPlan(
       existing[skill] = managed[skill];
       continue;
     }
-    existing[skill] = await pathKind(path.join(targetRoot, skill)) === "missing"
-      ? { state: "absent" }
-      : { state: "unmanaged" };
+    existing[skill] =
+      (await pathKind(path.join(targetRoot, skill))) === "missing" ? { state: "absent" } : { state: "unmanaged" };
   }
   return existing;
 }

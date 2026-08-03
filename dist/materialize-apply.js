@@ -1,13 +1,19 @@
-import { lstat, mkdir, open, readFile, readlink, readdir, rename, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, readlink, readdir, rename, rm, symlink, unlink, writeFile, } from "node:fs/promises";
 import path from "node:path";
 import { scanOwnedSkill } from "./inventory.js";
 import { computePlanId } from "./plan.js";
 export const MATERIALIZATION_STATE_VERSION = 1;
 export const MATERIALIZATION_JOURNAL_VERSION = 1;
 const COPY_MARKER = ".dotagent-managed.json";
-function metadataRoot(libraryRoot) { return path.join(libraryRoot, ".dotagent"); }
-function statePath(libraryRoot) { return path.join(metadataRoot(libraryRoot), "materialization-state.json"); }
-function journalPath(libraryRoot) { return path.join(metadataRoot(libraryRoot), "journal.json"); }
+function metadataRoot(libraryRoot) {
+    return path.join(libraryRoot, ".dotagent");
+}
+function statePath(libraryRoot) {
+    return path.join(metadataRoot(libraryRoot), "materialization-state.json");
+}
+function journalPath(libraryRoot) {
+    return path.join(metadataRoot(libraryRoot), "journal.json");
+}
 async function exists(filePath) {
     try {
         await lstat(filePath);
@@ -125,7 +131,7 @@ async function validatePrecondition(operation, state) {
         const scanned = await scanOwnedSkill(path.dirname(operation.target), path.basename(operation.target));
         if (!scanned.ok || scanned.value.integrity !== operation.expectedTarget.integrity)
             throw new Error(`Managed copy changed after review: ${operation.target}`);
-        if (!await markerMatches(operation.target))
+        if (!(await markerMatches(operation.target)))
             throw new Error(`Managed copy marker is missing: ${operation.target}`);
     }
 }
@@ -163,7 +169,9 @@ async function rollbackJournal(libraryRoot, journal) {
                 if (path.resolve(path.dirname(operation.target), actual) === path.resolve(operation.source))
                     await unlink(operation.target);
             }
-            catch { /* Target was not created or is no longer our link. */ }
+            catch {
+                /* Target was not created or is no longer our link. */
+            }
         }
         else if (operation.action === "create-copy") {
             if (await markerMatches(operation.target, journal.planId))
@@ -172,7 +180,7 @@ async function rollbackJournal(libraryRoot, journal) {
         else if (operation.action === "update-copy") {
             if (await markerMatches(operation.target, journal.planId))
                 await rm(operation.target, { recursive: true, force: true });
-            if (await exists(backup) && !await exists(operation.target))
+            if ((await exists(backup)) && !(await exists(operation.target)))
                 await rename(backup, operation.target);
         }
     }
@@ -204,7 +212,7 @@ export async function applyMaterializationPlan(plan, options = {}) {
     const state = await readMaterializationState(plan.library);
     const mutations = plan.operations.filter((operation) => ["create-symlink", "create-junction", "create-copy", "update-copy"].includes(operation.action));
     for (const operation of mutations) {
-        if (await sourceIntegrity(operation) !== operation.sourceIntegrity)
+        if ((await sourceIntegrity(operation)) !== operation.sourceIntegrity)
             throw new Error(`Source changed after review: ${operation.skill}`);
         await validatePrecondition(operation, state);
     }
@@ -226,7 +234,11 @@ export async function applyMaterializationPlan(plan, options = {}) {
                 state.targets[path.resolve(entry.operation.target)] = {
                     agent: entry.operation.agent,
                     skill: entry.operation.skill,
-                    mode: entry.operation.action === "create-symlink" ? "symlink" : entry.operation.action === "create-junction" ? "junction" : "copy",
+                    mode: entry.operation.action === "create-symlink"
+                        ? "symlink"
+                        : entry.operation.action === "create-junction"
+                            ? "junction"
+                            : "copy",
                     source: entry.operation.source,
                     sourceIntegrity: entry.operation.sourceIntegrity,
                 };

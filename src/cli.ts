@@ -37,26 +37,40 @@ import {
 type ApplicablePlan = MaterializationPlan | ImportPlan | GitCommitPlan | GitPullPlan | GitPushPlan;
 
 async function emitPlan(plan: ApplicablePlan, output: string | undefined, json: boolean, label: string): Promise<void> {
-  if (output) await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  if (output)
+    await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
   if (json || !output) process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
-  else process.stdout.write(`${label} plan ${plan.planId} written to ${path.resolve(output!)}. Review it, then run apply with --yes.\n`);
+  else
+    process.stdout.write(
+      `${label} plan ${plan.planId} written to ${path.resolve(output)}. Review it, then run apply with --yes.\n`,
+    );
 }
 
 async function main(): Promise<number> {
   const [command = "help", ...args] = process.argv.slice(2);
   const valueOptions = new Set(["--name", "--out", "--target", "--owned", "--candidate-file", "--remote", "--message"]);
-  const optionValues = (name: string): string[] => args.flatMap((argument, index) => argument === name && args[index + 1] ? [args[index + 1]!] : []);
+  const optionValues = (name: string): string[] =>
+    args.flatMap((argument, index) => {
+      const value = args[index + 1];
+      return argument === name && value ? [value] : [];
+    });
   const optionValue = (name: string): string | undefined => optionValues(name)[0];
   const positional: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
-    const argument = args[index]!;
-    if (valueOptions.has(argument)) { index += 1; continue; }
+    const argument = args[index];
+    if (!argument) continue;
+    if (valueOptions.has(argument)) {
+      index += 1;
+      continue;
+    }
     if (!argument.startsWith("--")) positional.push(argument);
   }
   const directory = positional[0] ?? ".";
   const json = args.includes("--json");
   if (command === "help" || command === "--help" || command === "-h") {
-    process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
+    process.stdout.write(
+      "beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n",
+    );
     return 0;
   }
   if (command === "init") {
@@ -65,7 +79,9 @@ async function main(): Promise<number> {
     const plan = planInitializeLibrary(root, requestedName);
     await applyInitializeLibraryPlan(plan);
     const result = { ok: true, root, plan_id: plan.planId, created: plan.files.map((file) => file.path) };
-    process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Created ${requestedName ?? path.basename(root)} at ${root}.\n`);
+    process.stdout.write(
+      json ? `${JSON.stringify(result, null, 2)}\n` : `Created ${requestedName ?? path.basename(root)} at ${root}.\n`,
+    );
     return 0;
   }
   if (command === "resolve") {
@@ -76,10 +92,25 @@ async function main(): Promise<number> {
       else for (const issue of loaded.issues) process.stderr.write(`${issue.message}\nNext: ${issue.remediation}\n`);
       return 1;
     }
-    const plan = await planResolveDependencies(loaded.value.manifest, new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") }), loaded.value.lock);
+    const plan = await planResolveDependencies(
+      loaded.value.manifest,
+      new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") }),
+      loaded.value.lock,
+    );
     if (args.includes("--write")) await applyResolutionPlan(root, plan);
-    const result = { ok: true, root, plan_id: plan.planId, written: args.includes("--write"), changes: plan.changes, lock: plan.lock };
-    process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `${plan.changes.length} dependency changes planned${args.includes("--write") ? " and written" : " (preview only; pass --write to save)"}.\n`);
+    const result = {
+      ok: true,
+      root,
+      plan_id: plan.planId,
+      written: args.includes("--write"),
+      changes: plan.changes,
+      lock: plan.lock,
+    };
+    process.stdout.write(
+      json
+        ? `${JSON.stringify(result, null, 2)}\n`
+        : `${plan.changes.length} dependency changes planned${args.includes("--write") ? " and written" : " (preview only; pass --write to save)"}.\n`,
+    );
     return 0;
   }
   if (command === "import") {
@@ -89,7 +120,10 @@ async function main(): Promise<number> {
       const absoluteFile = path.resolve(candidateFile);
       const parsed = validateImportCandidates(JSON.parse(await readFile(absoluteFile, "utf8")));
       for (const candidate of parsed) {
-        if ((candidate.kind === "owned" || candidate.kind === "local-only" || candidate.kind === "excluded") && candidate.sourcePath) {
+        if (
+          (candidate.kind === "owned" || candidate.kind === "local-only" || candidate.kind === "excluded") &&
+          candidate.sourcePath
+        ) {
           candidate.sourcePath = path.resolve(path.dirname(absoluteFile), candidate.sourcePath);
         }
         candidates.push(candidate);
@@ -98,30 +132,46 @@ async function main(): Promise<number> {
     if (candidates.length === 0) throw new Error("Import requires at least one --owned skill=path or --candidate-file");
     const plan = await planImport(root, candidates);
     const output = optionValue("--out");
-    if (output) await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    if (output)
+      await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
     if (json || !output) process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
-    else process.stdout.write(`Import plan ${plan.planId} written to ${path.resolve(output)}. Review it, then run apply with --yes.\n`);
+    else
+      process.stdout.write(
+        `Import plan ${plan.planId} written to ${path.resolve(output)}. Review it, then run apply with --yes.\n`,
+      );
     return plan.hasConflicts || plan.secretFindings.length > 0 ? 1 : 0;
   }
   if (command === "doctor") {
     const report = await doctorLibrary({ root: path.resolve(directory) });
     if (json) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-    else if (report.issues.length === 0) process.stdout.write(`Library ${report.library?.name ?? report.root} is healthy.\n`);
-    else for (const entry of report.issues) process.stdout.write(`${entry.severity?.toUpperCase()}: ${entry.message}\nNext: ${entry.remediation}\n`);
+    else if (report.issues.length === 0)
+      process.stdout.write(`Library ${report.library?.name ?? report.root} is healthy.\n`);
+    else
+      for (const entry of report.issues)
+        process.stdout.write(`${entry.severity?.toUpperCase()}: ${entry.message}\nNext: ${entry.remediation}\n`);
     return report.ok ? 0 : 1;
   }
   if (command === "audit") {
-    const report = await auditLibrary({ root: path.resolve(directory), visibility: args.includes("--public") ? "public" : "private" });
+    const report = await auditLibrary({
+      root: path.resolve(directory),
+      visibility: args.includes("--public") ? "public" : "private",
+    });
     if (json) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     else if (report.issues.length === 0) process.stdout.write("No structural or licensing issues found.\n");
-    else for (const entry of report.issues) process.stdout.write(`${entry.severity?.toUpperCase()}: ${entry.message}\nNext: ${entry.remediation}\n`);
+    else
+      for (const entry of report.issues)
+        process.stdout.write(`${entry.severity?.toUpperCase()}: ${entry.message}\nNext: ${entry.remediation}\n`);
     return report.ok ? 0 : 1;
   }
   if (command === "git-init") {
     const root = path.resolve(directory);
     await initializeLibraryGit(root, optionValue("--remote"));
     const status = await getLibraryGitStatus(root);
-    process.stdout.write(json ? `${JSON.stringify(status, null, 2)}\n` : `Git workspace initialized on ${status.branch}${status.remoteIdentity ? ` with ${status.remoteIdentity}` : ""}.\n`);
+    process.stdout.write(
+      json
+        ? `${JSON.stringify(status, null, 2)}\n`
+        : `Git workspace initialized on ${status.branch}${status.remoteIdentity ? ` with ${status.remoteIdentity}` : ""}.\n`,
+    );
     return 0;
   }
   if (command === "clone") {
@@ -131,7 +181,11 @@ async function main(): Promise<number> {
     const destination = path.resolve(target);
     await cloneLibrary(remote, destination);
     const status = await getLibraryGitStatus(destination);
-    process.stdout.write(json ? `${JSON.stringify({ ok: true, root: destination, ...status }, null, 2)}\n` : `Cloned the library to ${destination}.\n`);
+    process.stdout.write(
+      json
+        ? `${JSON.stringify({ ok: true, root: destination, ...status }, null, 2)}\n`
+        : `Cloned the library to ${destination}.\n`,
+    );
     return 0;
   }
   if (command === "commit") {
@@ -144,7 +198,8 @@ async function main(): Promise<number> {
   }
   if (command === "sync") {
     const root = path.resolve(directory);
-    if (args.includes("--pull") && args.includes("--push")) throw new Error("Choose either --pull or --push for one reviewed operation");
+    if (args.includes("--pull") && args.includes("--push"))
+      throw new Error("Choose either --pull or --push for one reviewed operation");
     if (args.includes("--pull")) {
       const visibility = args.includes("--public") ? "public" : args.includes("--team") ? "team" : "private";
       const pullPlan = await planLibraryPull(root, visibility);
@@ -157,14 +212,19 @@ async function main(): Promise<number> {
       return 0;
     }
     const gitStatus = await getLibraryGitStatus(root);
-    process.stdout.write(json ? `${JSON.stringify(gitStatus, null, 2)}\n` : `${gitStatus.branch}: ${gitStatus.changed ? "uncommitted changes" : "clean"}, ${gitStatus.ahead} ahead, ${gitStatus.behind} behind.\n`);
+    process.stdout.write(
+      json
+        ? `${JSON.stringify(gitStatus, null, 2)}\n`
+        : `${gitStatus.branch}: ${gitStatus.changed ? "uncommitted changes" : "clean"}, ${gitStatus.ahead} ahead, ${gitStatus.behind} behind.\n`,
+    );
     return 0;
   }
   if (command === "status") {
     const status = await getMaterializationStatus(path.resolve(directory));
     if (json) process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
     else if (status.targets.length === 0) process.stdout.write("No materialized targets are managed yet.\n");
-    else for (const target of status.targets) process.stdout.write(`${target.agent}/${target.skill}: ${target.health}\n`);
+    else
+      for (const target of status.targets) process.stdout.write(`${target.agent}/${target.skill}: ${target.health}\n`);
     return status.targets.some((target) => target.health === "invalid") ? 1 : 0;
   }
   if (command === "plan") {
@@ -174,29 +234,48 @@ async function main(): Promise<number> {
     if (targetSpecs.length === 0) throw new Error("At least one explicit --target slug=mode=path is required");
     const platform = process.platform as Platform;
     if (!["darwin", "linux", "win32"].includes(platform)) throw new Error(`Unsupported platform: ${process.platform}`);
-    const targets = await Promise.all(targetSpecs.map(async (spec) => {
-      const delivery: SkillDelivery = spec.mode === "native"
-        ? { kind: "native-shared" }
-        : spec.mode === "copy"
-          ? { kind: "copy-only", roots: [spec.root!] }
-          : { kind: "per-skill-link", roots: [spec.root!] };
-      const descriptor: AgentDescriptor = { slug: spec.slug, displayName: spec.slug, platforms: [platform], detection: [], skills: [delivery] };
-      return {
-        descriptor,
-        platform,
-        detected: true,
-        mode: spec.mode,
-        ...(spec.root ? { root: path.resolve(spec.root) } : {}),
-        existing: spec.root
-          ? await existingTargetsForPlan(root, spec.slug, path.resolve(spec.root), inventory.ownedSkills.map((skill) => skill.name))
-          : {},
-      };
-    }));
+    const targets = await Promise.all(
+      targetSpecs.map(async (spec) => {
+        const root = spec.root;
+        const delivery: SkillDelivery =
+          spec.mode === "native"
+            ? { kind: "native-shared" }
+            : spec.mode === "copy"
+              ? { kind: "copy-only", roots: [root ?? ""] }
+              : { kind: "per-skill-link", roots: [root ?? ""] };
+        const descriptor: AgentDescriptor = {
+          slug: spec.slug,
+          displayName: spec.slug,
+          platforms: [platform],
+          detection: [],
+          skills: [delivery],
+        };
+        return {
+          descriptor,
+          platform,
+          detected: true,
+          mode: spec.mode,
+          ...(root ? { root: path.resolve(root) } : {}),
+          existing: root
+            ? await existingTargetsForPlan(
+                root,
+                spec.slug,
+                path.resolve(root),
+                inventory.ownedSkills.map((skill) => skill.name),
+              )
+            : {},
+        };
+      }),
+    );
     const plan = planMaterialization(inventory, targets);
     const output = optionValue("--out");
-    if (output) await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    if (output)
+      await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
     if (json || !output) process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
-    else process.stdout.write(`Plan ${plan.planId} written to ${path.resolve(output)} with ${plan.operations.length} operations.\n`);
+    else
+      process.stdout.write(
+        `Plan ${plan.planId} written to ${path.resolve(output)} with ${plan.operations.length} operations.\n`,
+      );
     return plan.hasConflicts ? 1 : 0;
   }
   if (command === "apply") {
@@ -204,19 +283,39 @@ async function main(): Promise<number> {
     const plan = JSON.parse(await readFile(path.resolve(directory), "utf8")) as ApplicablePlan;
     if (plan.kind === "import") {
       const result = await applyImportPlan(plan);
-      process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Imported ${result.copied} owned skills and recorded ${result.dependenciesRecorded} dependencies from plan ${result.planId}.\n`);
+      process.stdout.write(
+        json
+          ? `${JSON.stringify(result, null, 2)}\n`
+          : `Imported ${result.copied} owned skills and recorded ${result.dependenciesRecorded} dependencies from plan ${result.planId}.\n`,
+      );
     } else if (plan.kind === "materialize") {
       const result = await applyMaterializationPlan(plan);
-      process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Applied ${result.applied} operations from plan ${result.planId}.\n`);
+      process.stdout.write(
+        json
+          ? `${JSON.stringify(result, null, 2)}\n`
+          : `Applied ${result.applied} operations from plan ${result.planId}.\n`,
+      );
     } else if (plan.kind === "git-commit") {
       const head = await applyLibraryCommit(plan);
-      process.stdout.write(json ? `${JSON.stringify({ ok: true, head }, null, 2)}\n` : head ? `Created commit ${head}.\n` : "No portable changes to commit.\n");
+      process.stdout.write(
+        json
+          ? `${JSON.stringify({ ok: true, head }, null, 2)}\n`
+          : head
+            ? `Created commit ${head}.\n`
+            : "No portable changes to commit.\n",
+      );
     } else if (plan.kind === "git-pull") {
       const head = await applyLibraryPull(plan);
-      process.stdout.write(json ? `${JSON.stringify({ ok: true, head }, null, 2)}\n` : `Fast-forwarded the library to ${head}.\n`);
+      process.stdout.write(
+        json ? `${JSON.stringify({ ok: true, head }, null, 2)}\n` : `Fast-forwarded the library to ${head}.\n`,
+      );
     } else if (plan.kind === "git-push") {
       await applyLibraryPush(plan);
-      process.stdout.write(json ? `${JSON.stringify({ ok: true, head: plan.head }, null, 2)}\n` : `Pushed ${plan.head} to ${plan.remoteIdentity}.\n`);
+      process.stdout.write(
+        json
+          ? `${JSON.stringify({ ok: true, head: plan.head }, null, 2)}\n`
+          : `Pushed ${plan.head} to ${plan.remoteIdentity}.\n`,
+      );
     } else {
       throw new Error("Unsupported plan kind");
     }
@@ -229,7 +328,13 @@ async function main(): Promise<number> {
     const materialized = await recoverMaterialization(root);
     const recovered = imported !== "none" || materialized;
     const result = { recovered, import: imported, materialization: materialized };
-    process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : recovered ? "Recovered unfinished dotagent operations.\n" : "No unfinished operation found.\n");
+    process.stdout.write(
+      json
+        ? `${JSON.stringify(result, null, 2)}\n`
+        : recovered
+          ? "Recovered unfinished dotagent operations.\n"
+          : "No unfinished operation found.\n",
+    );
     return 0;
   }
   if (command !== "inspect") {
@@ -254,7 +359,11 @@ async function main(): Promise<number> {
     dependencies: result.value.dependencyCount,
     lockfile: result.value.locked,
   };
-  process.stdout.write(json ? `${JSON.stringify(summary, null, 2)}\n` : `${summary.name}@${summary.version}: ${summary.owned_skills} owned skills, ${summary.dependencies} dependencies${summary.lockfile ? ", locked" : ", no lockfile"}\n`);
+  process.stdout.write(
+    json
+      ? `${JSON.stringify(summary, null, 2)}\n`
+      : `${summary.name}@${summary.version}: ${summary.owned_skills} owned skills, ${summary.dependencies} dependencies${summary.lockfile ? ", locked" : ", no lockfile"}\n`,
+  );
   return 0;
 }
 

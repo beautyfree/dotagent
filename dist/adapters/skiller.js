@@ -46,11 +46,7 @@ const manifestBaseSchema = z.object({
 });
 export const skillerSyncManifestSchema = manifestBaseSchema.extend({
     schema_version: z.literal(SKILLER_SYNC_MANIFEST_VERSION),
-    skills: z.array(z.discriminatedUnion("kind", [
-        skillerBundledSkillSchema,
-        skillerReferenceSkillSchema,
-        skillerSkillsShSkillSchema,
-    ])),
+    skills: z.array(z.discriminatedUnion("kind", [skillerBundledSkillSchema, skillerReferenceSkillSchema, skillerSkillsShSkillSchema])),
 });
 const v2SkillerSyncManifestSchema = manifestBaseSchema.extend({
     schema_version: z.literal(2),

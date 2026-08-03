@@ -6,7 +6,9 @@ import { applyInitializeLibraryPlan, planInitializeLibrary } from "../src/init.j
 import { scanLibrary } from "../src/inventory.js";
 
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 describe("library initialization", () => {
   it("creates a valid empty library from a deterministic reviewed plan", async () => {
@@ -25,7 +27,9 @@ describe("library initialization", () => {
     const root = mkdtempSync(join(tmpdir(), "dotagent-init-"));
     roots.push(root);
     const plan = planInitializeLibrary(root, "safe");
-    await expect(applyInitializeLibraryPlan({ ...plan, root: join(root, "other") })).rejects.toThrow("stale or modified");
+    await expect(applyInitializeLibraryPlan({ ...plan, root: join(root, "other") })).rejects.toThrow(
+      "stale or modified",
+    );
     writeFileSync(join(root, "skills.json"), "existing");
     await expect(applyInitializeLibraryPlan(plan)).rejects.toThrow("Refusing to overwrite");
   });

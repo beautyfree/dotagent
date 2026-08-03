@@ -5,13 +5,24 @@ import { join } from "node:path";
 import { scanLibrary } from "../src/inventory.js";
 
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 function makeLibrary(skillPath = "skills/writing"): string {
   const root = mkdtempSync(join(tmpdir(), "dotagent-library-"));
   roots.push(root);
   mkdirSync(join(root, skillPath), { recursive: true });
-  writeFileSync(join(root, "skills.json"), JSON.stringify({ schema_version: 1, name: "test-library", version: "1.0.0", skills: [skillPath], dependencies: {} }));
+  writeFileSync(
+    join(root, "skills.json"),
+    JSON.stringify({
+      schema_version: 1,
+      name: "test-library",
+      version: "1.0.0",
+      skills: [skillPath],
+      dependencies: {},
+    }),
+  );
   writeFileSync(join(root, skillPath, "SKILL.md"), "# Writing\n");
   return root;
 }

@@ -53,8 +53,19 @@ export async function getMaterializationStatus(libraryRoot) {
             health = "invalid";
             existing = { state: "unmanaged" };
         }
-        (byAgent[managed.agent] ??= {})[managed.skill] = existing;
-        targets.push({ target, agent: managed.agent, skill: managed.skill, mode: managed.mode, health, source: managed.source, sourceIntegrity: managed.sourceIntegrity, currentIntegrity });
+        const agentTargets = byAgent[managed.agent] ?? {};
+        agentTargets[managed.skill] = existing;
+        byAgent[managed.agent] = agentTargets;
+        targets.push({
+            target,
+            agent: managed.agent,
+            skill: managed.skill,
+            mode: managed.mode,
+            health,
+            source: managed.source,
+            sourceIntegrity: managed.sourceIntegrity,
+            currentIntegrity,
+        });
     }
     return { library: root, targets, byAgent };
 }
@@ -68,9 +79,8 @@ export async function existingTargetsForPlan(libraryRoot, agentSlug, targetRoot,
             existing[skill] = managed[skill];
             continue;
         }
-        existing[skill] = await pathKind(path.join(targetRoot, skill)) === "missing"
-            ? { state: "absent" }
-            : { state: "unmanaged" };
+        existing[skill] =
+            (await pathKind(path.join(targetRoot, skill))) === "missing" ? { state: "absent" } : { state: "unmanaged" };
     }
     return existing;
 }

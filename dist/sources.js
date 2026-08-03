@@ -1,7 +1,7 @@
 import path from "node:path";
 import { rename, writeFile } from "node:fs/promises";
 import { loadLibrary } from "./library.js";
-import { libraryLockSchema } from "./schema.js";
+import { libraryLockSchema, } from "./schema.js";
 import { computePlanId } from "./plan.js";
 /** Canonical comparison identity; credentials and transport-specific Git spelling are removed. */
 export function normalizeGitIdentity(input) {
@@ -10,7 +10,10 @@ export function normalizeGitIdentity(input) {
         throw new Error("Git URL must not contain credentials");
     const scp = /^(?:[^@\s]+@)?([^:/\s]+):(.+)$/.exec(value);
     if (scp && !/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
-        return `https://${scp[1].toLocaleLowerCase("en-US")}/${scp[2].replace(/^\/+|\/+$/g, "").replace(/\.git$/i, "")}`;
+        const [, host, repositoryPath] = scp;
+        if (!host || !repositoryPath)
+            throw new Error(`Unsupported Git URL: ${input}`);
+        return `https://${host.toLocaleLowerCase("en-US")}/${repositoryPath.replace(/^\/+|\/+$/g, "").replace(/\.git$/i, "")}`;
     }
     let parsed;
     try {
@@ -64,7 +67,11 @@ export async function planResolveDependencies(manifest, resolver, currentLock = 
         const previous = currentLock?.resolved[name];
         changes.push({
             dependency: name,
-            action: !previous ? "added" : previous.commit === entry.commit && previous.integrity === entry.integrity ? "unchanged" : "updated",
+            action: !previous
+                ? "added"
+                : previous.commit === entry.commit && previous.integrity === entry.integrity
+                    ? "unchanged"
+                    : "updated",
             fromCommit: previous?.commit ?? null,
             toCommit: entry.commit,
         });
@@ -73,7 +80,13 @@ export async function planResolveDependencies(manifest, resolver, currentLock = 
         if (!(name in manifest.dependencies))
             changes.push({ dependency: name, action: "removed", fromCommit: previous.commit, toCommit: null });
     }
-    const payload = { kind: "resolve-dependencies", schemaVersion: 1, manifestHash: computePlanId(manifest), lock, changes };
+    const payload = {
+        kind: "resolve-dependencies",
+        schemaVersion: 1,
+        manifestHash: computePlanId(manifest),
+        lock,
+        changes,
+    };
     return { ...payload, planId: computePlanId(payload) };
 }
 /** Atomically writes only a still-valid reviewed resolution plan. */

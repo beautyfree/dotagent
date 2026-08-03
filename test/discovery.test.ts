@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { discoverSkills, suggestImportCandidates } from "../src/discovery.js";
 
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 function temp(): string {
   const root = mkdtempSync(join(tmpdir(), "dotagent-discovery-"));
@@ -16,7 +18,10 @@ function temp(): string {
 function createSkill(root: string, folder: string, name = folder, body = "portable\n"): string {
   const skill = join(root, folder);
   mkdirSync(skill, { recursive: true });
-  writeFileSync(join(skill, "SKILL.md"), `---\nname: ${name}\ndescription: ${name} description\n---\n# ${name}\n${body}`);
+  writeFileSync(
+    join(skill, "SKILL.md"),
+    `---\nname: ${name}\ndescription: ${name} description\n---\n# ${name}\n${body}`,
+  );
   return skill;
 }
 
@@ -35,9 +40,13 @@ describe("cross-agent skill discovery", () => {
     ]);
     expect(report.issues).toEqual([]);
     expect(report.skills).toHaveLength(1);
-    expect(report.skills[0]).toMatchObject({ name: "writing", metadataValid: true });
-    expect(report.skills[0]?.locations).toEqual([{ kind: "agent-local", agent: "codex" }, { kind: "shared" }]);
-    expect(suggestImportCandidates(report)).toEqual([{ kind: "owned", skill: "writing", sourcePath: report.skills[0]!.sourcePath, agents: ["codex"] }]);
+    const skill = report.skills[0];
+    if (!skill) throw new Error("fixture skill was not discovered");
+    expect(skill).toMatchObject({ name: "writing", metadataValid: true });
+    expect(skill.locations).toEqual([{ kind: "agent-local", agent: "codex" }, { kind: "shared" }]);
+    expect(suggestImportCandidates(report)).toEqual([
+      { kind: "owned", skill: "writing", sourcePath: skill.sourcePath, agents: ["codex"] },
+    ]);
   });
 
   it("keeps same-name differences visible and leaves them local by default", async () => {
@@ -46,7 +55,10 @@ describe("cross-agent skill discovery", () => {
     const right = join(root, "right");
     createSkill(left, "review", "review", "left\n");
     createSkill(right, "review", "review", "right\n");
-    const report = await discoverSkills([{ path: left, kind: "shared" }, { path: right, kind: "agent-local", agent: "codex" }]);
+    const report = await discoverSkills([
+      { path: left, kind: "shared" },
+      { path: right, kind: "agent-local", agent: "codex" },
+    ]);
     expect(report.collisions).toHaveLength(1);
     expect(new Set(report.collisions[0]?.candidateKeys).size).toBe(2);
     expect(suggestImportCandidates(report).every((candidate) => candidate.kind === "local-only")).toBe(true);
@@ -73,24 +85,30 @@ describe("cross-agent skill discovery", () => {
     const root = temp();
     createSkill(root, "review");
     const report = await discoverSkills([{ path: root, kind: "agent-local", agent: "claude-code" }]);
-    const candidates = suggestImportCandidates(report, [{
-      skill: "review",
-      package: "review-tools",
-      url: "https://github.com/example/review-tools.git",
-      ref: "main",
-      skillPath: ".",
-      source: "skills-cli",
-      integrity: report.skills[0]!.integrity,
-    }]);
-    expect(candidates).toEqual([{
-      kind: "dependency",
-      skill: "review",
-      package: "review-tools",
-      url: "https://github.com/example/review-tools.git",
-      ref: "main",
-      skillPath: ".",
-      source: "skills-cli",
-      agents: ["claude-code"],
-    }]);
+    const skill = report.skills[0];
+    if (!skill) throw new Error("fixture skill was not discovered");
+    const candidates = suggestImportCandidates(report, [
+      {
+        skill: "review",
+        package: "review-tools",
+        url: "https://github.com/example/review-tools.git",
+        ref: "main",
+        skillPath: ".",
+        source: "skills-cli",
+        integrity: skill.integrity,
+      },
+    ]);
+    expect(candidates).toEqual([
+      {
+        kind: "dependency",
+        skill: "review",
+        package: "review-tools",
+        url: "https://github.com/example/review-tools.git",
+        ref: "main",
+        skillPath: ".",
+        source: "skills-cli",
+        agents: ["claude-code"],
+      },
+    ]);
   });
 });

@@ -43,20 +43,32 @@ function issue(
   return { code, severity, message, remediation, ...(filePath ? { path: filePath } : {}) };
 }
 
-function inspectLock(
-  loaded: Extract<Awaited<ReturnType<typeof loadLibrary>>, { ok: true }>["value"],
-): DotagentIssue[] {
+function inspectLock(loaded: Extract<Awaited<ReturnType<typeof loadLibrary>>, { ok: true }>["value"]): DotagentIssue[] {
   const issues: DotagentIssue[] = [];
   const dependencies = loaded.manifest.dependencies;
   if (Object.keys(dependencies).length > 0 && !loaded.lock) {
-    issues.push(issue("lockfile-missing", "warning", "Dependencies are not pinned by skills.lock.", "Run beautyfree-dotagent resolve, review the plan, then rerun with --write."));
+    issues.push(
+      issue(
+        "lockfile-missing",
+        "warning",
+        "Dependencies are not pinned by skills.lock.",
+        "Run beautyfree-dotagent resolve, review the plan, then rerun with --write.",
+      ),
+    );
     return issues;
   }
   if (!loaded.lock) return issues;
   for (const [name, dependency] of Object.entries(dependencies)) {
     const resolved = loaded.lock.resolved[name];
     if (!resolved) {
-      issues.push(issue("lockfile-stale", "error", `Dependency ${name} is missing from skills.lock.`, "Resolve dependencies again and review the lockfile change."));
+      issues.push(
+        issue(
+          "lockfile-stale",
+          "error",
+          `Dependency ${name} is missing from skills.lock.`,
+          "Resolve dependencies again and review the lockfile change.",
+        ),
+      );
       continue;
     }
     let sameSource = false;
@@ -69,11 +81,26 @@ function inspectLock(
     const lockedPaths = resolved.skills.map((skill) => skill.path).sort();
     const sameSelection = selectedPaths === null || JSON.stringify(selectedPaths) === JSON.stringify(lockedPaths);
     if (!sameSource || resolved.requested_ref !== dependency.ref || !sameSelection) {
-      issues.push(issue("lockfile-stale", "error", `Dependency ${name} no longer matches its locked source, ref, or selected skill paths.`, "Resolve dependencies again; do not materialize the stale lock."));
+      issues.push(
+        issue(
+          "lockfile-stale",
+          "error",
+          `Dependency ${name} no longer matches its locked source, ref, or selected skill paths.`,
+          "Resolve dependencies again; do not materialize the stale lock.",
+        ),
+      );
     }
   }
   for (const name of Object.keys(loaded.lock.resolved)) {
-    if (!(name in dependencies)) issues.push(issue("lockfile-stale", "warning", `skills.lock still contains removed dependency ${name}.`, "Resolve dependencies again to remove the stale lock entry."));
+    if (!(name in dependencies))
+      issues.push(
+        issue(
+          "lockfile-stale",
+          "warning",
+          `skills.lock still contains removed dependency ${name}.`,
+          "Resolve dependencies again to remove the stale lock entry.",
+        ),
+      );
   }
   return issues;
 }
@@ -85,24 +112,48 @@ async function inspectConfiguration(root: string): Promise<DotagentIssue[]> {
   const portable = await readOptional(portablePath);
   const local = await readOptional(localPath);
   if (portable !== null) {
-    try { parsePortableConfig(portable); }
-    catch (error) { issues.push(issue("invalid-config", "error", error instanceof Error ? error.message : "Invalid dotagent.yaml", "Fix the portable configuration before syncing.", portablePath)); }
+    try {
+      parsePortableConfig(portable);
+    } catch (error) {
+      issues.push(
+        issue(
+          "invalid-config",
+          "error",
+          error instanceof Error ? error.message : "Invalid dotagent.yaml",
+          "Fix the portable configuration before syncing.",
+          portablePath,
+        ),
+      );
+    }
   }
   if (local !== null) {
-    try { parseLocalConfig(local); }
-    catch (error) { issues.push(issue("invalid-config", "error", error instanceof Error ? error.message : "Invalid dotagent.local.yaml", "Keep only machine-local paths and environment references in the local configuration.", localPath)); }
+    try {
+      parseLocalConfig(local);
+    } catch (error) {
+      issues.push(
+        issue(
+          "invalid-config",
+          "error",
+          error instanceof Error ? error.message : "Invalid dotagent.local.yaml",
+          "Keep only machine-local paths and environment references in the local configuration.",
+          localPath,
+        ),
+      );
+    }
   }
   const gitignorePath = path.join(root, ".gitignore");
   const gitignore = await readOptional(gitignorePath);
   const lines = new Set((gitignore ?? "").split(/\r?\n/).map((line) => line.trim().replace(/^\//, "")));
   if (!lines.has("dotagent.local.yaml") || !lines.has(".dotagent/")) {
-    issues.push(issue(
-      "local-state-not-ignored",
-      "error",
-      "Machine-local dotagent state is not fully ignored by Git.",
-      "Add dotagent.local.yaml and .dotagent/ to the repository .gitignore before publishing.",
-      gitignorePath,
-    ));
+    issues.push(
+      issue(
+        "local-state-not-ignored",
+        "error",
+        "Machine-local dotagent state is not fully ignored by Git.",
+        "Add dotagent.local.yaml and .dotagent/ to the repository .gitignore before publishing.",
+        gitignorePath,
+      ),
+    );
   }
   return issues;
 }
@@ -113,10 +164,11 @@ export async function doctorLibrary(options: DoctorOptions): Promise<DoctorRepor
   const issues: DotagentIssue[] = [];
   const scanned = await scanLibrary(root);
   const library = scanned.ok ? scanned.value : null;
-  if (!scanned.ok) issues.push(...scanned.issues.map((entry) => ({ ...entry, severity: entry.severity ?? "error" as const })));
+  if (!scanned.ok)
+    issues.push(...scanned.issues.map((entry) => ({ ...entry, severity: entry.severity ?? ("error" as const) })));
   const loaded = await loadLibrary(root);
   if (loaded.ok) issues.push(...inspectLock(loaded.value));
-  if (loaded.ok) issues.push(...await inspectConfiguration(root));
+  if (loaded.ok) issues.push(...(await inspectConfiguration(root)));
   let machine: MachineInventory | null = null;
   if (options.descriptors && options.platform && options.home) {
     machine = await scanMachineAgents(options.descriptors, {

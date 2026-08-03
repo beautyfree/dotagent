@@ -7,11 +7,21 @@ import { DOTAGENT_CONFIG_FILE } from "./config.js";
 import { scanOwnedSkill } from "./inventory.js";
 import { computePlanId } from "./plan.js";
 export const IMPORT_JOURNAL_VERSION = 1;
-function hashText(value) { return createHash("sha256").update(value).digest("hex"); }
-function metadataRoot(library) { return path.join(library, ".dotagent"); }
-function journalPath(library) { return path.join(metadataRoot(library), "import-journal.json"); }
-function stageRoot(library, planId) { return path.join(metadataRoot(library), "import-stage", planId); }
-function stagePath(library, planId, skill) { return path.join(stageRoot(library, planId), skill); }
+function hashText(value) {
+    return createHash("sha256").update(value).digest("hex");
+}
+function metadataRoot(library) {
+    return path.join(library, ".dotagent");
+}
+function journalPath(library) {
+    return path.join(metadataRoot(library), "import-journal.json");
+}
+function stageRoot(library, planId) {
+    return path.join(metadataRoot(library), "import-stage", planId);
+}
+function stagePath(library, planId, skill) {
+    return path.join(stageRoot(library, planId), skill);
+}
 async function exists(value) {
     try {
         await lstat(value);
@@ -23,8 +33,12 @@ async function exists(value) {
         throw error;
     }
 }
-function manifestText(plan) { return `${JSON.stringify(plan.nextManifest, null, 2)}\n`; }
-function configText(plan) { return stringify(plan.nextConfig, { lineWidth: 0 }); }
+function manifestText(plan) {
+    return `${JSON.stringify(plan.nextManifest, null, 2)}\n`;
+}
+function configText(plan) {
+    return stringify(plan.nextConfig, { lineWidth: 0 });
+}
 async function writeAtomic(filePath, content) {
     await mkdir(path.dirname(filePath), { recursive: true });
     const suffix = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -41,7 +55,7 @@ async function writeAtomic(filePath, content) {
     }
     catch (error) {
         await rm(temporary, { force: true });
-        if (hadPrevious && await exists(backup) && !await exists(filePath))
+        if (hadPrevious && (await exists(backup)) && !(await exists(filePath)))
             await rename(backup, filePath);
         throw error;
     }
@@ -104,12 +118,18 @@ async function rollbackJournal(journal) {
         throw new Error("Portable library files changed after the interrupted import; refusing automatic rollback");
     }
     for (const entry of [...journal.operations].reverse()) {
-        if ((entry.status !== "committing" && entry.status !== "applied") || entry.operation.action !== "copy-owned" || !entry.operation.target || !await exists(entry.operation.target))
+        if ((entry.status !== "committing" && entry.status !== "applied") ||
+            entry.operation.action !== "copy-owned" ||
+            !entry.operation.target ||
+            !(await exists(entry.operation.target)))
             continue;
         await assertCopiedIntegrity(entry.operation, entry.operation.target);
     }
     for (const entry of [...journal.operations].reverse()) {
-        if ((entry.status === "committing" || entry.status === "applied") && entry.operation.action === "copy-owned" && entry.operation.target && await exists(entry.operation.target)) {
+        if ((entry.status === "committing" || entry.status === "applied") &&
+            entry.operation.action === "copy-owned" &&
+            entry.operation.target &&
+            (await exists(entry.operation.target))) {
             await rm(entry.operation.target, { recursive: true, force: true });
         }
     }
@@ -136,9 +156,9 @@ export async function recoverImport(libraryRoot) {
         readFile(path.join(library, "skills.json"), "utf8"),
         readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
     ]);
-    const complete = hashText(currentManifest) === hashText(journal.nextManifestText)
-        && hashText(currentConfig) === hashText(journal.nextConfigText)
-        && journal.operations.every((entry) => entry.operation.action !== "copy-owned" || entry.status === "applied");
+    const complete = hashText(currentManifest) === hashText(journal.nextManifestText) &&
+        hashText(currentConfig) === hashText(journal.nextConfigText) &&
+        journal.operations.every((entry) => entry.operation.action !== "copy-owned" || entry.status === "applied");
     if (complete) {
         for (const entry of journal.operations) {
             if (entry.operation.action === "copy-owned" && entry.operation.target)
@@ -163,7 +183,10 @@ export async function applyImportPlan(plan, options = {}) {
         throw new Error("An unfinished import journal requires recovery first");
     const manifestPath = path.join(plan.library, "skills.json");
     const configPath = path.join(plan.library, DOTAGENT_CONFIG_FILE);
-    const [baseManifestText, baseConfigText] = await Promise.all([readFile(manifestPath, "utf8"), readFile(configPath, "utf8")]);
+    const [baseManifestText, baseConfigText] = await Promise.all([
+        readFile(manifestPath, "utf8"),
+        readFile(configPath, "utf8"),
+    ]);
     if (hashText(baseManifestText) !== plan.baseManifestHash || hashText(baseConfigText) !== plan.baseConfigHash) {
         throw new Error("Portable library files changed after review; rebuild the import plan");
     }
@@ -190,17 +213,20 @@ export async function applyImportPlan(plan, options = {}) {
     try {
         for (const [index, entry] of journal.operations.entries()) {
             await options.beforeOperation?.(entry.operation, index);
+            const { source, target } = entry.operation;
+            if (!source || !target)
+                throw new Error(`Import operation is incomplete for ${entry.operation.skill}`);
             const staged = stagePath(plan.library, planId, entry.operation.skill);
             await rm(staged, { recursive: true, force: true });
             await mkdir(path.dirname(staged), { recursive: true });
-            await copyDirectory(entry.operation.source, staged);
+            await copyDirectory(source, staged);
             await assertCopiedIntegrity(entry.operation, staged);
             entry.status = "staged";
             await writeJournal(journal);
-            await mkdir(path.dirname(entry.operation.target), { recursive: true });
+            await mkdir(path.dirname(target), { recursive: true });
             entry.status = "committing";
             await writeJournal(journal);
-            await rename(staged, entry.operation.target);
+            await rename(staged, target);
             entry.status = "applied";
             await writeJournal(journal);
         }

@@ -39,7 +39,8 @@ export class GitDependencyResolver {
         }
     }
     async #prepareMirror(url) {
-        if (!this.#cacheRoot)
+        const cacheRoot = this.#cacheRoot;
+        if (!cacheRoot)
             return null;
         const identity = normalizeGitIdentity(url);
         const key = createHash("sha256").update(identity).digest("hex").slice(0, 32);
@@ -47,9 +48,9 @@ export class GitDependencyResolver {
         if (existing)
             return existing;
         const work = (async () => {
-            await mkdir(this.#cacheRoot, { recursive: true });
-            const mirror = path.join(this.#cacheRoot, `${key}.git`);
-            if (!await this.#exists(mirror)) {
+            await mkdir(cacheRoot, { recursive: true });
+            const mirror = path.join(cacheRoot, `${key}.git`);
+            if (!(await this.#exists(mirror))) {
                 const temporary = `${mirror}.tmp-${process.pid}-${Date.now()}`;
                 try {
                     await this.#git.run(["clone", "--mirror", "--", url, temporary]);
@@ -57,7 +58,7 @@ export class GitDependencyResolver {
                         await rename(temporary, mirror);
                     }
                     catch (error) {
-                        if (!await this.#exists(mirror))
+                        if (!(await this.#exists(mirror)))
                             throw error;
                         await rm(temporary, { recursive: true, force: true });
                     }
@@ -93,7 +94,10 @@ export class GitDependencyResolver {
             if (!scanned.ok)
                 throw new Error(scanned.issues.map((entry) => entry.message).join("; "));
             skills.push({ name: scanned.value.name, path: scanned.value.path });
-            integrityInputs.push({ path: scanned.value.path === "." ? `root/${scanned.value.name}` : scanned.value.path, content: Buffer.from(scanned.value.integrity, "utf8") });
+            integrityInputs.push({
+                path: scanned.value.path === "." ? `root/${scanned.value.name}` : scanned.value.path,
+                content: Buffer.from(scanned.value.integrity, "utf8"),
+            });
         }
         return { skills, integrity: computeSkillIntegrity(integrityInputs) };
     }
@@ -152,7 +156,8 @@ export class GitDependencyResolver {
      * machine cache and re-verifies the complete package before returning it.
      */
     async prepareLocked(name, dependency, locked, checkoutRoot) {
-        if (normalizeGitIdentity(dependency.url) !== normalizeGitIdentity(locked.url) || dependency.ref !== locked.requested_ref) {
+        if (normalizeGitIdentity(dependency.url) !== normalizeGitIdentity(locked.url) ||
+            dependency.ref !== locked.requested_ref) {
             throw new Error(`Lock entry for ${name} does not match skills.json`);
         }
         const requestedPaths = dependency.select ? [...dependency.select].sort() : null;
@@ -167,18 +172,24 @@ export class GitDependencyResolver {
         const verify = async (root) => {
             try {
                 const scanned = await this.#scanPackage(root, locked.skills.map((skill) => skill.path));
-                return scanned.integrity === locked.integrity && canonicalSkills(scanned.skills) === canonicalSkills(locked.skills);
+                return (scanned.integrity === locked.integrity && canonicalSkills(scanned.skills) === canonicalSkills(locked.skills));
             }
             catch {
                 return false;
             }
         };
-        if (await this.#exists(target) && await verify(target))
-            return { dependency: name, root: target, commit: locked.commit, integrity: locked.integrity, skills: locked.skills };
+        if ((await this.#exists(target)) && (await verify(target)))
+            return {
+                dependency: name,
+                root: target,
+                commit: locked.commit,
+                integrity: locked.integrity,
+                skills: locked.skills,
+            };
         if (await this.#exists(target))
             await rm(target, { recursive: true, force: true });
         let mirror = this.#mirrorPath(dependency.url);
-        if (!mirror || !await this.#exists(mirror))
+        if (!mirror || !(await this.#exists(mirror)))
             mirror = await this.#prepareMirror(dependency.url);
         const parent = path.dirname(target);
         await mkdir(parent, { recursive: true });
@@ -186,19 +197,25 @@ export class GitDependencyResolver {
         try {
             await this.#git.run(["clone", "--no-checkout", "--", mirror ?? dependency.url, staging]);
             await this.#git.run(["checkout", "--detach", locked.commit], staging);
-            if (await this.#git.run(["rev-parse", "HEAD"], staging) !== locked.commit)
+            if ((await this.#git.run(["rev-parse", "HEAD"], staging)) !== locked.commit)
                 throw new Error(`Locked dependency ${name} checked out an unexpected commit`);
-            if (!await verify(staging))
+            if (!(await verify(staging)))
                 throw new Error(`Locked dependency ${name} failed integrity verification`);
             try {
                 await rename(staging, target);
             }
             catch (error) {
-                if (!await this.#exists(target) || !await verify(target))
+                if (!(await this.#exists(target)) || !(await verify(target)))
                     throw error;
                 await rm(staging, { recursive: true, force: true });
             }
-            return { dependency: name, root: target, commit: locked.commit, integrity: locked.integrity, skills: locked.skills };
+            return {
+                dependency: name,
+                root: target,
+                commit: locked.commit,
+                integrity: locked.integrity,
+                skills: locked.skills,
+            };
         }
         catch (error) {
             await rm(staging, { recursive: true, force: true });

@@ -95,7 +95,7 @@ export async function doctorLibrary(options) {
     if (loaded.ok)
         issues.push(...inspectLock(loaded.value));
     if (loaded.ok)
-        issues.push(...await inspectConfiguration(root));
+        issues.push(...(await inspectConfiguration(root)));
     let machine = null;
     if (options.descriptors && options.platform && options.home) {
         machine = await scanMachineAgents(options.descriptors, {

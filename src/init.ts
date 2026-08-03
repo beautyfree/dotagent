@@ -11,11 +11,14 @@ export interface InitializeLibraryPlan {
 }
 
 function packageName(input: string): string {
-  const normalized = input.trim().toLocaleLowerCase("en-US")
+  const normalized = input
+    .trim()
+    .toLocaleLowerCase("en-US")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 64);
-  if (!normalized || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) throw new Error("Library name must contain letters or numbers");
+  if (!normalized || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized))
+    throw new Error("Library name must contain letters or numbers");
   return normalized;
 }
 

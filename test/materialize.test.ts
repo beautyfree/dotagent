@@ -22,7 +22,14 @@ const inventory: LibraryInventory = {
 
 describe("materialization planning", () => {
   it("is deterministic and creates per-skill links", () => {
-    const target = { descriptor, platform: "darwin" as const, detected: true, mode: "symlink" as const, root: "/agents/codex", existing: {} };
+    const target = {
+      descriptor,
+      platform: "darwin" as const,
+      detected: true,
+      mode: "symlink" as const,
+      root: "/agents/codex",
+      existing: {},
+    };
     const first = planMaterialization(inventory, [target]);
     const second = planMaterialization(inventory, [target]);
     expect(first.planId).toBe(second.planId);
@@ -31,34 +38,40 @@ describe("materialization planning", () => {
 
   it("never overwrites unmanaged content", () => {
     const copyDescriptor = { ...descriptor, skills: [{ kind: "copy-only" as const, roots: ["~/.codex/skills"] }] };
-    const plan = planMaterialization(inventory, [{
-      descriptor: copyDescriptor,
-      platform: "linux",
-      detected: true,
-      mode: "copy",
-      root: "/agents/codex",
-      existing: { writing: { state: "unmanaged" } },
-    }]);
+    const plan = planMaterialization(inventory, [
+      {
+        descriptor: copyDescriptor,
+        platform: "linux",
+        detected: true,
+        mode: "copy",
+        root: "/agents/codex",
+        existing: { writing: { state: "unmanaged" } },
+      },
+    ]);
     expect(plan.hasConflicts).toBe(true);
     expect(plan.operations[0]?.action).toBe("conflict");
   });
 
   it("uses native shared access without inventing an agent target path", () => {
     const nativeDescriptor = { ...descriptor, skills: [{ kind: "native-shared" as const }] };
-    const plan = planMaterialization(inventory, [{ descriptor: nativeDescriptor, platform: "win32", detected: true, mode: "native", existing: {} }]);
+    const plan = planMaterialization(inventory, [
+      { descriptor: nativeDescriptor, platform: "win32", detected: true, mode: "native", existing: {} },
+    ]);
     expect(plan.operations[0]).toMatchObject({ action: "available-native", target: null });
   });
 
   it("conflicts instead of overwriting a locally modified managed copy", () => {
     const copyDescriptor = { ...descriptor, skills: [{ kind: "copy-only" as const, roots: ["~/.codex/skills"] }] };
-    const plan = planMaterialization(inventory, [{
-      descriptor: copyDescriptor,
-      platform: "linux",
-      detected: true,
-      mode: "copy",
-      root: "/agents/codex",
-      existing: { writing: { state: "managed-copy", integrity: "local-change", baseIntegrity: "old-remote" } },
-    }]);
+    const plan = planMaterialization(inventory, [
+      {
+        descriptor: copyDescriptor,
+        platform: "linux",
+        detected: true,
+        mode: "copy",
+        root: "/agents/codex",
+        existing: { writing: { state: "managed-copy", integrity: "local-change", baseIntegrity: "old-remote" } },
+      },
+    ]);
     expect(plan.operations[0]).toMatchObject({ action: "conflict", reason: "Managed copy has local changes" });
   });
 });
