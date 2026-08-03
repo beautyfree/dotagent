@@ -27,6 +27,8 @@ export interface DependencyResolver {
 }
 /** Canonical comparison identity; credentials and transport-specific Git spelling are removed. */
 export declare function normalizeGitIdentity(input: string): string;
+/** Compare two validated locks without resolving or fetching any dependency. */
+export declare function diffLibraryLocks(currentLock: LibraryLock | null, nextLock: LibraryLock): ResolutionChange[];
 /** Dependencies resolve concurrently, then become a deterministically ordered immutable plan. */
 export declare function planResolveDependencies(manifest: LibraryManifest, resolver: DependencyResolver, currentLock?: LibraryLock | null, generatedBy?: string): Promise<ResolutionPlan>;
 /** Atomically writes only a still-valid reviewed resolution plan. */

@@ -31,6 +31,51 @@ export function normalizeGitIdentity(input) {
         throw new Error(`Git URL has no repository path: ${input}`);
     return `https://${parsed.hostname.toLocaleLowerCase("en-US")}/${repositoryPath}`;
 }
+/** Compare two validated locks without resolving or fetching any dependency. */
+export function diffLibraryLocks(currentLock, nextLock) {
+    const changes = [];
+    for (const [name, entry] of Object.entries(nextLock.resolved).sort(([left], [right]) => left.localeCompare(right, "en"))) {
+        const previous = currentLock?.resolved[name];
+        const previousSkills = new Set(previous?.skills.map((skill) => skill.name) ?? []);
+        const nextSkills = new Set(entry.skills.map((skill) => skill.name));
+        changes.push({
+            dependency: name,
+            action: !previous
+                ? "added"
+                : previous.commit === entry.commit && previous.integrity === entry.integrity
+                    ? "unchanged"
+                    : "updated",
+            fromSource: previous ? normalizeGitIdentity(previous.url) : null,
+            toSource: normalizeGitIdentity(entry.url),
+            fromCommit: previous?.commit ?? null,
+            toCommit: entry.commit,
+            fromIntegrity: previous?.integrity ?? null,
+            toIntegrity: entry.integrity,
+            fromLicense: previous?.license ?? null,
+            toLicense: entry.license ?? null,
+            skillsAdded: [...nextSkills].filter((skill) => !previousSkills.has(skill)).sort(),
+            skillsRemoved: [...previousSkills].filter((skill) => !nextSkills.has(skill)).sort(),
+        });
+    }
+    for (const [name, previous] of Object.entries(currentLock?.resolved ?? {}).sort(([left], [right]) => left.localeCompare(right, "en"))) {
+        if (!(name in nextLock.resolved))
+            changes.push({
+                dependency: name,
+                action: "removed",
+                fromSource: normalizeGitIdentity(previous.url),
+                toSource: null,
+                fromCommit: previous.commit,
+                toCommit: null,
+                fromIntegrity: previous.integrity,
+                toIntegrity: null,
+                fromLicense: previous.license ?? null,
+                toLicense: null,
+                skillsAdded: [],
+                skillsRemoved: previous.skills.map((skill) => skill.name).sort(),
+            });
+    }
+    return changes;
+}
 function resolvedSkillNames(manifest, entries) {
     const names = new Map();
     for (const owned of manifest.skills)
@@ -62,47 +107,7 @@ export async function planResolveDependencies(manifest, resolver, currentLock = 
         generated_by: generatedBy,
         resolved: Object.fromEntries(resolved),
     });
-    const changes = [];
-    for (const [name, entry] of resolved) {
-        const previous = currentLock?.resolved[name];
-        const previousSkills = new Set(previous?.skills.map((skill) => skill.name) ?? []);
-        const nextSkills = new Set(entry.skills.map((skill) => skill.name));
-        changes.push({
-            dependency: name,
-            action: !previous
-                ? "added"
-                : previous.commit === entry.commit && previous.integrity === entry.integrity
-                    ? "unchanged"
-                    : "updated",
-            fromSource: previous ? normalizeGitIdentity(previous.url) : null,
-            toSource: normalizeGitIdentity(entry.url),
-            fromCommit: previous?.commit ?? null,
-            toCommit: entry.commit,
-            fromIntegrity: previous?.integrity ?? null,
-            toIntegrity: entry.integrity,
-            fromLicense: previous?.license ?? null,
-            toLicense: entry.license ?? null,
-            skillsAdded: [...nextSkills].filter((skill) => !previousSkills.has(skill)).sort(),
-            skillsRemoved: [...previousSkills].filter((skill) => !nextSkills.has(skill)).sort(),
-        });
-    }
-    for (const [name, previous] of Object.entries(currentLock?.resolved ?? {}).sort(([left], [right]) => left.localeCompare(right, "en"))) {
-        if (!(name in manifest.dependencies))
-            changes.push({
-                dependency: name,
-                action: "removed",
-                fromSource: normalizeGitIdentity(previous.url),
-                toSource: null,
-                fromCommit: previous.commit,
-                toCommit: null,
-                fromIntegrity: previous.integrity,
-                toIntegrity: null,
-                fromLicense: previous.license ?? null,
-                toLicense: null,
-                skillsAdded: [],
-                skillsRemoved: previous.skills.map((skill) => skill.name).sort(),
-            });
-    }
+    const changes = diffLibraryLocks(currentLock, lock);
     const payload = {
         kind: "resolve-dependencies",
         schemaVersion: 1,
