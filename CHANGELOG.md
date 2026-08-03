@@ -23,6 +23,7 @@ All notable changes to `@beautyfree/dotagent` are recorded here. The project fol
 - Third-party conformance fixtures for repository-root and multi-skill package layouts.
 - A committed public-declaration snapshot now makes package API changes an explicit release-gate decision.
 - A shared, runtime-validated import-decision contract covers suggested, owned, dependency, vendored, local-only, and excluded outcomes; vendoring requires an explicit upstream license.
+- Interrupted import and materialization recovery now has a value-redacted no-write preview and a stale-checked plan ID before `--yes` can modify local state.
 
 ### Security
 

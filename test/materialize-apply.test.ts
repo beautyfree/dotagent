@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { AgentDescriptor } from "../src/agents.js";
 import {
   applyMaterializationPlan,
+  inspectMaterializationRecovery,
   readMaterializationState,
   recoverMaterialization,
 } from "../src/materialize-apply.js";
@@ -210,9 +211,17 @@ describe("materialization apply", () => {
         operations: [{ operation, status: "applied" }],
       }),
     );
+    expect(await inspectMaterializationRecovery(library)).toMatchObject({
+      kind: "materialization-recovery",
+      journalPlanId: plan.planId,
+      action: "roll-back",
+      operations: 1,
+      applied: 1,
+    });
     expect(await recoverMaterialization(library)).toBe(true);
     expect(existsSync(target)).toBe(false);
     expect(await recoverMaterialization(library)).toBe(false);
+    expect(await inspectMaterializationRecovery(library)).toBeNull();
   });
 });
 

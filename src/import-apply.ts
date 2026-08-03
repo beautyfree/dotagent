@@ -40,6 +40,16 @@ export interface ApplyImportResult {
   requiresResolve: boolean;
 }
 
+export interface ImportRecoveryPreview {
+  kind: "import-recovery";
+  schemaVersion: 1;
+  library: string;
+  journalPlanId: string;
+  action: "complete" | "roll-back";
+  operations: number;
+  applied: number;
+}
+
 function hashText(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -177,18 +187,23 @@ async function rollbackJournal(journal: ImportJournal): Promise<void> {
   await rm(journalPath(journal.library), { force: true });
 }
 
-/** Recovers only content still byte-identical to the interrupted reviewed plan. */
-export async function recoverImport(libraryRoot: string): Promise<"none" | "completed" | "rolled-back"> {
-  const library = path.resolve(libraryRoot);
-  let journal: ImportJournal;
+async function readImportJournal(library: string): Promise<ImportJournal | null> {
   try {
-    journal = JSON.parse(await readFile(journalPath(library), "utf8")) as ImportJournal;
+    const journal = JSON.parse(await readFile(journalPath(library), "utf8")) as ImportJournal;
+    if (journal.schemaVersion !== IMPORT_JOURNAL_VERSION || journal.library !== library)
+      throw new Error("Unsupported or misplaced import journal");
+    return journal;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "none";
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
   }
-  if (journal.schemaVersion !== IMPORT_JOURNAL_VERSION || journal.library !== library)
-    throw new Error("Unsupported or misplaced import journal");
+}
+
+/** Builds a no-write, value-redacted summary of an interrupted import. */
+export async function inspectImportRecovery(libraryRoot: string): Promise<ImportRecoveryPreview | null> {
+  const library = path.resolve(libraryRoot);
+  const journal = await readImportJournal(library);
+  if (!journal) return null;
   const [currentManifest, currentConfig] = await Promise.all([
     readFile(path.join(library, "skills.json"), "utf8"),
     readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
@@ -196,7 +211,39 @@ export async function recoverImport(libraryRoot: string): Promise<"none" | "comp
   const complete =
     hashText(currentManifest) === hashText(journal.nextManifestText) &&
     hashText(currentConfig) === hashText(journal.nextConfigText) &&
-    journal.operations.every((entry) => entry.operation.action !== "copy-owned" || entry.status === "applied");
+    journal.operations.every(
+      (entry) =>
+        (entry.operation.action !== "copy-owned" && entry.operation.action !== "copy-vendored") ||
+        entry.status === "applied",
+    );
+  return {
+    kind: "import-recovery",
+    schemaVersion: 1,
+    library,
+    journalPlanId: journal.planId,
+    action: complete ? "complete" : "roll-back",
+    operations: journal.operations.length,
+    applied: journal.operations.filter((entry) => entry.status === "applied").length,
+  };
+}
+
+/** Recovers only content still byte-identical to the interrupted reviewed plan. */
+export async function recoverImport(libraryRoot: string): Promise<"none" | "completed" | "rolled-back"> {
+  const library = path.resolve(libraryRoot);
+  const journal = await readImportJournal(library);
+  if (!journal) return "none";
+  const [currentManifest, currentConfig] = await Promise.all([
+    readFile(path.join(library, "skills.json"), "utf8"),
+    readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
+  ]);
+  const complete =
+    hashText(currentManifest) === hashText(journal.nextManifestText) &&
+    hashText(currentConfig) === hashText(journal.nextConfigText) &&
+    journal.operations.every(
+      (entry) =>
+        (entry.operation.action !== "copy-owned" && entry.operation.action !== "copy-vendored") ||
+        entry.status === "applied",
+    );
   if (complete) {
     for (const entry of journal.operations) {
       if (

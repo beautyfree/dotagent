@@ -47,4 +47,22 @@ describe("CLI materialization flow", () => {
       health: "current",
     });
   });
+
+  it("previews recovery and rejects an unreviewed confirmation", async () => {
+    const library = mkdtempSync(join(tmpdir(), "dotagent-cli-recovery-"));
+    roots.push(library);
+    const preview = await run("bun", ["src/cli.ts", "recover", library, "--json"], {
+      cwd: join(import.meta.dir, ".."),
+    });
+    const plan = JSON.parse(preview.stdout) as { planId: string; import: null; materialization: null };
+    expect(plan).toMatchObject({ import: null, materialization: null });
+    expect(plan.planId).toMatch(/^[a-f0-9]{64}$/);
+    await expect(
+      run("bun", ["src/cli.ts", "recover", library, "--yes"], { cwd: join(import.meta.dir, "..") }),
+    ).rejects.toMatchObject({ stderr: expect.stringContaining("--plan-id is missing") });
+    const applied = await run("bun", ["src/cli.ts", "recover", library, "--plan-id", plan.planId, "--yes", "--json"], {
+      cwd: join(import.meta.dir, ".."),
+    });
+    expect(JSON.parse(applied.stdout)).toEqual({ recovered: false, import: "none", materialization: false });
+  });
 });

@@ -57,6 +57,16 @@ export interface ApplyMaterializationResult {
   unchanged: number;
 }
 
+export interface MaterializationRecoveryPreview {
+  kind: "materialization-recovery";
+  schemaVersion: 1;
+  library: string;
+  journalPlanId: string;
+  action: "roll-back";
+  operations: number;
+  applied: number;
+}
+
 function metadataRoot(libraryRoot: string): string {
   return path.join(libraryRoot, ".dotagent");
 }
@@ -255,6 +265,30 @@ export async function recoverMaterialization(libraryRoot: string): Promise<boole
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+/** Builds a no-write summary before an interrupted materialization is rolled back. */
+export async function inspectMaterializationRecovery(
+  libraryRoot: string,
+): Promise<MaterializationRecoveryPreview | null> {
+  const library = path.resolve(libraryRoot);
+  try {
+    const parsed = JSON.parse(await readFile(journalPath(library), "utf8")) as MaterializationJournal;
+    if (parsed.schemaVersion !== MATERIALIZATION_JOURNAL_VERSION || !Array.isArray(parsed.operations))
+      throw new Error("Unsupported materialization journal");
+    return {
+      kind: "materialization-recovery",
+      schemaVersion: 1,
+      library,
+      journalPlanId: parsed.planId,
+      action: "roll-back",
+      operations: parsed.operations.length,
+      applied: parsed.operations.filter((entry) => entry.status === "applied").length,
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
   }
 }

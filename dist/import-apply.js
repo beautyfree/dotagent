@@ -140,27 +140,57 @@ async function rollbackJournal(journal) {
     await rm(stageRoot(journal.library, journal.planId), { recursive: true, force: true });
     await rm(journalPath(journal.library), { force: true });
 }
-/** Recovers only content still byte-identical to the interrupted reviewed plan. */
-export async function recoverImport(libraryRoot) {
-    const library = path.resolve(libraryRoot);
-    let journal;
+async function readImportJournal(library) {
     try {
-        journal = JSON.parse(await readFile(journalPath(library), "utf8"));
+        const journal = JSON.parse(await readFile(journalPath(library), "utf8"));
+        if (journal.schemaVersion !== IMPORT_JOURNAL_VERSION || journal.library !== library)
+            throw new Error("Unsupported or misplaced import journal");
+        return journal;
     }
     catch (error) {
         if (error.code === "ENOENT")
-            return "none";
+            return null;
         throw error;
     }
-    if (journal.schemaVersion !== IMPORT_JOURNAL_VERSION || journal.library !== library)
-        throw new Error("Unsupported or misplaced import journal");
+}
+/** Builds a no-write, value-redacted summary of an interrupted import. */
+export async function inspectImportRecovery(libraryRoot) {
+    const library = path.resolve(libraryRoot);
+    const journal = await readImportJournal(library);
+    if (!journal)
+        return null;
     const [currentManifest, currentConfig] = await Promise.all([
         readFile(path.join(library, "skills.json"), "utf8"),
         readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
     ]);
     const complete = hashText(currentManifest) === hashText(journal.nextManifestText) &&
         hashText(currentConfig) === hashText(journal.nextConfigText) &&
-        journal.operations.every((entry) => entry.operation.action !== "copy-owned" || entry.status === "applied");
+        journal.operations.every((entry) => (entry.operation.action !== "copy-owned" && entry.operation.action !== "copy-vendored") ||
+            entry.status === "applied");
+    return {
+        kind: "import-recovery",
+        schemaVersion: 1,
+        library,
+        journalPlanId: journal.planId,
+        action: complete ? "complete" : "roll-back",
+        operations: journal.operations.length,
+        applied: journal.operations.filter((entry) => entry.status === "applied").length,
+    };
+}
+/** Recovers only content still byte-identical to the interrupted reviewed plan. */
+export async function recoverImport(libraryRoot) {
+    const library = path.resolve(libraryRoot);
+    const journal = await readImportJournal(library);
+    if (!journal)
+        return "none";
+    const [currentManifest, currentConfig] = await Promise.all([
+        readFile(path.join(library, "skills.json"), "utf8"),
+        readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
+    ]);
+    const complete = hashText(currentManifest) === hashText(journal.nextManifestText) &&
+        hashText(currentConfig) === hashText(journal.nextConfigText) &&
+        journal.operations.every((entry) => (entry.operation.action !== "copy-owned" && entry.operation.action !== "copy-vendored") ||
+            entry.status === "applied");
     if (complete) {
         for (const entry of journal.operations) {
             if ((entry.operation.action === "copy-owned" || entry.operation.action === "copy-vendored") &&

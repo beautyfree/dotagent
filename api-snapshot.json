@@ -86,7 +86,7 @@
     {
       "subpath": "./import-apply",
       "types": "./dist/import-apply.d.ts",
-      "sha256": "6f5ad6bd5605aedd1a00b0685ce2dfe0949a171c61a3a6dbc589175b0ebdcbbe"
+      "sha256": "081051d60028b318fd59ed1073fb7ea0561aad91e15ec5358ff96c57f8d531c2"
     },
     {
       "subpath": "./init",
@@ -126,7 +126,7 @@
     {
       "subpath": "./materialize-apply",
       "types": "./dist/materialize-apply.d.ts",
-      "sha256": "bd5b2da594e2f66ab9b4aebdebde5a8c0684f731a7d645d6e80efc23a430c9ef"
+      "sha256": "4b13af0219ca04b3834a99750afbdf20c6d21f12e15b239e261fc5f1303f69c5"
     },
     {
       "subpath": "./prepared-library",

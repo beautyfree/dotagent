@@ -21,7 +21,18 @@ export interface ApplyMaterializationResult {
     applied: number;
     unchanged: number;
 }
+export interface MaterializationRecoveryPreview {
+    kind: "materialization-recovery";
+    schemaVersion: 1;
+    library: string;
+    journalPlanId: string;
+    action: "roll-back";
+    operations: number;
+    applied: number;
+}
 export declare function readMaterializationState(libraryRoot: string): Promise<MaterializationState>;
 export declare function recoverMaterialization(libraryRoot: string): Promise<boolean>;
+/** Builds a no-write summary before an interrupted materialization is rolled back. */
+export declare function inspectMaterializationRecovery(libraryRoot: string): Promise<MaterializationRecoveryPreview | null>;
 export declare function applyMaterializationPlan(plan: MaterializationPlan, options?: ApplyMaterializationOptions): Promise<ApplyMaterializationResult>;
 //# sourceMappingURL=materialize-apply.d.ts.map

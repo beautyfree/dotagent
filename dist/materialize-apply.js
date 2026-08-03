@@ -201,6 +201,29 @@ export async function recoverMaterialization(libraryRoot) {
         throw error;
     }
 }
+/** Builds a no-write summary before an interrupted materialization is rolled back. */
+export async function inspectMaterializationRecovery(libraryRoot) {
+    const library = path.resolve(libraryRoot);
+    try {
+        const parsed = JSON.parse(await readFile(journalPath(library), "utf8"));
+        if (parsed.schemaVersion !== MATERIALIZATION_JOURNAL_VERSION || !Array.isArray(parsed.operations))
+            throw new Error("Unsupported materialization journal");
+        return {
+            kind: "materialization-recovery",
+            schemaVersion: 1,
+            library,
+            journalPlanId: parsed.planId,
+            action: "roll-back",
+            operations: parsed.operations.length,
+            applied: parsed.operations.filter((entry) => entry.status === "applied").length,
+        };
+    }
+    catch (error) {
+        if (error.code === "ENOENT")
+            return null;
+        throw error;
+    }
+}
 export async function applyMaterializationPlan(plan, options = {}) {
     const { planId, ...payload } = plan;
     if (computePlanId(payload) !== planId)

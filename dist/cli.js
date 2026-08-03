@@ -9,11 +9,12 @@ import { doctorLibrary } from "./doctor.js";
 import { GitDependencyResolver } from "./git-resolver.js";
 import { applyLibraryClone, applyLibraryCommit, applyLibraryGitInitialization, applyLibraryPull, applyLibraryPush, getLibraryGitStatus, planLibraryClone, planLibraryCommit, planLibraryGitInitialization, planLibraryPull, planLibraryPush, } from "./git-workspace.js";
 import { planImport } from "./import.js";
-import { applyImportPlan, recoverImport } from "./import-apply.js";
+import { applyImportPlan, inspectImportRecovery, recoverImport } from "./import-apply.js";
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "./init.js";
 import { scanLibrary } from "./inventory.js";
 import { planMaterialization } from "./materialize.js";
-import { applyMaterializationPlan, recoverMaterialization } from "./materialize-apply.js";
+import { applyMaterializationPlan, inspectMaterializationRecovery, recoverMaterialization, } from "./materialize-apply.js";
+import { computePlanId } from "./plan.js";
 import { prepareMaterializationInventory } from "./prepared-library.js";
 import { applyLibraryResolutionPlan, planLibraryResolution } from "./sources.js";
 import { existingTargetsForPlan, getMaterializationStatus } from "./status.js";
@@ -27,7 +28,16 @@ async function emitPlan(plan, output, json, label) {
 }
 async function main() {
     const [command = "help", ...args] = process.argv.slice(2);
-    const valueOptions = new Set(["--name", "--out", "--target", "--owned", "--candidate-file", "--remote", "--message"]);
+    const valueOptions = new Set([
+        "--name",
+        "--out",
+        "--target",
+        "--owned",
+        "--candidate-file",
+        "--remote",
+        "--message",
+        "--plan-id",
+    ]);
     const optionValues = (name) => args.flatMap((argument, index) => {
         const value = args[index + 1];
         return argument === name && value ? [value] : [];
@@ -48,7 +58,7 @@ async function main() {
     const directory = positional[0] ?? ".";
     const json = args.includes("--json");
     if (command === "help" || command === "--help" || command === "-h") {
-        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--out plan.json] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--out plan.json] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--out plan.json] [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
+        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--out plan.json] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--out plan.json] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--out plan.json] [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] [--plan-id id --yes] [--json]\n");
         return 0;
     }
     if (command === "init") {
@@ -288,9 +298,26 @@ async function main() {
         return 0;
     }
     if (command === "recover") {
-        if (!args.includes("--yes"))
-            throw new Error("Refusing recovery without explicit --yes confirmation");
         const root = path.resolve(directory);
+        const recoveryPayload = {
+            kind: "recover",
+            schemaVersion: 1,
+            library: root,
+            import: await inspectImportRecovery(root),
+            materialization: await inspectMaterializationRecovery(root),
+        };
+        const recoveryPlan = { ...recoveryPayload, planId: computePlanId(recoveryPayload) };
+        if (!args.includes("--yes")) {
+            process.stdout.write(json
+                ? `${JSON.stringify(recoveryPlan, null, 2)}\n`
+                : recoveryPlan.import || recoveryPlan.materialization
+                    ? `Recovery plan ${recoveryPlan.planId}: review interrupted operations, then rerun with --plan-id ${recoveryPlan.planId} --yes.\n`
+                    : `Recovery plan ${recoveryPlan.planId}: no unfinished operation found.\n`);
+            return 0;
+        }
+        const expectedPlanId = optionValue("--plan-id");
+        if (!expectedPlanId || expectedPlanId !== recoveryPlan.planId)
+            throw new Error("Recovery preview changed or --plan-id is missing; review recovery again before --yes");
         const imported = await recoverImport(root);
         const materialized = await recoverMaterialization(root);
         const recovered = imported !== "none" || materialized;

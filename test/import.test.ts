@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { parse } from "yaml";
 import { planImport } from "../src/import.js";
-import { applyImportPlan, recoverImport } from "../src/import-apply.js";
+import { applyImportPlan, inspectImportRecovery, recoverImport } from "../src/import-apply.js";
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "../src/init.js";
 import { scanLibrary, scanOwnedSkill } from "../src/inventory.js";
 
@@ -191,9 +191,17 @@ describe("canonical import planning and apply", () => {
     await expect(run(process.execPath, [runner], { cwd: process.cwd() })).rejects.toThrow();
     expect(existsSync(join(root, "skills", "first"))).toBe(true);
     expect(existsSync(join(root, ".dotagent", "import-journal.json"))).toBe(true);
+    expect(await inspectImportRecovery(root)).toMatchObject({
+      kind: "import-recovery",
+      journalPlanId: plan.planId,
+      action: "roll-back",
+      operations: 2,
+      applied: 1,
+    });
     expect(await recoverImport(root)).toBe("rolled-back");
     expect(existsSync(join(root, "skills", "first"))).toBe(false);
     expect(existsSync(join(root, ".dotagent", "import-journal.json"))).toBe(false);
+    expect(await inspectImportRecovery(root)).toBeNull();
   });
 });
 
