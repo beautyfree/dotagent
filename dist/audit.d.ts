@@ -27,6 +27,11 @@ export interface LibraryAuditReport {
     library: LibraryInventory | null;
     issues: DotagentIssue[];
 }
+export type LibrarySecretFinding = SecretFileFinding & {
+    skill: string;
+};
+/** Scans only owned portable files; dependency content is represented by its immutable lock. */
+export declare function scanLibraryForSecrets(root: string): Promise<LibrarySecretFinding[]>;
 /** Structural audit only: reads bounded files already accepted by inventory and never executes skill content. */
 export declare function auditLibrary(options: AuditLibraryOptions): Promise<LibraryAuditReport>;
 //# sourceMappingURL=audit.d.ts.map

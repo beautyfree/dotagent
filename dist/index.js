@@ -22,6 +22,7 @@ export * from "./status.js";
 export * from "./cli-target.js";
 export * from "./sources.js";
 export * from "./git-resolver.js";
+export * from "./git-workspace.js";
 export * from "./issues.js";
 export * from "./library.js";
 export * from "./paths.js";

@@ -66,6 +66,19 @@ export async function scanSkillForSecrets(skillRoot) {
     await walk(skillRoot);
     return findings;
 }
+/** Scans only owned portable files; dependency content is represented by its immutable lock. */
+export async function scanLibraryForSecrets(root) {
+    const scanned = await scanLibrary(path.resolve(root));
+    if (!scanned.ok)
+        throw new Error(scanned.issues.map((issue) => issue.message).join("; "));
+    const findings = [];
+    for (const skill of scanned.value.ownedSkills) {
+        const skillRoot = path.join(scanned.value.root, ...skill.path.split("/"));
+        for (const finding of await scanSkillForSecrets(skillRoot))
+            findings.push({ ...finding, skill: skill.name });
+    }
+    return findings;
+}
 function auditIssue(code, severity, message, remediation, field) {
     return { code, severity, message, remediation, ...(field ? { field } : {}) };
 }
