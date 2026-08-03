@@ -6,6 +6,7 @@ import { planSkillExport } from "../src/export-policy.js";
 import {
   applyLibraryUpdatePlan,
   type LibraryUpdatePlan,
+  libraryUpdateJournalPath,
   planLibraryUpdate,
   recoverLibraryUpdate,
 } from "../src/library-update.js";
@@ -51,6 +52,9 @@ describe("transactional library update", () => {
     const files = { "skills.json": '{"skills":["skills/writing"]}\n' };
     const review = plan(current, files);
     expect(review.planId).toBe(plan(current, files).planId);
+    expect(libraryUpdateJournalPath(current.workspace)).toBe(
+      path.join(current.workspace, ".dotagent", "library-update-journal.json"),
+    );
     expect(existsSync(path.join(current.workspace, "skills.json"))).toBe(false);
     expect(applyLibraryUpdatePlan(review, { portableFiles: files }).updated).toEqual(["skills.json", "skills/writing"]);
     expect(readFileSync(path.join(current.workspace, "skills.json"), "utf8")).toBe(files["skills.json"]);

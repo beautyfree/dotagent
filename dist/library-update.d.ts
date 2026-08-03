@@ -81,6 +81,7 @@ export declare const LIBRARY_UPDATE_JOURNAL_VERSION: 1;
  * serializable plan; apply receives and revalidates them at the adapter seam.
  */
 export declare function planLibraryUpdate(input: PlanLibraryUpdateInput): LibraryUpdatePlan;
+export declare function libraryUpdateJournalPath(root: string): string;
 export declare function hasLibraryUpdateRecovery(journalPath: string): boolean;
 /** Recover a completed or interrupted update without deleting later user edits. */
 export declare function recoverLibraryUpdate(journalPath: string): boolean;

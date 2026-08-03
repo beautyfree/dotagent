@@ -147,8 +147,8 @@ export function planLibraryUpdate(input) {
     };
     return { ...payload, planId: computePlanId(payload) };
 }
-function defaultJournalPath(plan) {
-    return path.join(plan.root, ".dotagent", "library-update-journal.json");
+export function libraryUpdateJournalPath(root) {
+    return path.join(path.resolve(root), ".dotagent", "library-update-journal.json");
 }
 function assertRootUnchanged(plan) {
     const current = rootSnapshot(plan.root);
@@ -309,7 +309,7 @@ export function applyLibraryUpdatePlan(plan, options) {
         throw new Error(`Library update is blocked by ${plan.secretFindings.length} possible secret finding(s)`);
     }
     const files = portableFileContents(plan, options.portableFiles);
-    const journalPath = options.journalPath ?? defaultJournalPath(plan);
+    const journalPath = options.journalPath ?? libraryUpdateJournalPath(plan.root);
     if (existsSync(journalPath))
         throw new Error("An unfinished library update requires recovery first");
     assertRootUnchanged(plan);
