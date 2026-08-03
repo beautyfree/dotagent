@@ -4,6 +4,8 @@ One Git-backed agent library, safely materialized into every compatible agent yo
 
 This repository contains the reusable TypeScript engine and headless CLI used by Skiller. It is an early local foundation and is not published yet.
 
+Until the scoped npm package is released, Skiller consumes an exact Git commit. Generated `dist/` files are therefore committed temporarily so clean installs remain reproducible even when dependency lifecycle scripts are disabled.
+
 ## Model
 
 The canonical repository normally lives at `~/.agents`. Its `skills/` directory contains skills the library owner publishes. `skills.json` describes the portable package. `skills.lock` pins external dependencies. `dotagent.local.yaml` and `.dotagent/` contain machine-specific state and are always ignored by Git.
