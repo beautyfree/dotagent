@@ -1,3 +1,4 @@
+export { normalizeGitIdentity } from "./git-identity.js";
 import { type DependencyReference, type LibraryLock, type LibraryManifest, type ResolvedPackage } from "./schema.js";
 export type ResolutionChange = {
     dependency: string;
@@ -34,8 +35,6 @@ export interface DependencyResolver {
     /** Resolve and audit in isolation. Implementations must not write to agent targets. */
     resolve(name: string, dependency: DependencyReference): Promise<ResolvedPackage>;
 }
-/** Canonical comparison identity; credentials and transport-specific Git spelling are removed. */
-export declare function normalizeGitIdentity(input: string): string;
 /** Compare two validated locks without resolving or fetching any dependency. */
 export declare function diffLibraryLocks(currentLock: LibraryLock | null, nextLock: LibraryLock): ResolutionChange[];
 /** Dependencies resolve concurrently, then become a deterministically ordered immutable plan. */

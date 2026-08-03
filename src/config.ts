@@ -1,7 +1,7 @@
 import { parse } from "yaml";
 import { z } from "zod";
+import { normalizeGitIdentity } from "./git-identity.js";
 import { normalizeSkillPath } from "./paths.js";
-import { normalizeGitIdentity } from "./sources.js";
 
 export const DOTAGENT_CONFIG_VERSION = 1 as const;
 export const DOTAGENT_CONFIG_FILE = "dotagent.yaml";
