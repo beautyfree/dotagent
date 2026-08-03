@@ -6,11 +6,13 @@ import { basename, resolve } from "node:path";
 const root = resolve(new URL("..", import.meta.url).pathname);
 const output = resolve(root, process.argv[2] ?? "release-artifacts");
 const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
-const sourceCommit = (process.env.GITHUB_SHA ?? execFileSync("git", ["rev-parse", "HEAD"], {
+const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
   cwd: root,
   encoding: "utf8",
-})).trim();
+}).trim();
+const sourceCommit = (process.env.GITHUB_SHA ?? currentHead).trim();
 if (!/^[a-f0-9]{40}$/.test(sourceCommit)) throw new Error("Release source commit must be an immutable Git SHA");
+if (sourceCommit !== currentHead) throw new Error("Release source commit does not match the checked-out Git HEAD");
 const sourceStatus = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
   cwd: root,
   encoding: "utf8",
