@@ -33,6 +33,10 @@ export interface LibraryInventory {
   locked: boolean;
 }
 
+export interface ScannedSkill extends OwnedSkillInventory {
+  root: string;
+}
+
 function issue(code: DotagentIssue["code"], message: string, remediation: string, filePath: string): DotagentIssue {
   return { code, message, remediation, path: filePath };
 }
@@ -80,24 +84,14 @@ async function collectSkillFiles(skillRoot: string, limits: ScanLimits): Promise
   return unsafe ? { ok: false, issues: [unsafe] } : { ok: true, value: { files, bytes }, issues: [] };
 }
 
-export async function scanLibrary(root: string, limits: ScanLimits = DEFAULT_SCAN_LIMITS): Promise<DotagentResult<LibraryInventory>> {
-  const loaded = await loadLibrary(root);
-  if (!loaded.ok) return loaded;
-  const ownedSkills: OwnedSkillInventory[] = [];
-  const names = new Set<string>();
-  for (const skillPath of loaded.value.manifest.skills) {
+export async function scanOwnedSkill(root: string, skillPath: string, limits: ScanLimits = DEFAULT_SCAN_LIMITS): Promise<DotagentResult<ScannedSkill>> {
     const name = path.posix.basename(skillPath);
-    const folded = name.toLocaleLowerCase("en-US");
-    if (names.has(folded)) {
-      return { ok: false, issues: [issue("duplicate-skill", `Multiple exported skills use the name ${name}.`, "Rename one skill so flat package names are unique.", skillPath)] };
-    }
-    names.add(folded);
     const skillRoot = path.join(root, ...skillPath.split("/"));
     let metadata;
     try {
       metadata = await lstat(skillRoot);
     } catch {
-      return { ok: false, issues: [issue("file-not-found", `Exported skill directory is missing: ${skillPath}.`, "Restore the directory or remove it from skills.json.", skillRoot)] };
+      return { ok: false, issues: [issue("file-not-found", `Exported skill directory is missing: ${skillPath}.`, "Restore the directory or remove it from the manifest.", skillRoot)] };
     }
     if (metadata.isSymbolicLink()) {
       return { ok: false, issues: [issue("unsafe-link", `Exported skill root is a symbolic link: ${skillPath}.`, "Use an external dependency or materialize reviewed files inside the library.", skillRoot)] };
@@ -120,13 +114,31 @@ export async function scanLibrary(root: string, limits: ScanLimits = DEFAULT_SCA
     }
     const collected = await collectSkillFiles(skillRoot, limits);
     if (!collected.ok) return collected;
-    ownedSkills.push({
+    return { ok: true, value: {
       name,
       path: skillPath,
+      root: skillRoot,
       fileCount: collected.value.files.length,
       bytes: collected.value.bytes,
       integrity: computeSkillIntegrity(collected.value.files),
-    });
+    }, issues: [] };
+}
+
+export async function scanLibrary(root: string, limits: ScanLimits = DEFAULT_SCAN_LIMITS): Promise<DotagentResult<LibraryInventory>> {
+  const loaded = await loadLibrary(root);
+  if (!loaded.ok) return loaded;
+  const ownedSkills: OwnedSkillInventory[] = [];
+  const names = new Set<string>();
+  for (const skillPath of loaded.value.manifest.skills) {
+    const scanned = await scanOwnedSkill(root, skillPath, limits);
+    if (!scanned.ok) return scanned;
+    const folded = scanned.value.name.toLocaleLowerCase("en-US");
+    if (names.has(folded)) {
+      return { ok: false, issues: [issue("duplicate-skill", `Multiple exported skills use the name ${scanned.value.name}.`, "Rename one skill so flat package names are unique.", skillPath)] };
+    }
+    names.add(folded);
+    const { root: _skillRoot, ...inventory } = scanned.value;
+    ownedSkills.push(inventory);
   }
   ownedSkills.sort((left, right) => left.name.localeCompare(right.name, "en"));
   return { ok: true, value: {

@@ -59,6 +59,18 @@
     "./reconcile": {
       "types": "./dist/reconcile.d.ts",
       "import": "./dist/reconcile.js"
+    },
+    "./agents": {
+      "types": "./dist/agents.d.ts",
+      "import": "./dist/agents.js"
+    },
+    "./materialize": {
+      "types": "./dist/materialize.d.ts",
+      "import": "./dist/materialize.js"
+    },
+    "./sources": {
+      "types": "./dist/sources.d.ts",
+      "import": "./dist/sources.js"
     }
   },
   "bin": {

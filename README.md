@@ -31,13 +31,15 @@ Implemented now:
 - safe portable path validation including traversal and Windows reserved-name rejection;
 - deterministic SHA-256 skill integrity;
 - bounded library inventory that rejects escaping links and oversized content;
+- concurrent isolated Git resolution with immutable commits and stale-plan-safe lockfile writes;
 - typed value-free issues and shared secret findings;
 - read-only Skills CLI v3 and legacy Skiller manifest adapters;
 - shared three-way conflict classification;
+- typed agent capabilities and deterministic materialization previews that refuse unmanaged targets;
 - deterministic reviewed initialization plans;
-- `init` and `inspect` CLI commands.
+- `init`, `inspect`, and preview-by-default `resolve` CLI commands.
 
-Skiller already consumes the shared manifest, Skills CLI, secret-scan, and reconciliation modules through compatibility facades. Next: immutable source resolution, audit reports, materialization plans, agent capabilities, and full golden-fixture parity.
+Skiller already consumes the shared manifest, Skills CLI, secret-scan, and reconciliation modules through compatibility facades. Next: persistent source cache, richer audit reports, machine discovery, journaled materialization apply, agent-catalog migration, and full golden-fixture parity.
 
 ## Prior art
 
