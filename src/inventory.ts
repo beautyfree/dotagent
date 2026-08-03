@@ -23,6 +23,10 @@ export interface OwnedSkillInventory {
   fileCount: number;
   bytes: number;
   integrity: string;
+  /** Present for verified dependency cache entries; absent for owned skills. */
+  sourceRoot?: string;
+  sourceKind?: "dependency";
+  dependency?: string;
 }
 
 export interface LibraryInventory {

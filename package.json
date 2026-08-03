@@ -88,6 +88,10 @@
       "types": "./dist/materialize.d.ts",
       "import": "./dist/materialize.js"
     },
+    "./prepared-library": {
+      "types": "./dist/prepared-library.d.ts",
+      "import": "./dist/prepared-library.js"
+    },
     "./materialize-apply": {
       "types": "./dist/materialize-apply.d.ts",
       "import": "./dist/materialize-apply.js"

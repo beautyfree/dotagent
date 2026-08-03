@@ -65,8 +65,11 @@ function inspectLock(
     } catch {
       // The manifest/lock parser already reports invalid URL shapes elsewhere.
     }
-    if (!sameSource || resolved.requested_ref !== dependency.ref) {
-      issues.push(issue("lockfile-stale", "error", `Dependency ${name} no longer matches its locked source or ref.`, "Resolve dependencies again; do not materialize the stale lock."));
+    const selectedPaths = dependency.select ? [...dependency.select].sort() : null;
+    const lockedPaths = resolved.skills.map((skill) => skill.path).sort();
+    const sameSelection = selectedPaths === null || JSON.stringify(selectedPaths) === JSON.stringify(lockedPaths);
+    if (!sameSource || resolved.requested_ref !== dependency.ref || !sameSelection) {
+      issues.push(issue("lockfile-stale", "error", `Dependency ${name} no longer matches its locked source, ref, or selected skill paths.`, "Resolve dependencies again; do not materialize the stale lock."));
     }
   }
   for (const name of Object.keys(loaded.lock.resolved)) {

@@ -28,7 +28,8 @@ export function planMaterialization(inventory, targets) {
         if (target.mode !== "native" && !target.root)
             throw new Error(`Agent ${target.descriptor.slug} requires a resolved target root`);
         for (const skill of inventory.ownedSkills) {
-            const source = path.join(inventory.root, ...skill.path.split("/"));
+            const sourceRoot = skill.sourceRoot ?? inventory.root;
+            const source = skill.path === "." ? sourceRoot : path.join(sourceRoot, ...skill.path.split("/"));
             if (target.mode === "native") {
                 operations.push({ agent: target.descriptor.slug, skill: skill.name, action: "available-native", source, sourceIntegrity: skill.integrity, target: null, expectedTarget: { state: "absent" } });
                 continue;

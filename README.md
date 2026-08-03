@@ -35,6 +35,7 @@ Implemented now:
 - bounded library inventory that rejects escaping links and oversized content;
 - concurrent isolated Git resolution with immutable commits and stale-plan-safe lockfile writes;
 - reusable local Git object cache with fresh ref/commit/integrity verification;
+- immutable dependency checkouts that can be rebuilt from the local mirror, re-audited, and fed into the same materialization plan as owned skills;
 - typed value-free issues and shared secret findings;
 - non-executing public/private metadata and license audit;
 - read-only Skills CLI v3 and legacy Skiller manifest adapters;
@@ -70,6 +71,8 @@ beautyfree-dotagent apply materialization-plan.json --yes
 ```
 
 The saved plan contains exact sources, targets, hashes, and preconditions. Apply rejects modified plans, changed sources, targets that appeared after review, unmanaged content, and locally modified managed copies.
+
+When `skills.json` contains dependencies, `plan` requires a current `skills.lock`, prepares the exact locked commits under `.dotagent/cache/`, verifies their package integrity again, and includes their exported skills beside owned skills. Agent targets therefore never depend on a moving branch or an unverified working tree.
 
 Skiller already consumes the shared manifest, Skills CLI, secret-scan, reconciliation, machine-diagnostics, and catalog adapters through compatibility facades. Next: make the shared discovery/import plan renderer-facing, complete the authoritative agent-catalog migration, and finish golden-fixture parity before removing legacy implementations.
 

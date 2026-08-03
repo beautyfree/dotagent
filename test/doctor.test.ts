@@ -45,4 +45,17 @@ describe("doctor", () => {
     expect(stale.ok).toBe(false);
     expect(stale.issues).toContainEqual(expect.objectContaining({ code: "lockfile-stale", severity: "error" }));
   });
+
+  it("treats changed dependency selection as a stale lock", async () => {
+    const root = library();
+    writeFileSync(join(root, "skills.json"), JSON.stringify({ schema_version: 1, name: "personal", version: "1.0.0", skills: ["skills/writing"], dependencies: {
+      source: { url: "https://github.com/example/source", ref: "main", select: ["skills/new"] },
+    } }));
+    writeFileSync(join(root, "skills.lock"), JSON.stringify({ lockfile_version: 1, generated_by: "test", resolved: {
+      source: { url: "https://github.com/example/source", requested_ref: "main", commit: "a".repeat(40), integrity: "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", skills: [{ name: "old", path: "skills/old" }] },
+    } }));
+    const report = await doctorLibrary({ root });
+    expect(report.ok).toBe(false);
+    expect(report.issues).toContainEqual(expect.objectContaining({ code: "lockfile-stale", message: expect.stringContaining("selected skill paths") }));
+  });
 });

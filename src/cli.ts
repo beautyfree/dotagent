@@ -4,6 +4,7 @@ import process from "node:process";
 import { readFile, writeFile } from "node:fs/promises";
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "./init.js";
 import { scanLibrary } from "./inventory.js";
+import { prepareMaterializationInventory } from "./prepared-library.js";
 import { loadLibrary } from "./library.js";
 import { GitDependencyResolver } from "./git-resolver.js";
 import { applyResolutionPlan, planResolveDependencies } from "./sources.js";
@@ -103,8 +104,7 @@ async function main(): Promise<number> {
   }
   if (command === "plan") {
     const root = path.resolve(directory);
-    const scanned = await scanLibrary(root);
-    if (!scanned.ok) throw new Error(scanned.issues.map((issue) => issue.message).join("; "));
+    const inventory = await prepareMaterializationInventory({ root });
     const targetSpecs = optionValues("--target").map(parseMaterializationTargetSpec);
     if (targetSpecs.length === 0) throw new Error("At least one explicit --target slug=mode=path is required");
     const platform = process.platform as Platform;
@@ -123,11 +123,11 @@ async function main(): Promise<number> {
         mode: spec.mode,
         ...(spec.root ? { root: path.resolve(spec.root) } : {}),
         existing: spec.root
-          ? await existingTargetsForPlan(root, spec.slug, path.resolve(spec.root), scanned.value.ownedSkills.map((skill) => skill.name))
+          ? await existingTargetsForPlan(root, spec.slug, path.resolve(spec.root), inventory.ownedSkills.map((skill) => skill.name))
           : {},
       };
     }));
-    const plan = planMaterialization(scanned.value, targets);
+    const plan = planMaterialization(inventory, targets);
     const output = optionValue("--out");
     if (output) await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
     if (json || !output) process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);

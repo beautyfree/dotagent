@@ -14,6 +14,7 @@ export * from "./config.js";
 export * from "./reconcile.js";
 export * from "./agents.js";
 export * from "./materialize.js";
+export * from "./prepared-library.js";
 export * from "./materialize-apply.js";
 export * from "./machine.js";
 export * from "./doctor.js";

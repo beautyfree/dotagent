@@ -78,6 +78,25 @@ export class GitDependencyResolver {
             this.#cacheWork.delete(key);
         }
     }
+    #mirrorPath(url) {
+        if (!this.#cacheRoot)
+            return null;
+        const identity = normalizeGitIdentity(url);
+        const key = createHash("sha256").update(identity).digest("hex");
+        return path.join(this.#cacheRoot, `${key}.git`);
+    }
+    async #scanPackage(checkout, selected) {
+        const skills = [];
+        const integrityInputs = [];
+        for (const skillPath of [...selected].sort((left, right) => left.localeCompare(right, "en"))) {
+            const scanned = await scanOwnedSkill(checkout, skillPath, this.#limits);
+            if (!scanned.ok)
+                throw new Error(scanned.issues.map((entry) => entry.message).join("; "));
+            skills.push({ name: scanned.value.name, path: scanned.value.path });
+            integrityInputs.push({ path: scanned.value.path === "." ? `root/${scanned.value.name}` : scanned.value.path, content: Buffer.from(scanned.value.integrity, "utf8") });
+        }
+        return { skills, integrity: computeSkillIntegrity(integrityInputs) };
+    }
     async resolve(_name, dependency) {
         normalizeGitIdentity(dependency.url);
         const workspace = await mkdtemp(path.join(this.#temporaryRoot, "dotagent-resolve-"));
@@ -114,26 +133,74 @@ export class GitDependencyResolver {
                     throw new Error(`Dependency ${dependency.url} has no compatible skills.json`);
                 selected = sourceManifest.skills;
             }
-            const skills = [];
-            const integrityInputs = [];
-            for (const skillPath of [...selected].sort((left, right) => left.localeCompare(right, "en"))) {
-                const scanned = await scanOwnedSkill(checkout, skillPath, this.#limits);
-                if (!scanned.ok)
-                    throw new Error(scanned.issues.map((entry) => entry.message).join("; "));
-                skills.push({ name: scanned.value.name, path: scanned.value.path });
-                integrityInputs.push({ path: scanned.value.path === "." ? `root/${scanned.value.name}` : scanned.value.path, content: Buffer.from(scanned.value.integrity, "utf8") });
-            }
+            const scanned = await this.#scanPackage(checkout, selected);
             return {
                 url: normalizeGitIdentity(dependency.url),
                 requested_ref: dependency.ref,
                 commit,
-                integrity: computeSkillIntegrity(integrityInputs),
+                integrity: scanned.integrity,
                 ...(sourceManifest?.license ? { license: sourceManifest.license } : {}),
-                skills,
+                skills: scanned.skills,
             };
         }
         finally {
             await rm(workspace, { recursive: true, force: true });
+        }
+    }
+    /**
+     * Materializes only an already locked immutable commit into a disposable
+     * machine cache and re-verifies the complete package before returning it.
+     */
+    async prepareLocked(name, dependency, locked, checkoutRoot) {
+        if (normalizeGitIdentity(dependency.url) !== normalizeGitIdentity(locked.url) || dependency.ref !== locked.requested_ref) {
+            throw new Error(`Lock entry for ${name} does not match skills.json`);
+        }
+        const requestedPaths = dependency.select ? [...dependency.select].sort() : null;
+        const lockedPaths = locked.skills.map((skill) => skill.path).sort();
+        if (requestedPaths && JSON.stringify(requestedPaths) !== JSON.stringify(lockedPaths))
+            throw new Error(`Lock entry for ${name} does not match selected skill paths`);
+        const sourceKey = createHash("sha256").update(normalizeGitIdentity(dependency.url)).digest("hex").slice(0, 32);
+        const target = path.join(path.resolve(checkoutRoot), sourceKey, locked.commit);
+        const canonicalSkills = (skills) => JSON.stringify([...skills].sort((left, right) => `${left.path}:${left.name}`.localeCompare(`${right.path}:${right.name}`, "en")));
+        const verify = async (root) => {
+            try {
+                const scanned = await this.#scanPackage(root, locked.skills.map((skill) => skill.path));
+                return scanned.integrity === locked.integrity && canonicalSkills(scanned.skills) === canonicalSkills(locked.skills);
+            }
+            catch {
+                return false;
+            }
+        };
+        if (await this.#exists(target) && await verify(target))
+            return { dependency: name, root: target, commit: locked.commit, integrity: locked.integrity, skills: locked.skills };
+        if (await this.#exists(target))
+            await rm(target, { recursive: true, force: true });
+        let mirror = this.#mirrorPath(dependency.url);
+        if (!mirror || !await this.#exists(mirror))
+            mirror = await this.#prepareMirror(dependency.url);
+        const parent = path.dirname(target);
+        await mkdir(parent, { recursive: true });
+        const staging = `${target}.tmp-${process.pid}-${Date.now()}`;
+        try {
+            await this.#git.run(["clone", "--no-checkout", "--", mirror ?? dependency.url, staging]);
+            await this.#git.run(["checkout", "--detach", locked.commit], staging);
+            if (await this.#git.run(["rev-parse", "HEAD"], staging) !== locked.commit)
+                throw new Error(`Locked dependency ${name} checked out an unexpected commit`);
+            if (!await verify(staging))
+                throw new Error(`Locked dependency ${name} failed integrity verification`);
+            try {
+                await rename(staging, target);
+            }
+            catch (error) {
+                if (!await this.#exists(target) || !await verify(target))
+                    throw error;
+                await rm(staging, { recursive: true, force: true });
+            }
+            return { dependency: name, root: target, commit: locked.commit, integrity: locked.integrity, skills: locked.skills };
+        }
+        catch (error) {
+            await rm(staging, { recursive: true, force: true });
+            throw error;
         }
     }
 }
