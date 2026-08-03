@@ -98,6 +98,33 @@ describe("library reconciliation", () => {
     expect(readFileSync(path.join(target, "SKILL.md"), "utf8")).toBe("# Changed after review\n");
   });
 
+  it("allows an explicit remote choice to replace publish-local and kept-local states", () => {
+    const current = fixture({ publish: "# Remote publish\n", kept: "# Remote kept\n" });
+    const base: Record<string, { baseIntegrity: string; keptRemoteIntegrity?: string }> = {};
+    for (const source of current.sources) {
+      const target = path.join(current.targetRoot, source.id);
+      mkdirSync(target, { recursive: true });
+      writeFileSync(path.join(target, "SKILL.md"), `# Local ${source.id}\n`);
+      base[source.id] = {
+        baseIntegrity: source.integrity,
+        ...(source.id === "kept" ? { keptRemoteIntegrity: source.integrity } : {}),
+      };
+    }
+    const review = plan(current, base);
+    expect(review.operations).toMatchObject([
+      { skill: "kept", action: "kept-local" },
+      { skill: "publish", action: "publish-local" },
+    ]);
+    expect(
+      applyLibraryReconciliationPlan(
+        review,
+        review.operations.map((operation) => ({ skill: operation.skill, action: "take-remote" as const })),
+      ).restored,
+    ).toEqual(["kept", "publish"]);
+    expect(readFileSync(path.join(current.targetRoot, "kept", "SKILL.md"), "utf8")).toBe("# Remote kept\n");
+    expect(readFileSync(path.join(current.targetRoot, "publish", "SKILL.md"), "utf8")).toBe("# Remote publish\n");
+  });
+
   it("rejects a changed remote and value-free secret findings before target writes", () => {
     const current = fixture();
     const review = plan(current);
