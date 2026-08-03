@@ -55,6 +55,7 @@ async function collectSkillFiles(skillRoot: string, limits: ScanLimits): Promise
     for (const entry of entries) {
       const absolute = path.join(directory, entry.name);
       const relative = path.relative(skillRoot, absolute).replaceAll(path.sep, "/");
+      if (relative === ".dotagent-managed.json") continue;
       if (entry.isSymbolicLink()) {
         return issue("unsafe-link", `Skill contains a symbolic link at ${relative}.`, "Replace it with a regular file inside the skill or keep the skill as an external dependency.", absolute);
       }

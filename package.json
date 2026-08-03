@@ -48,6 +48,10 @@
       "types": "./dist/adapters/skills-cli.d.ts",
       "import": "./dist/adapters/skills-cli.js"
     },
+    "./adapters/skiller-agents": {
+      "types": "./dist/adapters/skiller-agents.d.ts",
+      "import": "./dist/adapters/skiller-agents.js"
+    },
     "./audit": {
       "types": "./dist/audit.d.ts",
       "import": "./dist/audit.js"
@@ -68,9 +72,25 @@
       "types": "./dist/materialize.d.ts",
       "import": "./dist/materialize.js"
     },
+    "./materialize-apply": {
+      "types": "./dist/materialize-apply.d.ts",
+      "import": "./dist/materialize-apply.js"
+    },
     "./sources": {
       "types": "./dist/sources.d.ts",
       "import": "./dist/sources.js"
+    },
+    "./machine": {
+      "types": "./dist/machine.d.ts",
+      "import": "./dist/machine.js"
+    },
+    "./doctor": {
+      "types": "./dist/doctor.d.ts",
+      "import": "./dist/doctor.js"
+    },
+    "./status": {
+      "types": "./dist/status.d.ts",
+      "import": "./dist/status.js"
     }
   },
   "bin": {

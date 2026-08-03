@@ -48,4 +48,17 @@ describe("materialization planning", () => {
     const plan = planMaterialization(inventory, [{ descriptor: nativeDescriptor, platform: "win32", detected: true, mode: "native", existing: {} }]);
     expect(plan.operations[0]).toMatchObject({ action: "available-native", target: null });
   });
+
+  it("conflicts instead of overwriting a locally modified managed copy", () => {
+    const copyDescriptor = { ...descriptor, skills: [{ kind: "copy-only" as const, roots: ["~/.codex/skills"] }] };
+    const plan = planMaterialization(inventory, [{
+      descriptor: copyDescriptor,
+      platform: "linux",
+      detected: true,
+      mode: "copy",
+      root: "/agents/codex",
+      existing: { writing: { state: "managed-copy", integrity: "local-change", baseIntegrity: "old-remote" } },
+    }]);
+    expect(plan.operations[0]).toMatchObject({ action: "conflict", reason: "Managed copy has local changes" });
+  });
 });

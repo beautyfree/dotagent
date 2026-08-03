@@ -9,6 +9,7 @@ export type ExistingTarget = {
 } | {
     state: "managed-copy";
     integrity: string;
+    baseIntegrity: string;
 } | {
     state: "unmanaged";
 };
@@ -27,7 +28,9 @@ export interface MaterializationOperation {
     skill: string;
     action: MaterializationAction;
     source: string;
+    sourceIntegrity: string;
     target: string | null;
+    expectedTarget: ExistingTarget;
     reason?: string;
 }
 export interface MaterializationPlan {

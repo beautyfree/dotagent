@@ -38,10 +38,13 @@ Implemented now:
 - read-only Skills CLI v3 and legacy Skiller manifest adapters;
 - shared three-way conflict classification;
 - typed agent capabilities and deterministic materialization previews that refuse unmanaged targets;
+- guarded machine detection that separates shared skills from agent-install evidence;
+- read-only `doctor` and managed-target `status` reports;
+- journaled link/junction/copy apply with source revalidation, managed markers, rollback, and crash recovery;
 - deterministic reviewed initialization plans;
-- `init`, `inspect`, and preview-by-default `resolve` CLI commands.
+- `init`, `inspect`, preview-by-default `resolve`, `doctor`, and `status` CLI commands.
 
-Skiller already consumes the shared manifest, Skills CLI, secret-scan, and reconciliation modules through compatibility facades. Next: persistent source cache, richer audit reports, machine discovery, journaled materialization apply, agent-catalog migration, and full golden-fixture parity.
+Skiller already consumes the shared manifest, Skills CLI, secret-scan, and reconciliation modules through compatibility facades. Next: persistent source cache, richer audit reports, complete agent-catalog migration, Sync Center plan mapping, and full golden-fixture parity.
 
 ## Prior art
 

@@ -30,24 +30,24 @@ export function planMaterialization(inventory, targets) {
         for (const skill of inventory.ownedSkills) {
             const source = path.join(inventory.root, ...skill.path.split("/"));
             if (target.mode === "native") {
-                operations.push({ agent: target.descriptor.slug, skill: skill.name, action: "available-native", source, target: null });
+                operations.push({ agent: target.descriptor.slug, skill: skill.name, action: "available-native", source, sourceIntegrity: skill.integrity, target: null, expectedTarget: { state: "absent" } });
                 continue;
             }
             const destination = path.join(target.root, skill.name);
             const existing = target.existing[skill.name] ?? { state: "absent" };
             if (existing.state === "unmanaged") {
-                operations.push({ agent: target.descriptor.slug, skill: skill.name, action: "conflict", source, target: destination, reason: "Target contains unmanaged content" });
+                operations.push({ agent: target.descriptor.slug, skill: skill.name, action: "conflict", source, sourceIntegrity: skill.integrity, target: destination, expectedTarget: existing, reason: "Target contains unmanaged content" });
             }
             else if (target.mode === "copy") {
                 const action = existing.state === "absent"
                     ? "create-copy"
                     : existing.state === "managed-copy" && existing.integrity === skill.integrity
                         ? "unchanged"
-                        : existing.state === "managed-copy"
+                        : existing.state === "managed-copy" && existing.integrity === existing.baseIntegrity
                             ? "update-copy"
                             : "conflict";
-                operations.push({ agent: target.descriptor.slug, skill: skill.name, action, source, target: destination,
-                    ...(action === "conflict" ? { reason: "Target is not a managed copy" } : {}) });
+                operations.push({ agent: target.descriptor.slug, skill: skill.name, action, source, sourceIntegrity: skill.integrity, target: destination, expectedTarget: existing,
+                    ...(action === "conflict" ? { reason: existing.state === "managed-copy" ? "Managed copy has local changes" : "Target is not a managed copy" } : {}) });
             }
             else {
                 const expectedSource = path.resolve(source);
@@ -56,7 +56,7 @@ export function planMaterialization(inventory, targets) {
                     : existing.state === "managed-link" && path.resolve(existing.source) === expectedSource
                         ? "unchanged"
                         : "conflict";
-                operations.push({ agent: target.descriptor.slug, skill: skill.name, action, source, target: destination,
+                operations.push({ agent: target.descriptor.slug, skill: skill.name, action, source, sourceIntegrity: skill.integrity, target: destination, expectedTarget: existing,
                     ...(action === "conflict" ? { reason: "Target does not point to this managed skill" } : {}) });
             }
         }

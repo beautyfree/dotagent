@@ -6,6 +6,8 @@ import { scanLibrary } from "./inventory.js";
 import { loadLibrary } from "./library.js";
 import { GitDependencyResolver } from "./git-resolver.js";
 import { applyResolutionPlan, planResolveDependencies } from "./sources.js";
+import { doctorLibrary } from "./doctor.js";
+import { getMaterializationStatus } from "./status.js";
 async function main() {
     const [command = "help", ...args] = process.argv.slice(2);
     const optionValue = (name) => {
@@ -16,7 +18,7 @@ async function main() {
     const directory = positional[0] ?? ".";
     const json = args.includes("--json");
     if (command === "help" || command === "--help" || command === "-h") {
-        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\n");
+        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\n");
         return 0;
     }
     if (command === "init") {
@@ -45,6 +47,28 @@ async function main() {
         const result = { ok: true, root, plan_id: plan.planId, written: args.includes("--write"), changes: plan.changes, lock: plan.lock };
         process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `${plan.changes.length} dependency changes planned${args.includes("--write") ? " and written" : " (preview only; pass --write to save)"}.\n`);
         return 0;
+    }
+    if (command === "doctor") {
+        const report = await doctorLibrary({ root: path.resolve(directory) });
+        if (json)
+            process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+        else if (report.issues.length === 0)
+            process.stdout.write(`Library ${report.library?.name ?? report.root} is healthy.\n`);
+        else
+            for (const entry of report.issues)
+                process.stdout.write(`${entry.severity?.toUpperCase()}: ${entry.message}\nNext: ${entry.remediation}\n`);
+        return report.ok ? 0 : 1;
+    }
+    if (command === "status") {
+        const status = await getMaterializationStatus(path.resolve(directory));
+        if (json)
+            process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
+        else if (status.targets.length === 0)
+            process.stdout.write("No materialized targets are managed yet.\n");
+        else
+            for (const target of status.targets)
+                process.stdout.write(`${target.agent}/${target.skill}: ${target.health}\n`);
+        return status.targets.some((target) => target.health === "invalid") ? 1 : 0;
     }
     if (command !== "inspect") {
         process.stderr.write(`Unknown command: ${command}\nRun beautyfree-dotagent --help.\n`);
