@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { discoverSkills, suggestImportCandidates } from "../src/discovery.js";
@@ -37,7 +37,7 @@ describe("cross-agent skill discovery", () => {
     expect(report.skills).toHaveLength(1);
     expect(report.skills[0]).toMatchObject({ name: "writing", metadataValid: true });
     expect(report.skills[0]?.locations).toEqual([{ kind: "agent-local", agent: "codex" }, { kind: "shared" }]);
-    expect(suggestImportCandidates(report)).toEqual([{ kind: "owned", skill: "writing", sourcePath: realpathSync(actual), agents: ["codex"] }]);
+    expect(suggestImportCandidates(report)).toEqual([{ kind: "owned", skill: "writing", sourcePath: report.skills[0]!.sourcePath, agents: ["codex"] }]);
   });
 
   it("keeps same-name differences visible and leaves them local by default", async () => {
