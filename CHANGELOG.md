@@ -11,6 +11,7 @@ All notable changes to `@beautyfree/dotagent` are recorded here. The project fol
 - Journaled import and materialization plans with rollback, recovery, stale-preview checks, and unmanaged-target protection.
 - Immutable Git dependency resolution, package integrity, license audit, prepared checkouts, and deterministic dependency update deltas.
 - Reviewed Git commit, pull, and push plans with secret-safe isolated remote inspection.
+- Reviewed Git clone plans with credential-free remotes, staging validation, stale-plan checks, and atomic destination creation.
 - Versioned JSON Schemas, compatibility fixtures, package-content verification, and macOS/Linux/Windows CI.
 
 ### Security

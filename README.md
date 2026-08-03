@@ -84,12 +84,16 @@ When `skills.json` contains dependencies, `plan` requires a current `skills.lock
 The canonical library repository uses the same preview/apply boundary. Authentication remains the caller's responsibility, so the core works with GitHub, GitLab, a private server, or a local bare repository without storing credentials:
 
 ```sh
+beautyfree-dotagent clone git@github.com:you/agent-library.git ~/.agents --out clone-plan.json
+beautyfree-dotagent apply clone-plan.json --yes
 beautyfree-dotagent git-init ~/.agents --remote git@github.com:you/agent-library.git
 beautyfree-dotagent commit ~/.agents --message "Update my agent library" --out commit-plan.json
 beautyfree-dotagent apply commit-plan.json --yes
 beautyfree-dotagent sync ~/.agents --push --out push-plan.json
 beautyfree-dotagent apply push-plan.json --yes
 ```
+
+Clone preview creates no destination. Apply rechecks the plan and target, validates the cloned library in staging, configures a non-personal Git identity, and only then atomically exposes it. Remote URLs containing credentials, query parameters, or fragments are rejected.
 
 Pulls are also reviewed first. dotagent fetches without an interactive prompt, checks that the update is a fast-forward, audits the remote tree in an isolated worktree, and scans changed portable files without returning matched secret values. Only the confirmed plan can advance the working library:
 

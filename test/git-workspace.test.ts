@@ -5,12 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
+  applyLibraryClone,
   applyLibraryCommit,
   applyLibraryPull,
   applyLibraryPush,
   cloneLibrary,
   getLibraryGitStatus,
   initializeLibraryGit,
+  planLibraryClone,
   planLibraryCommit,
   planLibraryPull,
   planLibraryPush,
@@ -40,6 +42,34 @@ function addSkill(root: string, name: string, body = "portable\n"): void {
 }
 
 describe("Git-backed library workspace", () => {
+  it("clones only after an unchanged reviewed plan is applied", async () => {
+    const parent = mkdtempSync(join(tmpdir(), "dotagent-git-clone-plan-"));
+    roots.push(parent);
+    const remote = join(parent, "remote.git");
+    execFileSync("git", ["init", "--bare", "--initial-branch", "main", remote]);
+    const source = await initializedLibrary(parent, "source-library");
+    addSkill(source, "portable");
+    await initializeLibraryGit(source, pathToFileURL(remote).href);
+    await applyLibraryCommit(await planLibraryCommit(source, "Initial library"));
+    await applyLibraryPush(await planLibraryPush(source));
+
+    const target = join(parent, "cloned-library");
+    await expect(planLibraryClone("https://example.com/library.git?token=secret", target)).rejects.toThrow(
+      "query parameters",
+    );
+    const plan = await planLibraryClone(pathToFileURL(remote).href, target);
+    expect(plan).toMatchObject({ kind: "git-clone", schemaVersion: 1, destination: target });
+    expect(existsSync(target)).toBe(false);
+    await expect(applyLibraryClone({ ...plan, destination: `${target}-changed` })).rejects.toThrow("stale or modified");
+    await applyLibraryClone(plan);
+    expect(readFileSync(join(target, "skills/portable/SKILL.md"), "utf8")).toContain("portable");
+
+    const occupiedTarget = join(parent, "occupied-library");
+    const occupiedPlan = await planLibraryClone(pathToFileURL(remote).href, occupiedTarget);
+    mkdirSync(occupiedTarget);
+    await expect(applyLibraryClone(occupiedPlan)).rejects.toThrow("must not already exist");
+  }, 60_000);
+
   it("commits only reviewed portable files and blocks unsafe or secret changes", async () => {
     const parent = mkdtempSync(join(tmpdir(), "dotagent-git-commit-"));
     roots.push(parent);

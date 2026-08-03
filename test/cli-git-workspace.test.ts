@@ -21,6 +21,7 @@ describe("Git workspace CLI", () => {
     const remote = join(parent, "library.git");
     const commitPlan = join(parent, "commit.json");
     const pushPlan = join(parent, "push.json");
+    const clonePlan = join(parent, "clone.json");
     execFileSync("git", ["init", "--bare", "--initial-branch", "main", remote]);
 
     await run("bun", ["src/cli.ts", "init", library, "--name", "portable"], { cwd: repository });
@@ -47,9 +48,11 @@ describe("Git workspace CLI", () => {
     expect(execFileSync("git", ["--git-dir", remote, "show-ref"], { encoding: "utf8" })).toContain("refs/heads/main");
 
     const clone = join(parent, "clone");
-    const result = await run("bun", ["src/cli.ts", "clone", pathToFileURL(remote).href, clone, "--json"], {
+    await run("bun", ["src/cli.ts", "clone", pathToFileURL(remote).href, clone, "--out", clonePlan], {
       cwd: repository,
     });
+    expect(existsSync(clone)).toBe(false);
+    const result = await run("bun", ["src/cli.ts", "apply", clonePlan, "--yes", "--json"], { cwd: repository });
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: true, root: clone, branch: "main", changed: false });
     expect(readFileSync(join(clone, "skills", "writing", "SKILL.md"), "utf8")).toContain("Writes clearly");
   });

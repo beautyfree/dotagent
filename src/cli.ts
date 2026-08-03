@@ -1,40 +1,41 @@
 #!/usr/bin/env node
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { readFile, writeFile } from "node:fs/promises";
-import { applyInitializeLibraryPlan, planInitializeLibrary } from "./init.js";
-import { scanLibrary } from "./inventory.js";
-import { prepareMaterializationInventory } from "./prepared-library.js";
-import { loadLibrary } from "./library.js";
-import { GitDependencyResolver } from "./git-resolver.js";
-import { applyResolutionPlan, planResolveDependencies } from "./sources.js";
-import { doctorLibrary } from "./doctor.js";
-import { auditLibrary } from "./audit.js";
-import { getMaterializationStatus } from "./status.js";
-import { existingTargetsForPlan } from "./status.js";
-import { parseMaterializationTargetSpec } from "./cli-target.js";
-import { planMaterialization, type MaterializationPlan } from "./materialize.js";
-import { applyMaterializationPlan, recoverMaterialization } from "./materialize-apply.js";
 import type { AgentDescriptor, Platform, SkillDelivery } from "./agents.js";
-import { planImport, type ImportCandidate, type ImportPlan } from "./import.js";
-import { applyImportPlan, recoverImport } from "./import-apply.js";
+import { auditLibrary } from "./audit.js";
 import { parseOwnedImportSpec, validateImportCandidates } from "./cli-import.js";
+import { parseMaterializationTargetSpec } from "./cli-target.js";
+import { doctorLibrary } from "./doctor.js";
+import { GitDependencyResolver } from "./git-resolver.js";
 import {
+  applyLibraryClone,
   applyLibraryCommit,
   applyLibraryPull,
   applyLibraryPush,
-  cloneLibrary,
-  getLibraryGitStatus,
-  initializeLibraryGit,
-  planLibraryCommit,
-  planLibraryPull,
-  planLibraryPush,
+  type GitClonePlan,
   type GitCommitPlan,
   type GitPullPlan,
   type GitPushPlan,
+  getLibraryGitStatus,
+  initializeLibraryGit,
+  planLibraryClone,
+  planLibraryCommit,
+  planLibraryPull,
+  planLibraryPush,
 } from "./git-workspace.js";
+import { type ImportCandidate, type ImportPlan, planImport } from "./import.js";
+import { applyImportPlan, recoverImport } from "./import-apply.js";
+import { applyInitializeLibraryPlan, planInitializeLibrary } from "./init.js";
+import { scanLibrary } from "./inventory.js";
+import { loadLibrary } from "./library.js";
+import { type MaterializationPlan, planMaterialization } from "./materialize.js";
+import { applyMaterializationPlan, recoverMaterialization } from "./materialize-apply.js";
+import { prepareMaterializationInventory } from "./prepared-library.js";
+import { applyResolutionPlan, planResolveDependencies } from "./sources.js";
+import { existingTargetsForPlan, getMaterializationStatus } from "./status.js";
 
-type ApplicablePlan = MaterializationPlan | ImportPlan | GitCommitPlan | GitPullPlan | GitPushPlan;
+type ApplicablePlan = MaterializationPlan | ImportPlan | GitClonePlan | GitCommitPlan | GitPullPlan | GitPushPlan;
 
 async function emitPlan(plan: ApplicablePlan, output: string | undefined, json: boolean, label: string): Promise<void> {
   if (output)
@@ -69,7 +70,7 @@ async function main(): Promise<number> {
   const json = args.includes("--json");
   if (command === "help" || command === "--help" || command === "-h") {
     process.stdout.write(
-      "beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n",
+      "beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--out plan.json] [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n",
     );
     return 0;
   }
@@ -178,14 +179,8 @@ async function main(): Promise<number> {
     const remote = positional[0];
     const target = positional[1];
     if (!remote || !target) throw new Error("Clone requires a Git URL and a new library directory");
-    const destination = path.resolve(target);
-    await cloneLibrary(remote, destination);
-    const status = await getLibraryGitStatus(destination);
-    process.stdout.write(
-      json
-        ? `${JSON.stringify({ ok: true, root: destination, ...status }, null, 2)}\n`
-        : `Cloned the library to ${destination}.\n`,
-    );
+    const plan = await planLibraryClone(remote, path.resolve(target));
+    await emitPlan(plan, optionValue("--out"), json, "Clone");
     return 0;
   }
   if (command === "commit") {
@@ -294,6 +289,14 @@ async function main(): Promise<number> {
         json
           ? `${JSON.stringify(result, null, 2)}\n`
           : `Applied ${result.applied} operations from plan ${result.planId}.\n`,
+      );
+    } else if (plan.kind === "git-clone") {
+      await applyLibraryClone(plan);
+      const status = await getLibraryGitStatus(plan.destination);
+      process.stdout.write(
+        json
+          ? `${JSON.stringify({ ok: true, root: plan.destination, plan_id: plan.planId, ...status }, null, 2)}\n`
+          : `Cloned the library to ${plan.destination}.\n`,
       );
     } else if (plan.kind === "git-commit") {
       const head = await applyLibraryCommit(plan);
