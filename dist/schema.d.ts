@@ -52,10 +52,10 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
     }>>>;
     metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strict", z.ZodTypeAny, {
-    skills: string[];
     schema_version: 1;
     name: string;
     version: string;
+    skills: string[];
     dependencies: Record<string, {
         url: string;
         ref: string;
@@ -68,9 +68,9 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
     schema_version: 1;
     name: string;
     version: string;
-    skills?: string[] | undefined;
     description?: string | undefined;
     license?: string | undefined;
+    skills?: string[] | undefined;
     dependencies?: Record<string, {
         url: string;
         ref: string;
@@ -78,10 +78,10 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
     }> | undefined;
     metadata?: Record<string, unknown> | undefined;
 }>, {
-    skills: string[];
     schema_version: 1;
     name: string;
     version: string;
+    skills: string[];
     dependencies: Record<string, {
         url: string;
         ref: string;
@@ -94,9 +94,9 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
     schema_version: 1;
     name: string;
     version: string;
-    skills?: string[] | undefined;
     description?: string | undefined;
     license?: string | undefined;
+    skills?: string[] | undefined;
     dependencies?: Record<string, {
         url: string;
         ref: string;
@@ -120,20 +120,20 @@ export declare const resolvedPackageSchema: z.ZodObject<{
         name: string;
     }>, "many">;
 }, "strict", z.ZodTypeAny, {
+    url: string;
     skills: {
         path: string;
         name: string;
     }[];
-    url: string;
     requested_ref: string;
     commit: string;
     integrity: string;
 }, {
+    url: string;
     skills: {
         path: string;
         name: string;
     }[];
-    url: string;
     requested_ref: string;
     commit: string;
     integrity: string;
@@ -157,20 +157,20 @@ export declare const libraryLockSchema: z.ZodObject<{
             name: string;
         }>, "many">;
     }, "strict", z.ZodTypeAny, {
+        url: string;
         skills: {
             path: string;
             name: string;
         }[];
-        url: string;
         requested_ref: string;
         commit: string;
         integrity: string;
     }, {
+        url: string;
         skills: {
             path: string;
             name: string;
         }[];
-        url: string;
         requested_ref: string;
         commit: string;
         integrity: string;
@@ -179,11 +179,11 @@ export declare const libraryLockSchema: z.ZodObject<{
     lockfile_version: 1;
     generated_by: string;
     resolved: Record<string, {
+        url: string;
         skills: {
             path: string;
             name: string;
         }[];
-        url: string;
         requested_ref: string;
         commit: string;
         integrity: string;
@@ -192,11 +192,11 @@ export declare const libraryLockSchema: z.ZodObject<{
     lockfile_version: 1;
     generated_by: string;
     resolved: Record<string, {
+        url: string;
         skills: {
             path: string;
             name: string;
         }[];
-        url: string;
         requested_ref: string;
         commit: string;
         integrity: string;

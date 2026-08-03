@@ -26,12 +26,12 @@ export declare const portableConfigSchema: z.ZodObject<{
         distribution?: "dependency" | "vendored" | undefined;
     }>>>;
 }, "strict", z.ZodTypeAny, {
+    schema_version: 1;
     skills: Record<string, {
         include?: boolean | undefined;
         agents?: string[] | undefined;
         distribution?: "dependency" | "vendored" | undefined;
     }>;
-    schema_version: 1;
     defaults: {
         include: "all" | "owned" | "selected";
     };
@@ -71,14 +71,14 @@ export declare const localConfigSchema: z.ZodObject<{
         selected?: string[] | undefined;
         roots?: Record<string, string> | undefined;
     } | undefined;
-    materialization?: "auto" | "native" | "symlink" | "junction" | "copy" | undefined;
+    materialization?: "native" | "symlink" | "junction" | "copy" | "auto" | undefined;
 }, {
     schema_version: 1;
     agents?: {
         selected?: string[] | undefined;
         roots?: Record<string, string> | undefined;
     } | undefined;
-    materialization?: "auto" | "native" | "symlink" | "junction" | "copy" | undefined;
+    materialization?: "native" | "symlink" | "junction" | "copy" | "auto" | undefined;
     exclusions?: string[] | undefined;
     environment?: Record<string, string> | undefined;
 }>;

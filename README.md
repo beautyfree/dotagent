@@ -42,7 +42,18 @@ Implemented now:
 - read-only `doctor` and managed-target `status` reports;
 - journaled link/junction/copy apply with source revalidation, managed markers, rollback, and crash recovery;
 - deterministic reviewed initialization plans;
-- `init`, `inspect`, preview-by-default `resolve`, `doctor`, and `status` CLI commands.
+- `init`, `inspect`, preview-by-default `resolve`, `doctor`, `status`, explicit-target `plan`, confirmed `apply`, and `recover` CLI commands.
+
+Materialization is deliberately two-step:
+
+```sh
+beautyfree-dotagent plan ~/.agents \
+  --target codex=symlink="$HOME/.codex/skills" \
+  --out materialization-plan.json
+beautyfree-dotagent apply materialization-plan.json --yes
+```
+
+The saved plan contains exact sources, targets, hashes, and preconditions. Apply rejects modified plans, changed sources, targets that appeared after review, unmanaged content, and locally modified managed copies.
 
 Skiller already consumes the shared manifest, Skills CLI, secret-scan, and reconciliation modules through compatibility facades. Next: persistent source cache, richer audit reports, complete agent-catalog migration, Sync Center plan mapping, and full golden-fixture parity.
 

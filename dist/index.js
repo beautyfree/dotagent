@@ -14,6 +14,7 @@ export * from "./materialize-apply.js";
 export * from "./machine.js";
 export * from "./doctor.js";
 export * from "./status.js";
+export * from "./cli-target.js";
 export * from "./sources.js";
 export * from "./git-resolver.js";
 export * from "./issues.js";

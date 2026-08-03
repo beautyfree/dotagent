@@ -72,3 +72,25 @@ export async function getMaterializationStatus(libraryRoot: string): Promise<Mat
   }
   return { library: root, targets, byAgent };
 }
+
+/** Combines dotagent ownership state with explicit target existence for a no-write plan. */
+export async function existingTargetsForPlan(
+  libraryRoot: string,
+  agentSlug: string,
+  targetRoot: string,
+  skillNames: string[],
+): Promise<Record<string, ExistingTarget>> {
+  const status = await getMaterializationStatus(libraryRoot);
+  const managed = status.byAgent[agentSlug] ?? {};
+  const existing: Record<string, ExistingTarget> = {};
+  for (const skill of skillNames) {
+    if (managed[skill]) {
+      existing[skill] = managed[skill];
+      continue;
+    }
+    existing[skill] = await pathKind(path.join(targetRoot, skill)) === "missing"
+      ? { state: "absent" }
+      : { state: "unmanaged" };
+  }
+  return existing;
+}

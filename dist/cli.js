@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import process from "node:process";
+import { readFile, writeFile } from "node:fs/promises";
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "./init.js";
 import { scanLibrary } from "./inventory.js";
 import { loadLibrary } from "./library.js";
@@ -8,17 +9,29 @@ import { GitDependencyResolver } from "./git-resolver.js";
 import { applyResolutionPlan, planResolveDependencies } from "./sources.js";
 import { doctorLibrary } from "./doctor.js";
 import { getMaterializationStatus } from "./status.js";
+import { existingTargetsForPlan } from "./status.js";
+import { parseMaterializationTargetSpec } from "./cli-target.js";
+import { planMaterialization } from "./materialize.js";
+import { applyMaterializationPlan, recoverMaterialization } from "./materialize-apply.js";
 async function main() {
     const [command = "help", ...args] = process.argv.slice(2);
-    const optionValue = (name) => {
-        const index = args.indexOf(name);
-        return index >= 0 ? args[index + 1] : undefined;
-    };
-    const positional = args.filter((argument, index) => !argument.startsWith("--") && args[index - 1] !== "--name");
+    const valueOptions = new Set(["--name", "--out", "--target"]);
+    const optionValues = (name) => args.flatMap((argument, index) => argument === name && args[index + 1] ? [args[index + 1]] : []);
+    const optionValue = (name) => optionValues(name)[0];
+    const positional = [];
+    for (let index = 0; index < args.length; index += 1) {
+        const argument = args[index];
+        if (valueOptions.has(argument)) {
+            index += 1;
+            continue;
+        }
+        if (!argument.startsWith("--"))
+            positional.push(argument);
+    }
     const directory = positional[0] ?? ".";
     const json = args.includes("--json");
     if (command === "help" || command === "--help" || command === "-h") {
-        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\n");
+        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
         return 0;
     }
     if (command === "init") {
@@ -69,6 +82,60 @@ async function main() {
             for (const target of status.targets)
                 process.stdout.write(`${target.agent}/${target.skill}: ${target.health}\n`);
         return status.targets.some((target) => target.health === "invalid") ? 1 : 0;
+    }
+    if (command === "plan") {
+        const root = path.resolve(directory);
+        const scanned = await scanLibrary(root);
+        if (!scanned.ok)
+            throw new Error(scanned.issues.map((issue) => issue.message).join("; "));
+        const targetSpecs = optionValues("--target").map(parseMaterializationTargetSpec);
+        if (targetSpecs.length === 0)
+            throw new Error("At least one explicit --target slug=mode=path is required");
+        const platform = process.platform;
+        if (!["darwin", "linux", "win32"].includes(platform))
+            throw new Error(`Unsupported platform: ${process.platform}`);
+        const targets = await Promise.all(targetSpecs.map(async (spec) => {
+            const delivery = spec.mode === "native"
+                ? { kind: "native-shared" }
+                : spec.mode === "copy"
+                    ? { kind: "copy-only", roots: [spec.root] }
+                    : { kind: "per-skill-link", roots: [spec.root] };
+            const descriptor = { slug: spec.slug, displayName: spec.slug, platforms: [platform], detection: [], skills: [delivery] };
+            return {
+                descriptor,
+                platform,
+                detected: true,
+                mode: spec.mode,
+                ...(spec.root ? { root: path.resolve(spec.root) } : {}),
+                existing: spec.root
+                    ? await existingTargetsForPlan(root, spec.slug, path.resolve(spec.root), scanned.value.ownedSkills.map((skill) => skill.name))
+                    : {},
+            };
+        }));
+        const plan = planMaterialization(scanned.value, targets);
+        const output = optionValue("--out");
+        if (output)
+            await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+        if (json || !output)
+            process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+        else
+            process.stdout.write(`Plan ${plan.planId} written to ${path.resolve(output)} with ${plan.operations.length} operations.\n`);
+        return plan.hasConflicts ? 1 : 0;
+    }
+    if (command === "apply") {
+        if (!args.includes("--yes"))
+            throw new Error("Refusing to apply without explicit --yes confirmation");
+        const plan = JSON.parse(await readFile(path.resolve(directory), "utf8"));
+        const result = await applyMaterializationPlan(plan);
+        process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Applied ${result.applied} operations from plan ${result.planId}.\n`);
+        return 0;
+    }
+    if (command === "recover") {
+        if (!args.includes("--yes"))
+            throw new Error("Refusing recovery without explicit --yes confirmation");
+        const recovered = await recoverMaterialization(path.resolve(directory));
+        process.stdout.write(json ? `${JSON.stringify({ recovered }, null, 2)}\n` : recovered ? "Recovered the unfinished materialization.\n" : "No unfinished materialization found.\n");
+        return 0;
     }
     if (command !== "inspect") {
         process.stderr.write(`Unknown command: ${command}\nRun beautyfree-dotagent --help.\n`);

@@ -11,14 +11,14 @@ export declare const skillerBundledSkillSchema: z.ZodObject<{
     installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     sha256: string;
-    kind: "bundled";
     path: string;
+    kind: "bundled";
     id: string;
     installations?: string[] | undefined;
 }, {
     sha256: string;
-    kind: "bundled";
     path: string;
+    kind: "bundled";
     id: string;
     installations?: string[] | undefined;
 }>;
@@ -31,16 +31,16 @@ export declare const skillerReferenceSkillSchema: z.ZodObject<{
     sha256: z.ZodOptional<z.ZodString>;
     installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
-    kind: "reference";
     ref: string;
+    kind: "reference";
     repository: string;
     id: string;
     skill_path: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
 }, {
-    kind: "reference";
     ref: string;
+    kind: "reference";
     repository: string;
     id: string;
     skill_path: string;
@@ -56,16 +56,16 @@ export declare const skillerSkillsShSkillSchema: z.ZodObject<{
     sha256: z.ZodOptional<z.ZodString>;
     installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
-    kind: "skills_sh";
     ref: string;
+    kind: "skills_sh";
     id: string;
     skill_path: string;
     source_url: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
 }, {
-    kind: "skills_sh";
     ref: string;
+    kind: "skills_sh";
     id: string;
     skill_path: string;
     source_url: string;
@@ -77,11 +77,11 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         id: z.ZodString;
         mode: z.ZodEnum<["private", "team", "public"]>;
     }, "strip", z.ZodTypeAny, {
-        id: string;
         mode: "private" | "team" | "public";
+        id: string;
     }, {
-        id: string;
         mode: "private" | "team" | "public";
+        id: string;
     }>;
     agent_policy: z.ZodDiscriminatedUnion<"mode", [z.ZodObject<{
         mode: z.ZodLiteral<"detected">;
@@ -109,14 +109,14 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         sha256: string;
-        kind: "bundled";
         path: string;
+        kind: "bundled";
         id: string;
         installations?: string[] | undefined;
     }, {
         sha256: string;
-        kind: "bundled";
         path: string;
+        kind: "bundled";
         id: string;
         installations?: string[] | undefined;
     }>, z.ZodObject<{
@@ -128,16 +128,16 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         sha256: z.ZodOptional<z.ZodString>;
         installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
-        kind: "reference";
         ref: string;
+        kind: "reference";
         repository: string;
         id: string;
         skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     }, {
-        kind: "reference";
         ref: string;
+        kind: "reference";
         repository: string;
         id: string;
         skill_path: string;
@@ -152,16 +152,16 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         sha256: z.ZodOptional<z.ZodString>;
         installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
-        kind: "skills_sh";
         ref: string;
+        kind: "skills_sh";
         id: string;
         skill_path: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     }, {
-        kind: "skills_sh";
         ref: string;
+        kind: "skills_sh";
         id: string;
         skill_path: string;
         source_url: string;
@@ -169,33 +169,33 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         installations?: string[] | undefined;
     }>]>, "many">;
 }, "strip", z.ZodTypeAny, {
+    schema_version: 3;
     skills: ({
         sha256: string;
-        kind: "bundled";
         path: string;
+        kind: "bundled";
         id: string;
         installations?: string[] | undefined;
     } | {
-        kind: "reference";
         ref: string;
+        kind: "reference";
         repository: string;
         id: string;
         skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     } | {
-        kind: "skills_sh";
         ref: string;
+        kind: "skills_sh";
         id: string;
         skill_path: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     })[];
-    schema_version: 3;
     profile: {
-        id: string;
         mode: "private" | "team" | "public";
+        id: string;
     };
     agent_policy: {
         mode: "detected";
@@ -204,33 +204,33 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         agent_slugs: string[];
     };
 }, {
+    schema_version: 3;
     skills: ({
         sha256: string;
-        kind: "bundled";
         path: string;
+        kind: "bundled";
         id: string;
         installations?: string[] | undefined;
     } | {
-        kind: "reference";
         ref: string;
+        kind: "reference";
         repository: string;
         id: string;
         skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     } | {
-        kind: "skills_sh";
         ref: string;
+        kind: "skills_sh";
         id: string;
         skill_path: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     })[];
-    schema_version: 3;
     profile: {
-        id: string;
         mode: "private" | "team" | "public";
+        id: string;
     };
     agent_policy: {
         mode: "detected";

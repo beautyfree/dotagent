@@ -58,4 +58,20 @@ export async function getMaterializationStatus(libraryRoot) {
     }
     return { library: root, targets, byAgent };
 }
+/** Combines dotagent ownership state with explicit target existence for a no-write plan. */
+export async function existingTargetsForPlan(libraryRoot, agentSlug, targetRoot, skillNames) {
+    const status = await getMaterializationStatus(libraryRoot);
+    const managed = status.byAgent[agentSlug] ?? {};
+    const existing = {};
+    for (const skill of skillNames) {
+        if (managed[skill]) {
+            existing[skill] = managed[skill];
+            continue;
+        }
+        existing[skill] = await pathKind(path.join(targetRoot, skill)) === "missing"
+            ? { state: "absent" }
+            : { state: "unmanaged" };
+    }
+    return existing;
+}
 //# sourceMappingURL=status.js.map
