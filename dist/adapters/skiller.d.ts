@@ -280,6 +280,9 @@ export type SkillerBundledExportPlan = Omit<SkillExportPlan, "skill"> & {
     bundledPath: string;
 };
 export interface SkillerSyncPublishPlan {
+    kind: "skiller-sync-publish";
+    schemaVersion: 1;
+    planId: string;
     manifest: SkillerSyncManifest;
     bundledSkills: SkillerBundledExportPlan[];
     bundledDistributions: Record<string, "owned" | "vendored">;

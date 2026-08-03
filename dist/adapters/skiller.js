@@ -1,6 +1,7 @@
 import { parse, stringify } from "yaml";
 import { z } from "zod";
 import { planSkillExport } from "../export-policy.js";
+import { computePlanId } from "../plan.js";
 /** Compatibility format used by Skiller before beautyfree/dotagent libraries. */
 export const SKILLER_SYNC_MANIFEST_FILE = "skiller-sync.yaml";
 export const SKILLER_SYNC_MANIFEST_VERSION = 3;
@@ -63,6 +64,9 @@ const v1SkillerSyncManifestSchema = manifestBaseSchema.extend({
         skillerReferenceSkillSchema.omit({ installations: true }),
     ])),
 });
+function withSkillerPublishPlanId(payload) {
+    return { ...payload, planId: computePlanId(payload) };
+}
 export function assertSkillerStableId(id) {
     if (!skillerStableIdSchema.safeParse(id).success)
         throw new Error(`Invalid sync stable id: ${id}`);
@@ -197,7 +201,9 @@ export function planSkillerSyncPublish(profileId, mode, candidates, agentPolicy)
             ...(installations ? { installations } : {}),
         };
     });
-    return {
+    return withSkillerPublishPlanId({
+        kind: "skiller-sync-publish",
+        schemaVersion: 1,
         manifest: validateSkillerSyncManifest(manifest),
         bundledSkills,
         bundledDistributions: Object.fromEntries(bundledCandidates.map((candidate) => [candidate.id, candidate.kind === "vendored" ? "vendored" : "owned"])),
@@ -205,7 +211,7 @@ export function planSkillerSyncPublish(profileId, mode, candidates, agentPolicy)
             .filter((candidate) => candidate.kind === "vendored")
             .map((candidate) => [candidate.id, candidate.origin])),
         secretFindings: bundledSkills.flatMap((skill) => skill.secretFindings),
-    };
+    });
 }
 /** Keeps untouched remote skills while applying an explicitly reviewed owned-skill update. */
 export function mergeSkillerSyncPublishUpdate(base, update, options = {}) {
@@ -216,12 +222,13 @@ export function mergeSkillerSyncPublishUpdate(base, update, options = {}) {
             throw new Error(`Granular sync update is not a known bundled skill: ${skill.id}`);
         }
     }
-    return {
-        ...update,
+    const { planId: _previousPlanId, ...payload } = update;
+    return withSkillerPublishPlanId({
+        ...payload,
         manifest: validateSkillerSyncManifest({
             ...base,
             skills: base.skills.map((skill) => replacement.get(skill.id) ?? skill),
         }),
-    };
+    });
 }
 //# sourceMappingURL=skiller.js.map

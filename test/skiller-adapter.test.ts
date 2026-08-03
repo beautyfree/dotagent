@@ -80,6 +80,19 @@ describe("Skiller compatibility adapter", () => {
       const bundled = plan.bundledSkills[0];
       expect(bundled).toBeDefined();
       if (!bundled) throw new Error("Expected one bundled skill plan");
+      expect(plan.planId).toMatch(/^[a-f0-9]{64}$/);
+      expect(
+        planSkillerSyncPublish("personal", "public", [
+          { id: "writing", sourcePath: source, installationAgentSlugs: ["codex", "codex", "claude-code"] },
+          {
+            kind: "skills_sh",
+            id: "frontend-design",
+            sourceUrl: "https://github.com/vercel-labs/agent-skills",
+            ref: "a".repeat(40),
+            skillPath: "skills/frontend-design",
+          },
+        ]).planId,
+      ).toBe(plan.planId);
 
       expect(plan.manifest.skills).toEqual([
         {
@@ -123,10 +136,9 @@ describe("Skiller compatibility adapter", () => {
         skills: [update.manifest.skills[0], dependency],
       });
 
-      expect(mergeSkillerSyncPublishUpdate(base, update).manifest.skills.map((skill) => skill.id)).toEqual([
-        "writing",
-        "frontend-design",
-      ]);
+      const merged = mergeSkillerSyncPublishUpdate(base, update);
+      expect(merged.planId).not.toBe(update.planId);
+      expect(merged.manifest.skills.map((skill) => skill.id)).toEqual(["writing", "frontend-design"]);
       expect(() =>
         mergeSkillerSyncPublishUpdate(validateSkillerSyncManifest({ ...base, skills: [dependency] }), update),
       ).toThrow("not a known bundled skill");
