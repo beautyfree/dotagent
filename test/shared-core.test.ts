@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { scanTextForSecrets } from "../src/audit.js";
-import { mergeConfig, parseLocalConfig, parsePortableConfig } from "../src/config.js";
+import { mergeConfig, parseLocalConfig, parsePortableConfig, resolveSkillAgentSelection } from "../src/config.js";
 import { classifyThreeWaySkill } from "../src/reconcile.js";
 import { parseSkillsCliLock, skillsCliLockToProvenance } from "../src/adapters/skills-cli.js";
 
@@ -27,6 +27,24 @@ describe("portable and local configuration", () => {
     expect(() => parseLocalConfig("schema_version: 1\nenvironment: { token: literal-secret }\n")).toThrow(
       "environment.token",
     );
+  });
+
+  it("intersects portable routing, private machine choice, and detected agents", () => {
+    const portable = parsePortableConfig(
+      "schema_version: 1\nskills:\n  writing: { agents: [claude-code, codex] }\n  shared: {}\n",
+    );
+    const local = parseLocalConfig("schema_version: 1\nagents: { selected: [codex, cursor] }\n");
+    const effective = mergeConfig(portable, local);
+
+    expect(resolveSkillAgentSelection(effective, "writing", ["codex", "cursor", "missing"])).toEqual({
+      skill: "writing",
+      agents: ["codex"],
+      portableFilter: ["claude-code", "codex"],
+      localFilter: ["codex", "cursor"],
+    });
+    expect(resolveSkillAgentSelection(effective, "shared", ["codex", "cursor"])).toMatchObject({
+      agents: ["codex", "cursor"],
+    });
   });
 });
 

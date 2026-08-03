@@ -82,4 +82,22 @@ export function mergeConfig(portable, local) {
         provenance,
     };
 }
+/**
+ * Resolve agent slugs without inventing machine routes. Portable per-skill
+ * routing and the private local selection are both allowlists; detection is
+ * the final capability boundary.
+ */
+export function resolveSkillAgentSelection(config, skill, detectedAgents) {
+    const detected = [...new Set(detectedAgents)].sort();
+    const portableFilter = config.skills[skill]?.agents ? [...config.skills[skill].agents].sort() : null;
+    const localFilter = config.agents.selected ? [...config.agents.selected].sort() : null;
+    const portable = portableFilter ? new Set(portableFilter) : null;
+    const local = localFilter ? new Set(localFilter) : null;
+    return {
+        skill,
+        agents: detected.filter((agent) => (!portable || portable.has(agent)) && (!local || local.has(agent))),
+        portableFilter,
+        localFilter,
+    };
+}
 //# sourceMappingURL=config.js.map

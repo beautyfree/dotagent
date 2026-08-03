@@ -59,6 +59,13 @@ export interface EffectiveConfig {
   provenance: Record<string, ConfigProvenance>;
 }
 
+export interface SkillAgentSelection {
+  skill: string;
+  agents: string[];
+  portableFilter: string[] | null;
+  localFilter: string[] | null;
+}
+
 function parseYamlSchema<TSchema extends z.ZodTypeAny>(
   input: string,
   schema: TSchema,
@@ -105,5 +112,28 @@ export function mergeConfig(portable: PortableConfig, local?: LocalConfig | null
     exclusions: [...(local?.exclusions ?? [])].sort(),
     environment: Object.fromEntries(Object.entries(local?.environment ?? {}).sort(([a], [b]) => a.localeCompare(b))),
     provenance,
+  };
+}
+
+/**
+ * Resolve agent slugs without inventing machine routes. Portable per-skill
+ * routing and the private local selection are both allowlists; detection is
+ * the final capability boundary.
+ */
+export function resolveSkillAgentSelection(
+  config: EffectiveConfig,
+  skill: string,
+  detectedAgents: Iterable<string>,
+): SkillAgentSelection {
+  const detected = [...new Set(detectedAgents)].sort();
+  const portableFilter = config.skills[skill]?.agents ? [...config.skills[skill].agents].sort() : null;
+  const localFilter = config.agents.selected ? [...config.agents.selected].sort() : null;
+  const portable = portableFilter ? new Set(portableFilter) : null;
+  const local = localFilter ? new Set(localFilter) : null;
+  return {
+    skill,
+    agents: detected.filter((agent) => (!portable || portable.has(agent)) && (!local || local.has(agent))),
+    portableFilter,
+    localFilter,
   };
 }

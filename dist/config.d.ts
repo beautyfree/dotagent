@@ -94,8 +94,20 @@ export interface EffectiveConfig {
     environment: Record<string, string>;
     provenance: Record<string, ConfigProvenance>;
 }
+export interface SkillAgentSelection {
+    skill: string;
+    agents: string[];
+    portableFilter: string[] | null;
+    localFilter: string[] | null;
+}
 export declare function parsePortableConfig(input: string): PortableConfig;
 export declare function parseLocalConfig(input: string): LocalConfig;
 /** Local values are explicit overlays; provenance lets a UI explain every effective field. */
 export declare function mergeConfig(portable: PortableConfig, local?: LocalConfig | null): EffectiveConfig;
+/**
+ * Resolve agent slugs without inventing machine routes. Portable per-skill
+ * routing and the private local selection are both allowlists; detection is
+ * the final capability boundary.
+ */
+export declare function resolveSkillAgentSelection(config: EffectiveConfig, skill: string, detectedAgents: Iterable<string>): SkillAgentSelection;
 //# sourceMappingURL=config.d.ts.map
