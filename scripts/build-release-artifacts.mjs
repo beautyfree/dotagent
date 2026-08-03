@@ -23,6 +23,14 @@ function sha256File(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
 
+function deterministicUuid(value) {
+  const bytes = createHash("sha256").update(value).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 rmSync(output, { recursive: true, force: true });
 mkdirSync(output, { recursive: true });
 const packed = JSON.parse(execFileSync("npm", ["pack", "--json", "--pack-destination", output], {
@@ -36,13 +44,18 @@ const tarball = resolve(output, filename);
 const sha256 = sha256File(tarball);
 writeFileSync(resolve(output, `${filename}.sha256`), `${sha256}  ${filename}\n`);
 
-const sbom = execFileSync("npm", ["sbom", "--sbom-format", "cyclonedx"], {
+const sbom = JSON.parse(execFileSync("npm", ["sbom", "--sbom-format", "cyclonedx"], {
   cwd: root,
   encoding: "utf8",
   maxBuffer: 16 * 1024 * 1024,
-});
-JSON.parse(sbom);
-writeFileSync(resolve(output, "dotagent.sbom.cdx.json"), `${sbom.trim()}\n`);
+}));
+const sourceTimestamp = execFileSync("git", ["show", "-s", "--format=%cI", sourceCommit], {
+  cwd: root,
+  encoding: "utf8",
+}).trim();
+sbom.serialNumber = `urn:uuid:${deterministicUuid(`${manifest.name}\0${manifest.version}\0${sourceCommit}\0${sha256}`)}`;
+sbom.metadata = { ...sbom.metadata, timestamp: sourceTimestamp };
+writeFileSync(resolve(output, "dotagent.sbom.cdx.json"), `${JSON.stringify(sbom, null, 2)}\n`);
 const documentation = [
   { source: "CHANGELOG.md", target: "CHANGELOG.md" },
   { source: "docs/migrating-from-skiller.md", target: "migrating-from-skiller.md" },
