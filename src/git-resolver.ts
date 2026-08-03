@@ -61,7 +61,7 @@ export class GitDependencyResolver implements DependencyResolver {
   async #prepareMirror(url: string): Promise<string | null> {
     if (!this.#cacheRoot) return null;
     const identity = normalizeGitIdentity(url);
-    const key = createHash("sha256").update(identity).digest("hex");
+    const key = createHash("sha256").update(identity).digest("hex").slice(0, 32);
     const existing = this.#cacheWork.get(key);
     if (existing) return existing;
     const work = (async () => {
@@ -92,7 +92,7 @@ export class GitDependencyResolver implements DependencyResolver {
   #mirrorPath(url: string): string | null {
     if (!this.#cacheRoot) return null;
     const identity = normalizeGitIdentity(url);
-    const key = createHash("sha256").update(identity).digest("hex");
+    const key = createHash("sha256").update(identity).digest("hex").slice(0, 32);
     return path.join(this.#cacheRoot, `${key}.git`);
   }
 
@@ -170,8 +170,10 @@ export class GitDependencyResolver implements DependencyResolver {
     const requestedPaths = dependency.select ? [...dependency.select].sort() : null;
     const lockedPaths = locked.skills.map((skill) => skill.path).sort();
     if (requestedPaths && JSON.stringify(requestedPaths) !== JSON.stringify(lockedPaths)) throw new Error(`Lock entry for ${name} does not match selected skill paths`);
-    const sourceKey = createHash("sha256").update(normalizeGitIdentity(dependency.url)).digest("hex").slice(0, 32);
-    const target = path.join(path.resolve(checkoutRoot), sourceKey, locked.commit);
+    // Keep Git worktrees comfortably below classic Windows MAX_PATH. Full
+    // source identity, commit, and package integrity are still revalidated.
+    const sourceKey = createHash("sha256").update(normalizeGitIdentity(dependency.url)).digest("hex").slice(0, 20);
+    const target = path.join(path.resolve(checkoutRoot), `${sourceKey}-${locked.commit.slice(0, 20)}`);
     const canonicalSkills = (skills: ResolvedPackage["skills"]): string => JSON.stringify([...skills].sort((left, right) => `${left.path}:${left.name}`.localeCompare(`${right.path}:${right.name}`, "en")));
     const verify = async (root: string): Promise<boolean> => {
       try {
@@ -185,7 +187,7 @@ export class GitDependencyResolver implements DependencyResolver {
     if (!mirror || !await this.#exists(mirror)) mirror = await this.#prepareMirror(dependency.url);
     const parent = path.dirname(target);
     await mkdir(parent, { recursive: true });
-    const staging = `${target}.tmp-${process.pid}-${Date.now()}`;
+    const staging = `${target}.tmp-${process.pid}`;
     try {
       await this.#git.run(["clone", "--no-checkout", "--", mirror ?? dependency.url, staging]);
       await this.#git.run(["checkout", "--detach", locked.commit], staging);

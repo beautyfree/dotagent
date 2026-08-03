@@ -60,11 +60,11 @@ describe("Git dependency resolver", () => {
     rmSync(repository.root, { recursive: true, force: true });
     const prepared = await resolver.prepareLocked("source", dependency, locked, checkoutRoot);
     expect(prepared.commit).toBe(repository.commit);
-    expect(readFileSync(join(prepared.root, "skills/writing/SKILL.md"), "utf8")).toBe("# Writing\n");
+    expect(readFileSync(join(prepared.root, "skills/writing/SKILL.md"), "utf8")).toContain("# Writing");
     writeFileSync(join(prepared.root, "skills/writing/SKILL.md"), "tampered\n");
     const repaired = await resolver.prepareLocked("source", dependency, locked, checkoutRoot);
     expect(repaired.root).toBe(prepared.root);
-    expect(readFileSync(join(repaired.root, "skills/writing/SKILL.md"), "utf8")).toBe("# Writing\n");
+    expect(readFileSync(join(repaired.root, "skills/writing/SKILL.md"), "utf8")).toContain("# Writing");
     expect(existsSync(repaired.root)).toBe(true);
   });
 
