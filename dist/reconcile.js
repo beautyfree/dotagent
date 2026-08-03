@@ -271,7 +271,7 @@ export function applyLibraryReconciliationPlan(plan, decisions, options = {}) {
         const operation = bySkill.get(decision.skill);
         if (!operation)
             throw new Error(`Skill is not present in the reconciliation plan: ${decision.skill}`);
-        if (!["take-remote", "conflict", "unmanaged"].includes(operation.action)) {
+        if (operation.action === "unchanged") {
             throw new Error(`Remote skill does not need applying: ${decision.skill}`);
         }
         if (operation.expectedTarget.kind === "unsupported") {
