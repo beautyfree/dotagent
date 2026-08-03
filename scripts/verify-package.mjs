@@ -11,9 +11,13 @@ const packed = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], {
 const files = new Set(packed[0]?.files?.map((entry) => entry.path) ?? []);
 const required = [
   "package.json",
+  "CHANGELOG.md",
   "README.md",
   "LICENSE",
   "NOTICE.md",
+  "docs/README.md",
+  "docs/rfc-210-compatibility.md",
+  "docs/migrating-from-skiller.md",
   "dist/index.js",
   "dist/index.d.ts",
   "dist/cli.js",

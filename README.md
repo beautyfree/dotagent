@@ -23,6 +23,12 @@ node dist/cli.js inspect fixtures/valid-library --json
 
 The package requires Node.js 20 or later at runtime and is developed with Bun. CI runs the same typecheck, tests, build, and CLI smoke check on Linux, macOS, and Windows.
 
+## Documentation
+
+- [Agent Skills RFC compatibility](docs/rfc-210-compatibility.md)
+- [Migrate from a Skiller sync repository](docs/migrating-from-skiller.md)
+- [Changelog](CHANGELOG.md)
+
 ## Status
 
 Implemented now:

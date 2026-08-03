@@ -3,3 +3,4 @@ coverage/
 .DS_Store
 dotagent.local.yaml
 .dotagent/
+release-artifacts/

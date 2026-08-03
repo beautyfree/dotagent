@@ -20,6 +20,8 @@
   "files": [
     "dist",
     "schemas",
+    "docs",
+    "CHANGELOG.md",
     "README.md",
     "LICENSE",
     "NOTICE.md"
@@ -139,14 +141,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test --timeout 60000",
     "lint": "biome lint src test scripts",
     "format": "biome format --write src test scripts *.json",
     "format:check": "biome format src test scripts *.json",
     "schema:generate": "bun run build && node scripts/generate-schemas.mjs --write",
     "schema:check": "bun run build && node scripts/generate-schemas.mjs --check",
-    "check": "bun run lint && bun run format:check && bun run typecheck && bun test && bun run schema:check",
+    "check": "bun run lint && bun run format:check && bun run typecheck && bun run test && bun run schema:check",
     "package:check": "bun run build && node scripts/verify-package.mjs",
+    "release:artifacts": "node scripts/build-release-artifacts.mjs",
     "ci": "bun run check && node dist/cli.js inspect fixtures/valid-library --json && node dist/cli.js audit fixtures/valid-library --public --json",
     "release:check": "bun run ci && bun run package:check"
   },

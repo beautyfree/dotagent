@@ -27,6 +27,12 @@ jobs:
           package-manager-cache: false
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run release:check
+      - run: bun run release:artifacts
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: npm-release-artifacts
+          path: release-artifacts/
+          if-no-files-found: error
 
   publish:
     if: inputs.publish
@@ -50,4 +56,12 @@ jobs:
       - run: bun run release:check
       - name: Refuse placeholder or private manifests
         run: node -e "const p=require('./package.json'); if(p.private || p.version==='0.0.0') throw new Error('Set a real version and private:false in a reviewed release commit')"
-      - run: npm publish --access public
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          name: npm-release-artifacts
+          path: release-artifacts
+      - name: Verify validated package checksum
+        working-directory: release-artifacts
+        run: sha256sum --check *.tgz.sha256
+      - name: Publish the validated tarball with npm provenance
+        run: npm publish release-artifacts/*.tgz --access public --provenance
