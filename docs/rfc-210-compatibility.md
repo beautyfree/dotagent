@@ -23,6 +23,11 @@ beautyfree-dotagent inspect . --json
 beautyfree-dotagent audit . --public --json
 ```
 
+Committed conformance fixtures cover both common third-party layouts: a skill
+at a repository root selected as `.` by a dependency, and a repository that
+exports multiple nested skills. The test suite parses and hashes these fixtures
+without importing or executing their instructions.
+
 ## Compatibility matrix
 
 | Proposal concept | dotagent behavior | Compatibility status |

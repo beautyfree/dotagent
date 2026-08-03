@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "package": "@beautyfree/dotagent",
+  "note": "Update deliberately after reviewing the generated declaration diff.",
+  "exports": [
+    {
+      "subpath": ".",
+      "types": "./dist/index.d.ts",
+      "sha256": "6f705673b7135c33503971399fd8c076bbae606925ab6f89234eb7b0b50b7b22"
+    },
+    {
+      "subpath": "./adapters/skiller",
+      "types": "./dist/adapters/skiller.d.ts",
+      "sha256": "84f884a2963c62c80f285e47e657c209cd511e9f98adc0ae7e4b54197803b523"
+    },
+    {
+      "subpath": "./adapters/skiller-agents",
+      "types": "./dist/adapters/skiller-agents.d.ts",
+      "sha256": "64f8a1dea3ab50232ce8a6fe155a492082eb1c5155669db222e830391fcbbdf2"
+    },
+    {
+      "subpath": "./adapters/skills-cli",
+      "types": "./dist/adapters/skills-cli.d.ts",
+      "sha256": "83a82b3a638e2718c505e36cadc42cc1d12d722af6608a44d0691511fa6e9a08"
+    },
+    {
+      "subpath": "./agents",
+      "types": "./dist/agents.d.ts",
+      "sha256": "d13191262bf63141ad59fe0fab7951b160c4247180837bc4d1074c9b5072fd2f"
+    },
+    {
+      "subpath": "./audit",
+      "types": "./dist/audit.d.ts",
+      "sha256": "c12e88a0a251c02c99907882313fcef867d8e363b34449ab614dc5856b58c363"
+    },
+    {
+      "subpath": "./catalog",
+      "types": "./dist/catalog.d.ts",
+      "sha256": "f74a3d4ee229d4d56096d278660c839647f8d22bb3bf68716e0299b74c852432"
+    },
+    {
+      "subpath": "./cli-import",
+      "types": "./dist/cli-import.d.ts",
+      "sha256": "99d54f970443ecfa31e7c0bfffad0e91f5a20c831864e722bdaea2cdf33412bd"
+    },
+    {
+      "subpath": "./config",
+      "types": "./dist/config.d.ts",
+      "sha256": "8762a254adc295065c6ec604aefe98c3a7ad30fc5f1641eb252e66a2afed13e0"
+    },
+    {
+      "subpath": "./discovery",
+      "types": "./dist/discovery.d.ts",
+      "sha256": "57466a72f5bcbfd0d81c3e94bf54d1f703513615966950897d5a402650af506e"
+    },
+    {
+      "subpath": "./doctor",
+      "types": "./dist/doctor.d.ts",
+      "sha256": "2fca230f0866cf22723f9f61a184cb919fd44b0dc60a46887537999b5f7b74f4"
+    },
+    {
+      "subpath": "./export-policy",
+      "types": "./dist/export-policy.d.ts",
+      "sha256": "a3f334f67bbe726514415a5f684cacfecab8b7487811e296a3fe1bd32060fb21"
+    },
+    {
+      "subpath": "./git-workspace",
+      "types": "./dist/git-workspace.d.ts",
+      "sha256": "27484c8a3fb450935302b1f6189243d8f99c3befeab285a135c9bebe4c9c5419"
+    },
+    {
+      "subpath": "./import",
+      "types": "./dist/import.d.ts",
+      "sha256": "01126b7b06f0fe22430c598b0b1cf5ddd16b3a7d9fc2421557303787d5cb7e00"
+    },
+    {
+      "subpath": "./import-apply",
+      "types": "./dist/import-apply.d.ts",
+      "sha256": "6f5ad6bd5605aedd1a00b0685ce2dfe0949a171c61a3a6dbc589175b0ebdcbbe"
+    },
+    {
+      "subpath": "./init",
+      "types": "./dist/init.d.ts",
+      "sha256": "95f9d8529eda35aef7cf03483fc5a115b2c118f69338468c6ffb9acf45155ad6"
+    },
+    {
+      "subpath": "./integrity",
+      "types": "./dist/integrity.d.ts",
+      "sha256": "f937fb89bdc30183022b9987c4bedbcf180b4be2d2b6dbf95ae35a1b3b324259"
+    },
+    {
+      "subpath": "./inventory",
+      "types": "./dist/inventory.d.ts",
+      "sha256": "b17aeb114526e629148dbd1b16fabda3909b26c0166625262cf2c5b08c15245a"
+    },
+    {
+      "subpath": "./library",
+      "types": "./dist/library.d.ts",
+      "sha256": "31d4fed8254f861a868583bcbfa8d763c061b6f7bb1af2c2cf610b1a395e05ee"
+    },
+    {
+      "subpath": "./machine",
+      "types": "./dist/machine.d.ts",
+      "sha256": "7a869a88ebfdd278850c5bae7b5dccca67d271aa251594e3fb5c524bc0f03002"
+    },
+    {
+      "subpath": "./materialize",
+      "types": "./dist/materialize.d.ts",
+      "sha256": "a7d41782f378cd1615719c1f115afa66e53227049696f6d4e2d7d1fda16d2f28"
+    },
+    {
+      "subpath": "./materialize-apply",
+      "types": "./dist/materialize-apply.d.ts",
+      "sha256": "bd5b2da594e2f66ab9b4aebdebde5a8c0684f731a7d645d6e80efc23a430c9ef"
+    },
+    {
+      "subpath": "./prepared-library",
+      "types": "./dist/prepared-library.d.ts",
+      "sha256": "c5aa32b949932b941b77f2620792e69a9a5a6b230cb80f33890ef35cf4ebd936"
+    },
+    {
+      "subpath": "./reconcile",
+      "types": "./dist/reconcile.d.ts",
+      "sha256": "bf134a6068be9daeeb5898e70bf449901254d3a0fda3627fb82648ca74b1a1e4"
+    },
+    {
+      "subpath": "./schema",
+      "types": "./dist/schema.d.ts",
+      "sha256": "f701bd8e6b043e699ab670f2432f4067f5c5977efb292824b722d00a3e3ba109"
+    },
+    {
+      "subpath": "./sources",
+      "types": "./dist/sources.d.ts",
+      "sha256": "03caf38e820cab593f129c63ac8633bf625455b957638b36e25ecb8c71e7b247"
+    },
+    {
+      "subpath": "./status",
+      "types": "./dist/status.d.ts",
+      "sha256": "f4ee3b343796e8dcbc547b4e4face305b625c51c7654fb6685ba340279161ad6"
+    }
+  ]
+}

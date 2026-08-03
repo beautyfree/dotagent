@@ -21,6 +21,7 @@
     "dist",
     "schemas",
     "docs",
+    "api-snapshot.json",
     "CHANGELOG.md",
     "README.md",
     "LICENSE",
@@ -151,11 +152,13 @@
     "format:check": "biome format src test scripts *.json",
     "schema:generate": "bun run build && node scripts/generate-schemas.mjs --write",
     "schema:check": "bun run build && node scripts/generate-schemas.mjs --check",
-    "check": "bun run lint && bun run format:check && bun run typecheck && bun run test && bun run schema:check",
+    "api:generate": "bun run build && node scripts/generate-api-snapshot.mjs --write",
+    "api:check": "bun run build && node scripts/generate-api-snapshot.mjs --check",
+    "check": "bun run lint && bun run format:check && bun run typecheck && bun run test && bun run schema:check && bun run api:check",
     "package:check": "bun run build && node scripts/verify-package.mjs",
     "release:artifacts": "node scripts/build-release-artifacts.mjs",
     "ci": "bun run check && node dist/cli.js inspect fixtures/valid-library --json && node dist/cli.js audit fixtures/valid-library --public --json",
-    "release:check": "bun run ci && bun run package:check"
+    "release:check": "bun run ci && bun run package:check && bun run api:check"
   },
   "dependencies": {
     "yaml": "^2.8.3",

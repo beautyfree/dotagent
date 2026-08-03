@@ -20,6 +20,8 @@ All notable changes to `@beautyfree/dotagent` are recorded here. The project fol
 - CLI dependency resolution no longer has a direct `--write` path; a library-bound plan must be reviewed and applied explicitly.
 - Git identity normalization now lives in a dependency-free leaf module shared by configuration, source resolution, and workspace plans, while the existing `sources` export remains compatible.
 - Versioned JSON Schemas, compatibility fixtures, package-content verification, and macOS/Linux/Windows CI.
+- Third-party conformance fixtures for repository-root and multi-skill package layouts.
+- A committed public-declaration snapshot now makes package API changes an explicit release-gate decision.
 
 ### Security
 
