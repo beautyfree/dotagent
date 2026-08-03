@@ -1,3 +1,8 @@
+import { readFile, readdir } from "node:fs/promises";
+import path from "node:path";
+import { parse } from "yaml";
+import { scanLibrary } from "./inventory.js";
+import { loadLibrary } from "./library.js";
 const secretRules = [
     { id: "private-key", pattern: /-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----/g },
     { id: "github-token", pattern: /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g },
@@ -23,6 +28,42 @@ export function scanTextForSecrets(text) {
             }
         }
     }
+    return findings;
+}
+/**
+ * Scans a skill that already passed the bounded inventory rules. The returned
+ * findings contain only a relative file location and rule ID; matched values
+ * are deliberately discarded before crossing the API boundary.
+ */
+export async function scanSkillForSecrets(skillRoot) {
+    const findings = [];
+    const walk = async (directory) => {
+        const entries = await readdir(directory, { withFileTypes: true });
+        entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
+        for (const entry of entries) {
+            if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagent-managed.json")
+                continue;
+            const absolute = path.join(directory, entry.name);
+            if (entry.isSymbolicLink())
+                throw new Error(`Refusing to scan linked import content: ${absolute}`);
+            if (entry.isDirectory()) {
+                await walk(absolute);
+                continue;
+            }
+            if (!entry.isFile())
+                continue;
+            const relativePath = path.relative(skillRoot, absolute).replaceAll(path.sep, "/");
+            const content = await readFile(absolute);
+            // NUL-heavy binary files are not useful secret-text input. They remain
+            // covered by inventory size/hash checks and are copied byte-for-byte.
+            const prefix = content.subarray(0, Math.min(content.length, 8_192));
+            if (prefix.includes(0))
+                continue;
+            for (const finding of scanTextForSecrets(content.toString("utf8")))
+                findings.push({ ...finding, relativePath });
+        }
+    };
+    await walk(skillRoot);
     return findings;
 }
 function auditIssue(code, severity, message, remediation, field) {
@@ -80,9 +121,4 @@ export async function auditLibrary(options) {
     const licenseWarnings = issues.some((issue) => issue.code === "missing-license");
     return { ok: !hasError, publicReady: !hasError && !licenseWarnings, library: scanned.value, issues };
 }
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { parse } from "yaml";
-import { scanLibrary } from "./inventory.js";
-import { loadLibrary } from "./library.js";
 //# sourceMappingURL=audit.js.map

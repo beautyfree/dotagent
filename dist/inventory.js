@@ -2,11 +2,25 @@ import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { computeSkillIntegrity } from "./integrity.js";
 import { loadLibrary } from "./library.js";
+import { parse } from "yaml";
 export const DEFAULT_SCAN_LIMITS = {
     maxFilesPerSkill: 1_000,
     maxFileBytes: 10 * 1024 * 1024,
     maxSkillBytes: 50 * 1024 * 1024,
 };
+export function declaredSkillName(skillMd) {
+    const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(skillMd.replace(/^\uFEFF/, ""));
+    if (!match)
+        return null;
+    try {
+        const frontmatter = parse(match[1] ?? "");
+        const name = typeof frontmatter?.name === "string" ? frontmatter.name.trim() : "";
+        return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) ? name : null;
+    }
+    catch {
+        return null;
+    }
+}
 function issue(code, message, remediation, filePath) {
     return { code, message, remediation, path: filePath };
 }
@@ -59,8 +73,7 @@ async function collectSkillFiles(skillRoot, limits) {
     return unsafe ? { ok: false, issues: [unsafe] } : { ok: true, value: { files, bytes }, issues: [] };
 }
 export async function scanOwnedSkill(root, skillPath, limits = DEFAULT_SCAN_LIMITS) {
-    const name = path.posix.basename(skillPath);
-    const skillRoot = path.join(root, ...skillPath.split("/"));
+    const skillRoot = skillPath === "." ? root : path.join(root, ...skillPath.split("/"));
     let metadata;
     try {
         metadata = await lstat(skillRoot);
@@ -87,6 +100,12 @@ export async function scanOwnedSkill(root, skillPath, limits = DEFAULT_SCAN_LIMI
     }
     if (!skillFileMetadata.isFile()) {
         return { ok: false, issues: [issue("missing-skill-file", `${skillPath} has no regular SKILL.md.`, "Add SKILL.md or remove this export.", skillFile)] };
+    }
+    const name = skillPath === "."
+        ? declaredSkillName(await readFile(skillFile, "utf8"))
+        : path.posix.basename(skillPath);
+    if (!name) {
+        return { ok: false, issues: [issue("missing-skill-metadata", "A repository-root skill must declare a portable name in SKILL.md frontmatter.", "Add a lowercase kebab-case name field to SKILL.md.", skillFile)] };
     }
     const collected = await collectSkillFiles(skillRoot, limits);
     if (!collected.ok)

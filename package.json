@@ -40,6 +40,22 @@
       "types": "./dist/init.d.ts",
       "import": "./dist/init.js"
     },
+    "./import": {
+      "types": "./dist/import.d.ts",
+      "import": "./dist/import.js"
+    },
+    "./import-apply": {
+      "types": "./dist/import-apply.d.ts",
+      "import": "./dist/import-apply.js"
+    },
+    "./cli-import": {
+      "types": "./dist/cli-import.d.ts",
+      "import": "./dist/cli-import.js"
+    },
+    "./discovery": {
+      "types": "./dist/discovery.d.ts",
+      "import": "./dist/discovery.js"
+    },
     "./adapters/skiller": {
       "types": "./dist/adapters/skiller.d.ts",
       "import": "./dist/adapters/skiller.js"

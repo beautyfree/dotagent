@@ -119,7 +119,7 @@ export class GitDependencyResolver implements DependencyResolver {
         const scanned = await scanOwnedSkill(checkout, skillPath, this.#limits);
         if (!scanned.ok) throw new Error(scanned.issues.map((entry) => entry.message).join("; "));
         skills.push({ name: scanned.value.name, path: scanned.value.path });
-        integrityInputs.push({ path: scanned.value.path, content: Buffer.from(scanned.value.integrity, "utf8") });
+        integrityInputs.push({ path: scanned.value.path === "." ? `root/${scanned.value.name}` : scanned.value.path, content: Buffer.from(scanned.value.integrity, "utf8") });
       }
       return {
         url: normalizeGitIdentity(dependency.url),

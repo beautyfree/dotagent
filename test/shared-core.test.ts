@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { scanTextForSecrets } from "../src/audit.js";
 import { mergeConfig, parseLocalConfig, parsePortableConfig } from "../src/config.js";
 import { classifyThreeWaySkill } from "../src/reconcile.js";
-import { parseSkillsCliLock } from "../src/adapters/skills-cli.js";
+import { parseSkillsCliLock, skillsCliLockToProvenance } from "../src/adapters/skills-cli.js";
 
 describe("portable and local configuration", () => {
   it("merges machine-local choices deterministically and exposes provenance", () => {
@@ -41,6 +41,10 @@ describe("Skills CLI adapter", () => {
       writing: { source: "owner/repo", sourceType: "github", sourceUrl: "https://github.com/owner/repo", ref: "main", skillPath: "skills/writing" },
     } }));
     expect(lock).toMatchObject({ version: 3, skills: [{ name: "writing", ref: "main" }] });
+    expect(skillsCliLockToProvenance(lock!)).toEqual({
+      provenance: [{ skill: "writing", package: "owner-repo", url: "https://github.com/owner/repo", ref: "main", skillPath: "skills/writing", source: "skills-cli" }],
+      skipped: [],
+    });
     expect(parseSkillsCliLock('{"version":999,"skills":{}}')).toBeNull();
   });
 });

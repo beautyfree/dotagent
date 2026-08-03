@@ -15,10 +15,13 @@ import { parseMaterializationTargetSpec } from "./cli-target.js";
 import { planMaterialization, type MaterializationPlan } from "./materialize.js";
 import { applyMaterializationPlan, recoverMaterialization } from "./materialize-apply.js";
 import type { AgentDescriptor, Platform, SkillDelivery } from "./agents.js";
+import { planImport, type ImportCandidate, type ImportPlan } from "./import.js";
+import { applyImportPlan, recoverImport } from "./import-apply.js";
+import { parseOwnedImportSpec, validateImportCandidates } from "./cli-import.js";
 
 async function main(): Promise<number> {
   const [command = "help", ...args] = process.argv.slice(2);
-  const valueOptions = new Set(["--name", "--out", "--target"]);
+  const valueOptions = new Set(["--name", "--out", "--target", "--owned", "--candidate-file"]);
   const optionValues = (name: string): string[] => args.flatMap((argument, index) => argument === name && args[index + 1] ? [args[index + 1]!] : []);
   const optionValue = (name: string): string | undefined => optionValues(name)[0];
   const positional: string[] = [];
@@ -30,7 +33,7 @@ async function main(): Promise<number> {
   const directory = positional[0] ?? ".";
   const json = args.includes("--json");
   if (command === "help" || command === "--help" || command === "-h") {
-    process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
+    process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
     return 0;
   }
   if (command === "init") {
@@ -55,6 +58,27 @@ async function main(): Promise<number> {
     const result = { ok: true, root, plan_id: plan.planId, written: args.includes("--write"), changes: plan.changes, lock: plan.lock };
     process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `${plan.changes.length} dependency changes planned${args.includes("--write") ? " and written" : " (preview only; pass --write to save)"}.\n`);
     return 0;
+  }
+  if (command === "import") {
+    const root = path.resolve(directory);
+    const candidates: ImportCandidate[] = optionValues("--owned").map((spec) => parseOwnedImportSpec(spec));
+    for (const candidateFile of optionValues("--candidate-file")) {
+      const absoluteFile = path.resolve(candidateFile);
+      const parsed = validateImportCandidates(JSON.parse(await readFile(absoluteFile, "utf8")));
+      for (const candidate of parsed) {
+        if ((candidate.kind === "owned" || candidate.kind === "local-only" || candidate.kind === "excluded") && candidate.sourcePath) {
+          candidate.sourcePath = path.resolve(path.dirname(absoluteFile), candidate.sourcePath);
+        }
+        candidates.push(candidate);
+      }
+    }
+    if (candidates.length === 0) throw new Error("Import requires at least one --owned skill=path or --candidate-file");
+    const plan = await planImport(root, candidates);
+    const output = optionValue("--out");
+    if (output) await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    if (json || !output) process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+    else process.stdout.write(`Import plan ${plan.planId} written to ${path.resolve(output)}. Review it, then run apply with --yes.\n`);
+    return plan.hasConflicts || plan.secretFindings.length > 0 ? 1 : 0;
   }
   if (command === "doctor") {
     const report = await doctorLibrary({ root: path.resolve(directory) });
@@ -112,15 +136,24 @@ async function main(): Promise<number> {
   }
   if (command === "apply") {
     if (!args.includes("--yes")) throw new Error("Refusing to apply without explicit --yes confirmation");
-    const plan = JSON.parse(await readFile(path.resolve(directory), "utf8")) as MaterializationPlan;
-    const result = await applyMaterializationPlan(plan);
-    process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Applied ${result.applied} operations from plan ${result.planId}.\n`);
+    const plan = JSON.parse(await readFile(path.resolve(directory), "utf8")) as MaterializationPlan | ImportPlan;
+    if (plan.kind === "import") {
+      const result = await applyImportPlan(plan);
+      process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Imported ${result.copied} owned skills and recorded ${result.dependenciesRecorded} dependencies from plan ${result.planId}.\n`);
+    } else {
+      const result = await applyMaterializationPlan(plan);
+      process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `Applied ${result.applied} operations from plan ${result.planId}.\n`);
+    }
     return 0;
   }
   if (command === "recover") {
     if (!args.includes("--yes")) throw new Error("Refusing recovery without explicit --yes confirmation");
-    const recovered = await recoverMaterialization(path.resolve(directory));
-    process.stdout.write(json ? `${JSON.stringify({ recovered }, null, 2)}\n` : recovered ? "Recovered the unfinished materialization.\n" : "No unfinished materialization found.\n");
+    const root = path.resolve(directory);
+    const imported = await recoverImport(root);
+    const materialized = await recoverMaterialization(root);
+    const recovered = imported !== "none" || materialized;
+    const result = { recovered, import: imported, materialization: materialized };
+    process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : recovered ? "Recovered unfinished dotagent operations.\n" : "No unfinished operation found.\n");
     return 0;
   }
   if (command !== "inspect") {

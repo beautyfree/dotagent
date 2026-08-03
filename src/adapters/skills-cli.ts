@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { DiscoveredProvenance } from "../discovery.js";
 
 export const SKILLS_CLI_LOCK_VERSION = 3 as const;
 
@@ -18,6 +19,20 @@ export interface SkillsCliLock {
   path: string;
   version: typeof SKILLS_CLI_LOCK_VERSION;
   skills: SkillsCliLockEntry[];
+}
+
+export interface SkillsCliProvenanceResult {
+  provenance: DiscoveredProvenance[];
+  skipped: { skill: string; reason: string }[];
+}
+
+function sourcePackageName(source: string, skill: string): string {
+  const normalized = source.toLocaleLowerCase("en-US")
+    .replace(/\.git$/i, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+  return normalized && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized) ? normalized : `${skill}-source`.slice(0, 64);
 }
 
 export function getSkillsCliLockPath(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
@@ -64,4 +79,25 @@ export function readSkillsCliLock(filePath = getSkillsCliLockPath()): SkillsCliL
   } catch {
     return null;
   }
+}
+
+/** Maps only complete v3 entries; incomplete upstream data stays visible instead of becoming an owned copy. */
+export function skillsCliLockToProvenance(lock: SkillsCliLock): SkillsCliProvenanceResult {
+  const provenance: DiscoveredProvenance[] = [];
+  const skipped: SkillsCliProvenanceResult["skipped"] = [];
+  for (const entry of lock.skills) {
+    if (!entry.source_url.trim() || !entry.skill_path?.trim()) {
+      skipped.push({ skill: entry.name, reason: "Skills CLI source URL or skill path is missing" });
+      continue;
+    }
+    provenance.push({
+      skill: entry.name,
+      package: sourcePackageName(entry.source, entry.name),
+      url: entry.source_url.trim(),
+      ref: entry.ref?.trim() || "HEAD",
+      skillPath: entry.skill_path.trim(),
+      source: "skills-cli",
+    });
+  }
+  return { provenance, skipped };
 }

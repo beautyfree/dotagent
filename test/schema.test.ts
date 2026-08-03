@@ -18,6 +18,11 @@ describe("library manifest", () => {
     if (result.ok) expect(result.value.skills).toEqual(["skills/review"]);
   });
 
+  test("allows an explicit repository-root dependency skill without allowing an owned root export", () => {
+    expect(parseLibraryManifest(JSON.stringify({ ...manifest, dependencies: { root: { url: "https://github.com/example/root-skill", ref: "main", select: ["."] } } })).ok).toBe(true);
+    expect(parseLibraryManifest(JSON.stringify({ ...manifest, skills: ["."] })).ok).toBe(false);
+  });
+
   test("rejects traversal and case-folded duplicate paths", () => {
     const traversal = parseLibraryManifest(JSON.stringify({ ...manifest, skills: ["../secret"] }));
     expect(traversal.ok).toBe(false);

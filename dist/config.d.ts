@@ -71,14 +71,14 @@ export declare const localConfigSchema: z.ZodObject<{
         selected?: string[] | undefined;
         roots?: Record<string, string> | undefined;
     } | undefined;
-    materialization?: "native" | "symlink" | "junction" | "copy" | "auto" | undefined;
+    materialization?: "auto" | "native" | "symlink" | "junction" | "copy" | undefined;
 }, {
     schema_version: 1;
     agents?: {
         selected?: string[] | undefined;
         roots?: Record<string, string> | undefined;
     } | undefined;
-    materialization?: "native" | "symlink" | "junction" | "copy" | "auto" | undefined;
+    materialization?: "auto" | "native" | "symlink" | "junction" | "copy" | undefined;
     exclusions?: string[] | undefined;
     environment?: Record<string, string> | undefined;
 }>;

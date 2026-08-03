@@ -47,4 +47,20 @@ describe("Git dependency resolver", () => {
     expect(second.integrity).toBe(first.integrity);
     expect(readdirSync(cacheRoot).filter((entry) => entry.endsWith(".git"))).toHaveLength(1);
   });
+
+  it("resolves an explicitly selected repository-root skill from SKILL.md metadata", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dotagent-root-source-"));
+    roots.push(root);
+    execFileSync("git", ["init", root]);
+    execFileSync("git", ["config", "user.email", "test@dotagent.local"], { cwd: root });
+    execFileSync("git", ["config", "user.name", "dotagent test"], { cwd: root });
+    writeFileSync(join(root, "SKILL.md"), "---\nname: root-skill\ndescription: Root package.\n---\n# Root\n");
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["commit", "-m", "root fixture"], { cwd: root });
+    const temporaryRoot = mkdtempSync(join(tmpdir(), "dotagent-root-work-"));
+    roots.push(temporaryRoot);
+    const resolver = new GitDependencyResolver({ temporaryRoot });
+    const result = await resolver.resolve("root-source", { url: pathToFileURL(root).href, ref: "HEAD", select: ["."] });
+    expect(result.skills).toEqual([{ name: "root-skill", path: "." }]);
+  });
 });

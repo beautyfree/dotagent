@@ -13,10 +13,20 @@ const portableSkillPath = z.string().transform((value, context) => {
     }
     return normalized;
 });
+const dependencySkillPath = z.string().transform((value, context) => {
+    if (value === ".")
+        return value;
+    const normalized = normalizeSkillPath(value);
+    if (!normalized) {
+        context.addIssue({ code: z.ZodIssueCode.custom, message: "Dependency skill paths must be '.' or stay inside the source repository" });
+        return value;
+    }
+    return normalized;
+});
 export const dependencyReferenceSchema = z.object({
     url: z.string().min(1).max(2_048),
     ref: z.string().min(1).max(256),
-    select: z.array(portableSkillPath).min(1).optional(),
+    select: z.array(dependencySkillPath).min(1).optional(),
 }).strict().superRefine((dependency, context) => {
     if (/^[a-z][a-z0-9+.-]*:\/\/[^/\s@]+:[^/\s@]+@/i.test(dependency.url)) {
         context.addIssue({ code: z.ZodIssueCode.custom, path: ["url"], message: "Dependency URLs must not contain credentials" });
@@ -49,7 +59,7 @@ export const resolvedPackageSchema = z.object({
     license: z.string().min(1).max(128).optional(),
     skills: z.array(z.object({
         name: packageName,
-        path: portableSkillPath,
+        path: dependencySkillPath,
     }).strict()),
 }).strict();
 export const libraryLockSchema = z.object({

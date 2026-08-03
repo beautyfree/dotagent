@@ -23,6 +23,7 @@ export interface LibraryInventory {
 export interface ScannedSkill extends OwnedSkillInventory {
     root: string;
 }
+export declare function declaredSkillName(skillMd: string): string | null;
 export declare function scanOwnedSkill(root: string, skillPath: string, limits?: ScanLimits): Promise<DotagentResult<ScannedSkill>>;
 export declare function scanLibrary(root: string, limits?: ScanLimits): Promise<DotagentResult<LibraryInventory>>;
 //# sourceMappingURL=inventory.d.ts.map

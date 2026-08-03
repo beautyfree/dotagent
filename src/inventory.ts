@@ -3,6 +3,7 @@ import path from "node:path";
 import { computeSkillIntegrity, type IntegrityFile } from "./integrity.js";
 import type { DotagentIssue, DotagentResult } from "./issues.js";
 import { loadLibrary } from "./library.js";
+import { parse } from "yaml";
 
 export interface ScanLimits {
   maxFilesPerSkill: number;
@@ -35,6 +36,16 @@ export interface LibraryInventory {
 
 export interface ScannedSkill extends OwnedSkillInventory {
   root: string;
+}
+
+export function declaredSkillName(skillMd: string): string | null {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(skillMd.replace(/^\uFEFF/, ""));
+  if (!match) return null;
+  try {
+    const frontmatter = parse(match[1] ?? "") as { name?: unknown } | null;
+    const name = typeof frontmatter?.name === "string" ? frontmatter.name.trim() : "";
+    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) ? name : null;
+  } catch { return null; }
 }
 
 function issue(code: DotagentIssue["code"], message: string, remediation: string, filePath: string): DotagentIssue {
@@ -86,8 +97,7 @@ async function collectSkillFiles(skillRoot: string, limits: ScanLimits): Promise
 }
 
 export async function scanOwnedSkill(root: string, skillPath: string, limits: ScanLimits = DEFAULT_SCAN_LIMITS): Promise<DotagentResult<ScannedSkill>> {
-    const name = path.posix.basename(skillPath);
-    const skillRoot = path.join(root, ...skillPath.split("/"));
+    const skillRoot = skillPath === "." ? root : path.join(root, ...skillPath.split("/"));
     let metadata;
     try {
       metadata = await lstat(skillRoot);
@@ -112,6 +122,12 @@ export async function scanOwnedSkill(root: string, skillPath: string, limits: Sc
     }
     if (!skillFileMetadata.isFile()) {
       return { ok: false, issues: [issue("missing-skill-file", `${skillPath} has no regular SKILL.md.`, "Add SKILL.md or remove this export.", skillFile)] };
+    }
+    const name = skillPath === "."
+      ? declaredSkillName(await readFile(skillFile, "utf8"))
+      : path.posix.basename(skillPath);
+    if (!name) {
+      return { ok: false, issues: [issue("missing-skill-metadata", "A repository-root skill must declare a portable name in SKILL.md frontmatter.", "Add a lowercase kebab-case name field to SKILL.md.", skillFile)] };
     }
     const collected = await collectSkillFiles(skillRoot, limits);
     if (!collected.ok) return collected;

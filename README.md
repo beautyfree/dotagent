@@ -38,13 +38,27 @@ Implemented now:
 - typed value-free issues and shared secret findings;
 - non-executing public/private metadata and license audit;
 - read-only Skills CLI v3 and legacy Skiller manifest adapters;
+- read-only cross-agent discovery that deduplicates shared skills and real agent links while preserving same-name conflicts;
+- reviewed canonical import plans for owned, dependency, local-only, and excluded skills;
+- journaled import apply/recovery with stale-source, unmanaged-target, and value-free secret checks;
 - shared three-way conflict classification;
 - typed agent capabilities and deterministic materialization previews that refuse unmanaged targets;
 - guarded machine detection that separates shared skills from agent-install evidence;
 - read-only `doctor` and managed-target `status` reports;
 - journaled link/junction/copy apply with source revalidation, managed markers, rollback, and crash recovery;
 - deterministic reviewed initialization plans;
-- `init`, `inspect`, preview-by-default `resolve`, `doctor`, `status`, explicit-target `plan`, confirmed `apply`, and `recover` CLI commands.
+- `init`, `inspect`, preview-only `import`, preview-by-default `resolve`, `doctor`, `audit`, `status`, explicit-target `plan`, confirmed `apply`, and `recover` CLI commands.
+
+Import is reviewed and two-step as well:
+
+```sh
+beautyfree-dotagent import ~/.agents \
+  --owned writing="$HOME/.codex/skills/writing" \
+  --out import-plan.json
+beautyfree-dotagent apply import-plan.json --yes
+```
+
+For mixed imports, `--candidate-file` accepts the typed JSON candidate array used by Skiller. Known Skills CLI/Git provenance is recorded as a dependency reference; it is not flattened into a duplicate folder. Local-only entries remain untouched. An import plan containing a conflict or possible secret cannot be applied.
 
 Materialization is deliberately two-step:
 
@@ -57,7 +71,7 @@ beautyfree-dotagent apply materialization-plan.json --yes
 
 The saved plan contains exact sources, targets, hashes, and preconditions. Apply rejects modified plans, changed sources, targets that appeared after review, unmanaged content, and locally modified managed copies.
 
-Skiller already consumes the shared manifest, Skills CLI, secret-scan, and reconciliation modules through compatibility facades. Next: persistent source cache, richer audit reports, complete agent-catalog migration, Sync Center plan mapping, and full golden-fixture parity.
+Skiller already consumes the shared manifest, Skills CLI, secret-scan, reconciliation, machine-diagnostics, and catalog adapters through compatibility facades. Next: make the shared discovery/import plan renderer-facing, complete the authoritative agent-catalog migration, and finish golden-fixture parity before removing legacy implementations.
 
 ## Prior art
 

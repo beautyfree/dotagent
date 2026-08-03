@@ -1,7 +1,19 @@
+import { readFile, readdir } from "node:fs/promises";
+import path from "node:path";
+import { parse } from "yaml";
+import type { DotagentIssue } from "./issues.js";
+import { scanLibrary, type LibraryInventory } from "./inventory.js";
+import { loadLibrary } from "./library.js";
+
 export type SecretFinding = {
   rule: "private-key" | "github-token" | "provider-token" | "aws-access-key" | "connection-string" | "credential-assignment";
   line: number;
   column: number;
+};
+
+export type SecretFileFinding = SecretFinding & {
+  /** Portable path inside the reviewed skill. Never an absolute machine path. */
+  relativePath: string;
 };
 
 type SecretRule = { id: SecretFinding["rule"]; pattern: RegExp };
@@ -32,6 +44,38 @@ export function scanTextForSecrets(text: string): SecretFinding[] {
       }
     }
   }
+  return findings;
+}
+
+/**
+ * Scans a skill that already passed the bounded inventory rules. The returned
+ * findings contain only a relative file location and rule ID; matched values
+ * are deliberately discarded before crossing the API boundary.
+ */
+export async function scanSkillForSecrets(skillRoot: string): Promise<SecretFileFinding[]> {
+  const findings: SecretFileFinding[] = [];
+  const walk = async (directory: string): Promise<void> => {
+    const entries = await readdir(directory, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
+    for (const entry of entries) {
+      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagent-managed.json") continue;
+      const absolute = path.join(directory, entry.name);
+      if (entry.isSymbolicLink()) throw new Error(`Refusing to scan linked import content: ${absolute}`);
+      if (entry.isDirectory()) {
+        await walk(absolute);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const relativePath = path.relative(skillRoot, absolute).replaceAll(path.sep, "/");
+      const content = await readFile(absolute);
+      // NUL-heavy binary files are not useful secret-text input. They remain
+      // covered by inventory size/hash checks and are copied byte-for-byte.
+      const prefix = content.subarray(0, Math.min(content.length, 8_192));
+      if (prefix.includes(0)) continue;
+      for (const finding of scanTextForSecrets(content.toString("utf8"))) findings.push({ ...finding, relativePath });
+    }
+  };
+  await walk(skillRoot);
   return findings;
 }
 
@@ -116,9 +160,3 @@ export async function auditLibrary(options: AuditLibraryOptions): Promise<Librar
   const licenseWarnings = issues.some((issue) => issue.code === "missing-license");
   return { ok: !hasError, publicReady: !hasError && !licenseWarnings, library: scanned.value, issues };
 }
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { parse } from "yaml";
-import type { DotagentIssue } from "./issues.js";
-import { scanLibrary, type LibraryInventory } from "./inventory.js";
-import { loadLibrary } from "./library.js";
