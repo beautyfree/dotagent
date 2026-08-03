@@ -13,9 +13,6 @@ export type SkillDelivery = {
     kind: "per-skill-link";
     roots: string[];
 } | {
-    kind: "config-path";
-    configId: string;
-} | {
     kind: "copy-only";
     roots: string[];
 };

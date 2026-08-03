@@ -32,4 +32,16 @@ describe("built-in agent capability catalog", () => {
     codex.skillRoots.push("~/mutated");
     expect(builtinAgentCatalogEntry("codex")?.skillRoots).not.toContain("~/mutated");
   });
+
+  it("rejects extension descriptors without a concrete data-only delivery root", () => {
+    expect(() =>
+      validateAgentDescriptor({
+        slug: "custom",
+        displayName: "Custom",
+        platforms: ["linux"],
+        detection: [{ kind: "marker", path: "~/.custom" }],
+        skills: [{ kind: "per-skill-link", roots: [] }],
+      }),
+    ).toThrow("invalid per-skill-link root");
+  });
 });

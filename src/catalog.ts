@@ -548,7 +548,9 @@ export function agentCatalogEntryToDescriptor(
     ...(readsShared ? [{ kind: "native-shared" as const }] : []),
     ...(entry.skillRoots.length > 0 ? [{ kind: "per-skill-link" as const, roots: [...entry.skillRoots] }] : []),
   ];
-  if (skills.length === 0) skills.push({ kind: "config-path", configId: `builtin:${entry.slug}` });
+  if (skills.length === 0) {
+    throw new Error(`Agent ${entry.slug} has no verified skill delivery capability`);
+  }
   return {
     slug: entry.slug,
     displayName: entry.displayName,
