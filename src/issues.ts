@@ -13,6 +13,8 @@ export type DotagentIssueCode =
   | "lockfile-missing"
   | "lockfile-stale"
   | "local-state-not-ignored"
+  | "missing-skill-metadata"
+  | "missing-license"
   | "file-not-found"
   | "io-error";
 

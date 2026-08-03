@@ -109,6 +109,7 @@ export declare const resolvedPackageSchema: z.ZodObject<{
     requested_ref: z.ZodString;
     commit: z.ZodString;
     integrity: z.ZodString;
+    license: z.ZodOptional<z.ZodString>;
     skills: z.ZodArray<z.ZodObject<{
         name: z.ZodString;
         path: z.ZodEffects<z.ZodString, string, string>;
@@ -128,6 +129,7 @@ export declare const resolvedPackageSchema: z.ZodObject<{
     requested_ref: string;
     commit: string;
     integrity: string;
+    license?: string | undefined;
 }, {
     url: string;
     skills: {
@@ -137,6 +139,7 @@ export declare const resolvedPackageSchema: z.ZodObject<{
     requested_ref: string;
     commit: string;
     integrity: string;
+    license?: string | undefined;
 }>;
 export declare const libraryLockSchema: z.ZodObject<{
     lockfile_version: z.ZodLiteral<1>;
@@ -146,6 +149,7 @@ export declare const libraryLockSchema: z.ZodObject<{
         requested_ref: z.ZodString;
         commit: z.ZodString;
         integrity: z.ZodString;
+        license: z.ZodOptional<z.ZodString>;
         skills: z.ZodArray<z.ZodObject<{
             name: z.ZodString;
             path: z.ZodEffects<z.ZodString, string, string>;
@@ -165,6 +169,7 @@ export declare const libraryLockSchema: z.ZodObject<{
         requested_ref: string;
         commit: string;
         integrity: string;
+        license?: string | undefined;
     }, {
         url: string;
         skills: {
@@ -174,6 +179,7 @@ export declare const libraryLockSchema: z.ZodObject<{
         requested_ref: string;
         commit: string;
         integrity: string;
+        license?: string | undefined;
     }>>;
 }, "strict", z.ZodTypeAny, {
     lockfile_version: 1;
@@ -187,6 +193,7 @@ export declare const libraryLockSchema: z.ZodObject<{
         requested_ref: string;
         commit: string;
         integrity: string;
+        license?: string | undefined;
     }>;
 }, {
     lockfile_version: 1;
@@ -200,6 +207,7 @@ export declare const libraryLockSchema: z.ZodObject<{
         requested_ref: string;
         commit: string;
         integrity: string;
+        license?: string | undefined;
     }>;
 }>;
 export type DependencyReference = z.infer<typeof dependencyReferenceSchema>;

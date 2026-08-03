@@ -34,7 +34,9 @@ Implemented now:
 - deterministic SHA-256 skill integrity;
 - bounded library inventory that rejects escaping links and oversized content;
 - concurrent isolated Git resolution with immutable commits and stale-plan-safe lockfile writes;
+- reusable local Git object cache with fresh ref/commit/integrity verification;
 - typed value-free issues and shared secret findings;
+- non-executing public/private metadata and license audit;
 - read-only Skills CLI v3 and legacy Skiller manifest adapters;
 - shared three-way conflict classification;
 - typed agent capabilities and deterministic materialization previews that refuse unmanaged targets;

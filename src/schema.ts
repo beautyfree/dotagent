@@ -51,6 +51,7 @@ export const resolvedPackageSchema = z.object({
   requested_ref: z.string().min(1).max(256),
   commit: commitSha,
   integrity,
+  license: z.string().min(1).max(128).optional(),
   skills: z.array(z.object({
     name: packageName,
     path: portableSkillPath,

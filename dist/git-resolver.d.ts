@@ -10,6 +10,8 @@ export declare class NodeGitRunner implements GitRunner {
 export interface GitDependencyResolverOptions {
     git?: GitRunner;
     temporaryRoot?: string;
+    /** Disposable local Git object cache. Never serialized into a portable manifest. */
+    cacheRoot?: string;
     limits?: ScanLimits;
 }
 export declare class GitDependencyResolver implements DependencyResolver {

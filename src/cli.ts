@@ -8,6 +8,7 @@ import { loadLibrary } from "./library.js";
 import { GitDependencyResolver } from "./git-resolver.js";
 import { applyResolutionPlan, planResolveDependencies } from "./sources.js";
 import { doctorLibrary } from "./doctor.js";
+import { auditLibrary } from "./audit.js";
 import { getMaterializationStatus } from "./status.js";
 import { existingTargetsForPlan } from "./status.js";
 import { parseMaterializationTargetSpec } from "./cli-target.js";
@@ -29,7 +30,7 @@ async function main(): Promise<number> {
   const directory = positional[0] ?? ".";
   const json = args.includes("--json");
   if (command === "help" || command === "--help" || command === "-h") {
-    process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
+    process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent resolve [library-directory] [--write] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] --yes [--json]\n");
     return 0;
   }
   if (command === "init") {
@@ -49,7 +50,7 @@ async function main(): Promise<number> {
       else for (const issue of loaded.issues) process.stderr.write(`${issue.message}\nNext: ${issue.remediation}\n`);
       return 1;
     }
-    const plan = await planResolveDependencies(loaded.value.manifest, new GitDependencyResolver(), loaded.value.lock);
+    const plan = await planResolveDependencies(loaded.value.manifest, new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") }), loaded.value.lock);
     if (args.includes("--write")) await applyResolutionPlan(root, plan);
     const result = { ok: true, root, plan_id: plan.planId, written: args.includes("--write"), changes: plan.changes, lock: plan.lock };
     process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : `${plan.changes.length} dependency changes planned${args.includes("--write") ? " and written" : " (preview only; pass --write to save)"}.\n`);
@@ -59,6 +60,13 @@ async function main(): Promise<number> {
     const report = await doctorLibrary({ root: path.resolve(directory) });
     if (json) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     else if (report.issues.length === 0) process.stdout.write(`Library ${report.library?.name ?? report.root} is healthy.\n`);
+    else for (const entry of report.issues) process.stdout.write(`${entry.severity?.toUpperCase()}: ${entry.message}\nNext: ${entry.remediation}\n`);
+    return report.ok ? 0 : 1;
+  }
+  if (command === "audit") {
+    const report = await auditLibrary({ root: path.resolve(directory), visibility: args.includes("--public") ? "public" : "private" });
+    if (json) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    else if (report.issues.length === 0) process.stdout.write("No structural or licensing issues found.\n");
     else for (const entry of report.issues) process.stdout.write(`${entry.severity?.toUpperCase()}: ${entry.message}\nNext: ${entry.remediation}\n`);
     return report.ok ? 0 : 1;
   }

@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { lstat, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -17,29 +18,101 @@ export class NodeGitRunner {
 export class GitDependencyResolver {
     #git;
     #temporaryRoot;
+    #cacheRoot;
     #limits;
+    #cacheWork = new Map();
     constructor(options = {}) {
         this.#git = options.git ?? new NodeGitRunner();
         this.#temporaryRoot = options.temporaryRoot ?? tmpdir();
+        this.#cacheRoot = options.cacheRoot;
         this.#limits = options.limits;
+    }
+    async #exists(filePath) {
+        try {
+            await lstat(filePath);
+            return true;
+        }
+        catch (error) {
+            if (error.code === "ENOENT")
+                return false;
+            throw error;
+        }
+    }
+    async #prepareMirror(url) {
+        if (!this.#cacheRoot)
+            return null;
+        const identity = normalizeGitIdentity(url);
+        const key = createHash("sha256").update(identity).digest("hex");
+        const existing = this.#cacheWork.get(key);
+        if (existing)
+            return existing;
+        const work = (async () => {
+            await mkdir(this.#cacheRoot, { recursive: true });
+            const mirror = path.join(this.#cacheRoot, `${key}.git`);
+            if (!await this.#exists(mirror)) {
+                const temporary = `${mirror}.tmp-${process.pid}-${Date.now()}`;
+                try {
+                    await this.#git.run(["clone", "--mirror", "--", url, temporary]);
+                    try {
+                        await rename(temporary, mirror);
+                    }
+                    catch (error) {
+                        if (!await this.#exists(mirror))
+                            throw error;
+                        await rm(temporary, { recursive: true, force: true });
+                    }
+                }
+                catch (error) {
+                    await rm(temporary, { recursive: true, force: true });
+                    throw error;
+                }
+            }
+            await this.#git.run(["fetch", "--prune", "origin", "+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"], mirror);
+            return mirror;
+        })();
+        this.#cacheWork.set(key, work);
+        try {
+            return await work;
+        }
+        finally {
+            this.#cacheWork.delete(key);
+        }
     }
     async resolve(_name, dependency) {
         normalizeGitIdentity(dependency.url);
         const workspace = await mkdtemp(path.join(this.#temporaryRoot, "dotagent-resolve-"));
         const checkout = path.join(workspace, "repository");
         try {
-            await this.#git.run(["clone", "--no-checkout", "--filter=blob:none", "--", dependency.url, checkout]);
+            const mirror = await this.#prepareMirror(dependency.url);
+            await this.#git.run([
+                "clone",
+                "--no-checkout",
+                "--filter=blob:none",
+                ...(mirror ? ["--reference-if-able", mirror] : []),
+                "--",
+                dependency.url,
+                checkout,
+            ]);
             await this.#git.run(["fetch", "--depth=1", "origin", dependency.ref], checkout);
             const commit = await this.#git.run(["rev-parse", "FETCH_HEAD^{commit}"], checkout);
             if (!/^[a-f0-9]{40}$/.test(commit))
                 throw new Error(`Git returned an invalid commit for ${dependency.url}#${dependency.ref}`);
             await this.#git.run(["checkout", "--detach", commit], checkout);
+            let sourceManifest = null;
+            try {
+                const manifest = parseLibraryManifest(await readFile(path.join(checkout, "skills.json"), "utf8"));
+                if (manifest.ok)
+                    sourceManifest = manifest.value;
+            }
+            catch (error) {
+                if (error.code !== "ENOENT")
+                    throw error;
+            }
             let selected = dependency.select;
             if (!selected) {
-                const manifest = parseLibraryManifest(await readFile(path.join(checkout, "skills.json"), "utf8"));
-                if (!manifest.ok)
+                if (!sourceManifest)
                     throw new Error(`Dependency ${dependency.url} has no compatible skills.json`);
-                selected = manifest.value.skills;
+                selected = sourceManifest.skills;
             }
             const skills = [];
             const integrityInputs = [];
@@ -55,6 +128,7 @@ export class GitDependencyResolver {
                 requested_ref: dependency.ref,
                 commit,
                 integrity: computeSkillIntegrity(integrityInputs),
+                ...(sourceManifest?.license ? { license: sourceManifest.license } : {}),
                 skills,
             };
         }

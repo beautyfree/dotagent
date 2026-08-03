@@ -1,4 +1,4 @@
-export type DotagentIssueCode = "invalid-json" | "invalid-manifest" | "invalid-lockfile" | "unsupported-schema" | "unsafe-path" | "duplicate-skill" | "integrity-mismatch" | "unsafe-link" | "limit-exceeded" | "missing-skill-file" | "invalid-config" | "lockfile-missing" | "lockfile-stale" | "local-state-not-ignored" | "file-not-found" | "io-error";
+export type DotagentIssueCode = "invalid-json" | "invalid-manifest" | "invalid-lockfile" | "unsupported-schema" | "unsafe-path" | "duplicate-skill" | "integrity-mismatch" | "unsafe-link" | "limit-exceeded" | "missing-skill-file" | "invalid-config" | "lockfile-missing" | "lockfile-stale" | "local-state-not-ignored" | "missing-skill-metadata" | "missing-license" | "file-not-found" | "io-error";
 export interface DotagentIssue {
     code: DotagentIssueCode;
     message: string;

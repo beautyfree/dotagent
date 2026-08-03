@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -32,5 +32,19 @@ describe("Git dependency resolver", () => {
     const result = await resolver.resolve("source", { url: pathToFileURL(repository.root).href, ref: "HEAD" });
     expect(result).toMatchObject({ commit: repository.commit, requested_ref: "HEAD", skills: [{ name: "writing", path: "skills/writing" }] });
     expect(result.integrity).toMatch(/^sha256-/);
+  });
+
+  it("reuses a disposable mirror while still resolving the requested ref", async () => {
+    const repository = createRepository();
+    const temporaryRoot = mkdtempSync(join(tmpdir(), "dotagent-resolver-work-"));
+    const cacheRoot = mkdtempSync(join(tmpdir(), "dotagent-resolver-cache-"));
+    roots.push(temporaryRoot, cacheRoot);
+    const resolver = new GitDependencyResolver({ temporaryRoot, cacheRoot });
+    const dependency = { url: pathToFileURL(repository.root).href, ref: "HEAD" };
+    const first = await resolver.resolve("source", dependency);
+    const second = await resolver.resolve("source", dependency);
+    expect(second.commit).toBe(first.commit);
+    expect(second.integrity).toBe(first.integrity);
+    expect(readdirSync(cacheRoot).filter((entry) => entry.endsWith(".git"))).toHaveLength(1);
   });
 });

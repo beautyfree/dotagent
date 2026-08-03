@@ -101,7 +101,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "check": "bun run typecheck && bun test && bun run build",
-    "ci": "bun run check && node dist/cli.js inspect fixtures/valid-library --json"
+    "ci": "bun run check && node dist/cli.js inspect fixtures/valid-library --json && node dist/cli.js audit fixtures/valid-library --public --json"
   },
   "dependencies": {
     "yaml": "^2.8.3",
