@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "name": "example-library",
+  "version": "1.0.0",
+  "description": "A portable example library",
+  "license": "MIT",
+  "skills": ["skills/review-checklist"],
+  "dependencies": {
+    "community": {
+      "url": "https://github.com/example/skills",
+      "ref": "v1.0.0",
+      "select": ["skills/git"]
+    }
+  }
+}
