@@ -54,11 +54,11 @@ export declare const localConfigSchema: z.ZodObject<{
         selected: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         roots: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
     }, "strict", z.ZodTypeAny, {
-        selected?: string[] | undefined;
         roots?: Record<string, string> | undefined;
+        selected?: string[] | undefined;
     }, {
-        selected?: string[] | undefined;
         roots?: Record<string, string> | undefined;
+        selected?: string[] | undefined;
     }>>;
     materialization: z.ZodOptional<z.ZodEnum<["auto", "native", "symlink", "junction", "copy"]>>;
     exclusions: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
@@ -68,15 +68,15 @@ export declare const localConfigSchema: z.ZodObject<{
     exclusions: string[];
     environment: Record<string, string>;
     agents?: {
-        selected?: string[] | undefined;
         roots?: Record<string, string> | undefined;
+        selected?: string[] | undefined;
     } | undefined;
     materialization?: "auto" | "native" | "symlink" | "junction" | "copy" | undefined;
 }, {
     schema_version: 1;
     agents?: {
-        selected?: string[] | undefined;
         roots?: Record<string, string> | undefined;
+        selected?: string[] | undefined;
     } | undefined;
     materialization?: "auto" | "native" | "symlink" | "junction" | "copy" | undefined;
     exclusions?: string[] | undefined;

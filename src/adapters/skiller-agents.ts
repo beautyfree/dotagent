@@ -1,4 +1,5 @@
-import type { AgentDescriptor, Platform, SkillDelivery } from "../agents.js";
+import type { AgentDescriptor, Platform } from "../agents.js";
+import { agentCatalogEntryToDescriptor } from "../catalog.js";
 
 export interface SkillerReadablePath {
   path: string;
@@ -27,26 +28,20 @@ export function skillerAgentConfigToDescriptor(
   config: SkillerAgentConfigInput,
   options: SkillerAgentCatalogOptions = {},
 ): AgentDescriptor {
-  const sharedSkillsPath = options.sharedSkillsPath ?? "~/.agents/skills";
-  const readsShared =
-    config.additional_readable_paths?.some(
-      (entry) => entry.source_agent === "shared" || entry.path === sharedSkillsPath,
-    ) ?? false;
-  const skills: SkillDelivery[] = [
-    ...(readsShared ? [{ kind: "native-shared" as const }] : []),
-    ...(config.global_paths.length > 0 ? [{ kind: "per-skill-link" as const, roots: [...config.global_paths] }] : []),
-  ];
-  if (skills.length === 0) skills.push({ kind: "config-path", configId: `skiller:${config.slug}` });
-  return {
-    slug: config.slug,
-    displayName: config.name,
-    platforms: options.platforms ?? ["darwin", "linux", "win32"],
-    detection: [
-      ...(config.cli_command ? [{ kind: "command" as const, command: config.cli_command }] : []),
-      ...config.detect_paths.map((marker) => ({ kind: "marker" as const, path: marker, ignoreSkillsOnly: true })),
-    ],
-    skills,
-  };
+  return agentCatalogEntryToDescriptor(
+    {
+      slug: config.slug,
+      displayName: config.name,
+      skillRoots: [...config.global_paths],
+      ...(config.cli_command ? { command: config.cli_command } : {}),
+      detectionMarkers: [...config.detect_paths],
+      readableRoots: (config.additional_readable_paths ?? []).map((entry) => ({
+        path: entry.path,
+        sourceAgent: entry.source_agent ?? "unknown",
+      })),
+    },
+    options,
+  );
 }
 
 export function skillerAgentCatalogToDescriptors(

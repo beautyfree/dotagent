@@ -13,6 +13,7 @@ export * from "./audit.js";
 export * from "./config.js";
 export * from "./reconcile.js";
 export * from "./agents.js";
+export * from "./catalog.js";
 export * from "./materialize.js";
 export * from "./prepared-library.js";
 export * from "./materialize-apply.js";

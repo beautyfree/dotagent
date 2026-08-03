@@ -10,7 +10,7 @@ Until the scoped npm package is released, Skiller consumes an exact Git commit. 
 
 The canonical repository normally lives at `~/.agents`. Its `skills/` directory contains skills the library owner publishes. `skills.json` describes the portable package. `skills.lock` pins external dependencies. `dotagent.local.yaml` and `.dotagent/` contain machine-specific state and are always ignored by Git.
 
-Agent folders are materialized views. A compatible agent may read `.agents/skills` directly, receive per-skill links, or receive a reviewed copy when the platform cannot link safely. dotagent never treats the shared skills directory as proof that a specific agent is installed.
+Agent folders are materialized views. A compatible agent may read `.agents/skills` directly, receive per-skill links, or receive a reviewed copy when the platform cannot link safely. dotagent never treats the shared skills directory as proof that a specific agent is installed. The provider-neutral built-in capability catalog is exported from `@beautyfree/dotagent/catalog`; product-specific install copy and authentication stay outside the core.
 
 ## Development
 
@@ -92,7 +92,7 @@ beautyfree-dotagent sync ~/.agents --pull --out pull-plan.json
 beautyfree-dotagent apply pull-plan.json --yes
 ```
 
-Skiller already consumes the shared manifest, Skills CLI, secret-scan, reconciliation, machine-diagnostics, and catalog adapters through compatibility facades. Next: make the shared discovery/import plan renderer-facing, complete the authoritative agent-catalog migration, and finish golden-fixture parity before removing legacy implementations.
+Skiller consumes the shared manifest, Skills CLI, secret-scan, reconciliation, machine-diagnostics, discovery/import plans, Git workspace, and authoritative built-in agent catalog through compatibility facades. Bundled TOML files retain product install metadata and are parity-checked against the core catalog; custom local TOML definitions remain supported as explicit extensions.
 
 ## Prior art
 

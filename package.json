@@ -92,6 +92,10 @@
       "types": "./dist/agents.d.ts",
       "import": "./dist/agents.js"
     },
+    "./catalog": {
+      "types": "./dist/catalog.d.ts",
+      "import": "./dist/catalog.js"
+    },
     "./materialize": {
       "types": "./dist/materialize.d.ts",
       "import": "./dist/materialize.js"
