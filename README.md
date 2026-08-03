@@ -50,6 +50,7 @@ Implemented now:
 - reviewed canonical import plans for owned, dependency, local-only, and excluded skills;
 - journaled import apply/recovery with stale-source, unmanaged-target, and value-free secret checks;
 - deterministic library reconciliation plans with shared three-way classification, explicit take-remote decisions, stale-plan/source/target checks, transactional rollback, and crash recovery;
+- atomic library-update plans that stage every reviewed skill and portable file before replacement, then roll back the whole update through a durable journal;
 - typed agent capabilities and deterministic materialization previews that refuse unmanaged targets;
 - guarded machine detection that separates shared skills from agent-install evidence;
 - read-only `doctor` and managed-target `status` reports;
@@ -112,7 +113,7 @@ beautyfree-dotagent sync ~/.agents --pull --out pull-plan.json
 beautyfree-dotagent apply pull-plan.json --yes
 ```
 
-Skiller consumes the shared manifest, Skills CLI, secret-scan, reconciliation, machine-diagnostics, discovery/import plans, Git workspace, and authoritative built-in agent catalog through compatibility facades. Bundled TOML files retain product install metadata and are parity-checked against the core catalog; custom local TOML definitions remain supported as explicit extensions.
+Skiller consumes the shared manifest, Skills CLI, secret-scan, reconciliation, transactional library updates, machine-diagnostics, discovery/import plans, Git workspace, and authoritative built-in agent catalog through compatibility facades. Bundled TOML files retain product install metadata and are parity-checked against the core catalog; custom local TOML definitions remain supported as explicit extensions.
 
 ## Prior art
 

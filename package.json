@@ -100,6 +100,10 @@
       "types": "./dist/reconcile.d.ts",
       "import": "./dist/reconcile.js"
     },
+    "./library-update": {
+      "types": "./dist/library-update.d.ts",
+      "import": "./dist/library-update.js"
+    },
     "./agents": {
       "types": "./dist/agents.d.ts",
       "import": "./dist/agents.js"

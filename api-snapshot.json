@@ -6,7 +6,7 @@
     {
       "subpath": ".",
       "types": "./dist/index.d.ts",
-      "sha256": "ab2c38adf91a76c6790d6869867d122b7fbd442e592c226e915cb617dfdea20d"
+      "sha256": "72ad87509f98f60eaad8303b03ff4ddd1b651db431e967afbe2e5561886de527"
     },
     {
       "subpath": "./adapters/skiller",
@@ -102,6 +102,11 @@
       "subpath": "./library",
       "types": "./dist/library.d.ts",
       "sha256": "31d4fed8254f861a868583bcbfa8d763c061b6f7bb1af2c2cf610b1a395e05ee"
+    },
+    {
+      "subpath": "./library-update",
+      "types": "./dist/library-update.d.ts",
+      "sha256": "0b1cd4855acdbb61e2059088ba832aad485fd5b74d7a6968e65aa1e066acda0e"
     },
     {
       "subpath": "./machine",

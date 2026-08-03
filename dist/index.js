@@ -20,6 +20,7 @@ export * from "./integrity.js";
 export * from "./inventory.js";
 export * from "./issues.js";
 export * from "./library.js";
+export * from "./library-update.js";
 export * from "./machine.js";
 export * from "./materialize.js";
 export * from "./materialize-apply.js";
