@@ -168,7 +168,7 @@ async function inspectConfiguration(root: string): Promise<DotagentsIssue[]> {
   return issues;
 }
 
-/** Read-only health report suitable for both CLI JSON and Skiller tRPC mapping. */
+/** Read-only health report suitable for CLI JSON and API mappings. */
 export async function doctorLibrary(options: DoctorOptions): Promise<DoctorReport> {
   const root = path.resolve(options.root);
   const issues: DotagentsIssue[] = [];

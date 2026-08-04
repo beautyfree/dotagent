@@ -6,17 +6,7 @@
     {
       "subpath": ".",
       "types": "./dist/index.d.ts",
-      "sha256": "542999938635c03239e45e53d115fdcd83b51baf978f87e6a32e3eb23a53d7e6"
-    },
-    {
-      "subpath": "./adapters/skiller",
-      "types": "./dist/adapters/skiller.d.ts",
-      "sha256": "116d1f2fab390be46a5b53d0aec36363af93360bc8859ffe6a4afc623ad24af0"
-    },
-    {
-      "subpath": "./adapters/skiller-agents",
-      "types": "./dist/adapters/skiller-agents.d.ts",
-      "sha256": "64f8a1dea3ab50232ce8a6fe155a492082eb1c5155669db222e830391fcbbdf2"
+      "sha256": "250d4521d3442c40c4cc919801cf89dcb49fae6fe9e0f2c3e0c25c12a07181f5"
     },
     {
       "subpath": "./adapters/skills-cli",
@@ -41,7 +31,7 @@
     {
       "subpath": "./catalog",
       "types": "./dist/catalog.d.ts",
-      "sha256": "f74a3d4ee229d4d56096d278660c839647f8d22bb3bf68716e0299b74c852432"
+      "sha256": "3a7101d009512357745f5d802fabb3398a7228fb32d74d91eecf24a738b17a82"
     },
     {
       "subpath": "./cli-import",
@@ -66,7 +56,7 @@
     {
       "subpath": "./doctor",
       "types": "./dist/doctor.d.ts",
-      "sha256": "cce8a6b55efb6848accfcc6ca79a52e356d075d0778e8f35e800ee02be2191a3"
+      "sha256": "e880d83719547adc3bca46bcecc917bb2a9d74b2868339732c68e5baf1fe4ffd"
     },
     {
       "subpath": "./export-policy",

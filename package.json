@@ -104,17 +104,9 @@
       "types": "./dist/discovery.d.ts",
       "import": "./dist/discovery.js"
     },
-    "./adapters/skiller": {
-      "types": "./dist/adapters/skiller.d.ts",
-      "import": "./dist/adapters/skiller.js"
-    },
     "./adapters/skills-cli": {
       "types": "./dist/adapters/skills-cli.d.ts",
       "import": "./dist/adapters/skills-cli.js"
-    },
-    "./adapters/skiller-agents": {
-      "types": "./dist/adapters/skiller-agents.d.ts",
-      "import": "./dist/adapters/skiller-agents.js"
     },
     "./audit": {
       "types": "./dist/audit.d.ts",

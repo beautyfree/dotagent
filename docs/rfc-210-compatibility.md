@@ -57,4 +57,4 @@ dotagents adds behavior that a package-format RFC alone does not define:
 
 ## Unsupported input
 
-dotagents stops instead of guessing when a manifest, lock, Skills CLI lock, or Skiller compatibility manifest uses a newer unsupported schema. Upgrade dotagents or migrate through a versioned adapter; do not edit a lockfile to downgrade its version number.
+dotagents stops instead of guessing when a manifest, lock, or Skills CLI lock uses a newer unsupported schema. Upgrade dotagents; do not edit a lockfile to downgrade its version number.

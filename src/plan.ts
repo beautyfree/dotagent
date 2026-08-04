@@ -12,7 +12,7 @@ function canonicalize(value: unknown): unknown {
   return value;
 }
 
-/** Stable IDs make a reviewed plan comparable between the CLI and Skiller. */
+/** Stable IDs make a reviewed plan comparable between CLI and API consumers. */
 export function computePlanId(value: unknown): string {
   return createHash("sha256")
     .update(JSON.stringify(canonicalize(value)))

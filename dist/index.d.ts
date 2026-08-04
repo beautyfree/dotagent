@@ -1,5 +1,3 @@
-export * from "./adapters/skiller.js";
-export * from "./adapters/skiller-agents.js";
 export * from "./adapters/skills-cli.js";
 export * from "./adopt.js";
 export * from "./agents.js";

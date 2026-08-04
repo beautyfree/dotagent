@@ -21,7 +21,7 @@ export interface BuiltinAgentCatalogOptions {
 }
 
 /**
- * Versioned, provider-neutral skill capability catalog shared by the CLI and Skiller.
+ * Versioned, provider-neutral skill capability catalog shared by CLI and API consumers.
  * Installation commands and product copy intentionally remain outside the core.
  */
 export const BUILTIN_AGENT_CATALOG_VERSION = 1;

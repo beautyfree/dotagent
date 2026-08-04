@@ -2,9 +2,7 @@
 
 One Git-backed agent library, safely materialized into every compatible agent you choose.
 
-This repository contains the reusable TypeScript engine and headless CLI used by Skiller. It is an early local foundation and is not published yet.
-
-Until the scoped npm package is released, Skiller consumes an exact Git commit. Generated `dist/` files are therefore committed temporarily so clean installs remain reproducible even when dependency lifecycle scripts are disabled.
+This repository contains a reusable TypeScript engine and headless CLI for portable agent-skill libraries. It is an early local foundation and is not published yet.
 
 ## Model
 
@@ -26,7 +24,6 @@ The package requires Node.js 20 or later at runtime and is developed with Bun. C
 ## Documentation
 
 - [Agent Skills RFC compatibility](docs/rfc-210-compatibility.md)
-- [Migrate from a Skiller sync repository](docs/migrating-from-skiller.md)
 - [Changelog](CHANGELOG.md)
 
 ## Release boundary
@@ -60,7 +57,7 @@ Implemented now:
 - typed value-free issues and shared secret findings;
 - deterministic owned-skill export policy with bounded content, explicit exclusions, and no-follow link safety;
 - non-executing public/private metadata and license audit;
-- read-only Skills CLI v3 and legacy Skiller manifest adapters;
+- read-only Skills CLI v3 adapter;
 - read-only cross-agent discovery that deduplicates shared skills and real agent links while preserving same-name conflicts;
 - reviewed canonical import plans for owned, dependency, local-only, and excluded skills;
 - journaled import apply/recovery with stale-source, unmanaged-target, and value-free secret checks;
@@ -90,7 +87,7 @@ dotagents apply resolution-plan.json --yes
 
 `init` preview does not create the destination. Review the exact root files in `init-plan.json`; confirmed apply refuses every path that appeared after preview. Dependency resolution is also preview-only: the saved plan contains old/new commits, integrity, licenses, and exported-skill changes, and apply rechecks the current manifest before writing `skills.lock`.
 
-For mixed imports, `--candidate-file` accepts the typed JSON candidate array used by Skiller. Known Skills CLI/Git provenance is recorded as a dependency reference; it is not flattened into a duplicate folder. Local-only entries remain untouched. An import plan containing a conflict or possible secret cannot be applied.
+For mixed imports, `--candidate-file` accepts a typed JSON candidate array. Known Skills CLI/Git provenance is recorded as a dependency reference; it is not flattened into a duplicate folder. Local-only entries remain untouched. An import plan containing a conflict or possible secret cannot be applied.
 
 Vendoring is a separate explicit candidate kind. It copies reviewed files only when the supplied origin URL, immutable commit, source skill path, integrity, and license are complete and the integrity matches the local source. That provenance is retained in `dotagents.yaml`; changing a dependency into redistributed files can never happen as an implicit fallback.
 
@@ -133,8 +130,6 @@ dotagents sync ~/.agents --pull \
   --minimum-release-age 10080 --out pull-plan.json
 dotagents apply pull-plan.json --yes
 ```
-
-Skiller consumes the shared manifest, Skills CLI, secret-scan, reconciliation, transactional library updates, machine-diagnostics, discovery/import plans, Git workspace, and authoritative built-in agent catalog through compatibility facades. Bundled TOML files retain product install metadata and are parity-checked against the core catalog; custom local TOML definitions remain supported as explicit extensions.
 
 ## Prior art
 

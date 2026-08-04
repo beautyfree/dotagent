@@ -59,7 +59,6 @@ sbom.metadata = { ...sbom.metadata, timestamp: sourceTimestamp };
 writeFileSync(resolve(output, "dotagents.sbom.cdx.json"), `${JSON.stringify(sbom, null, 2)}\n`);
 const documentation = [
   { source: "CHANGELOG.md", target: "CHANGELOG.md" },
-  { source: "docs/migrating-from-skiller.md", target: "migrating-from-skiller.md" },
   { source: "docs/rfc-210-compatibility.md", target: "rfc-210-compatibility.md" },
 ];
 for (const entry of documentation) copyFileSync(resolve(root, entry.source), resolve(output, entry.target));

@@ -7,12 +7,12 @@ All notable changes to `dotagents` are recorded here. The project follows semant
 ### Added
 
 - Canonical `skills.json`, `skills.lock`, portable `dotagents.yaml`, and private `dotagents.local.yaml` schemas.
-- Cross-agent discovery, Skills CLI v3 and Skiller v1-v3 compatibility adapters, and a provider-neutral catalog for 49 agent integrations.
+- Cross-agent discovery, Skills CLI v3 support, and a provider-neutral catalog for 49 agent integrations.
 - Journaled import and materialization plans with rollback, recovery, stale-preview checks, and unmanaged-target protection.
 - Immutable Git dependency resolution, package integrity, license audit, prepared checkouts, and deterministic dependency update deltas.
 - Reviewed Git commit, pull, and push plans with secret-safe isolated remote inspection.
 - Reviewed Git clone plans with credential-free remotes, staging validation, stale-plan checks, and atomic destination creation.
-- Shared owned-skill export policy for Skiller and the CLI core, including deterministic file hashes and value-free findings.
+- Shared owned-skill export policy, including deterministic file hashes and value-free findings.
 - Explicit vendored imports with immutable origin, integrity, skill path, and license metadata; mismatched content is rejected before copy.
 - Agent extension descriptors now require concrete data-only delivery roots; the unimplemented config-path placeholder was removed instead of advertising unsafe support.
 - CLI library initialization is preview-only until its serialized plan is explicitly applied with `--yes`.
@@ -34,5 +34,4 @@ All notable changes to `dotagents` are recorded here. The project follows semant
 
 ### Compatibility
 
-- Existing Skiller sync manifests remain adapter inputs and are not silently rewritten.
 - Agent Skills discussion #210 is treated as directional input; claimed compatibility and deviations are documented in `docs/rfc-210-compatibility.md`.

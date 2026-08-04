@@ -37,7 +37,6 @@ const expectedArtifacts = new Set([
   "dotagents.sbom.cdx.json",
   "CHANGELOG.md",
   "RELEASE_NOTES.md",
-  "migrating-from-skiller.md",
   "rfc-210-compatibility.md",
   "release-manifest.json",
 ]);
@@ -63,7 +62,6 @@ const requiredChecksums = new Set([
   "dotagents.sbom.cdx.json",
   "CHANGELOG.md",
   "RELEASE_NOTES.md",
-  "migrating-from-skiller.md",
   "rfc-210-compatibility.md",
   "release-manifest.json",
 ]);
@@ -89,7 +87,6 @@ if (!String(sbom.metadata?.component?.purl ?? "").includes("%40beautyfree/dotage
 const requiredDocumentation = new Set([
   "CHANGELOG.md",
   "RELEASE_NOTES.md",
-  "migrating-from-skiller.md",
   "rfc-210-compatibility.md",
 ]);
 for (const entry of releaseManifest.documentation ?? []) {
@@ -112,7 +109,6 @@ const packageEntries = new Set(
 requireEqual(packageEntries.size, releaseManifest.package_files, "Package file count");
 for (const required of [
   "package/CHANGELOG.md",
-  "package/docs/migrating-from-skiller.md",
   "package/docs/rfc-210-compatibility.md",
   "package/LICENSE",
   "package/schemas/skills.schema.json",

@@ -16,6 +16,6 @@ export interface DoctorReport {
     machine: MachineInventory | null;
     issues: DotagentsIssue[];
 }
-/** Read-only health report suitable for both CLI JSON and Skiller tRPC mapping. */
+/** Read-only health report suitable for CLI JSON and API mappings. */
 export declare function doctorLibrary(options: DoctorOptions): Promise<DoctorReport>;
 //# sourceMappingURL=doctor.d.ts.map

@@ -122,7 +122,6 @@ export function publishReleaseArtifacts(options = {}) {
     "dotagents.sbom.cdx.json",
     "CHANGELOG.md",
     "RELEASE_NOTES.md",
-    "migrating-from-skiller.md",
     "rfc-210-compatibility.md",
     "release-manifest.json",
   ].sort();

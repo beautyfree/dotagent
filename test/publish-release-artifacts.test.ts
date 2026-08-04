@@ -39,7 +39,6 @@ function artifactDirectory(): string {
   writeFileSync(resolve(directory, "dotagents.sbom.cdx.json"), "{}\n");
   writeFileSync(resolve(directory, "CHANGELOG.md"), "# Changelog\n");
   writeFileSync(resolve(directory, "RELEASE_NOTES.md"), "## 0.1.0\n\nFirst release.\n");
-  writeFileSync(resolve(directory, "migrating-from-skiller.md"), "# Migration\n");
   writeFileSync(resolve(directory, "rfc-210-compatibility.md"), "# RFC compatibility\n");
   writeFileSync(resolve(directory, "release-manifest.json"), JSON.stringify(releaseManifest));
   return directory;
