@@ -8,6 +8,7 @@ const packed = JSON.parse(execFileSync(npm, ["pack", "--dry-run", "--json"], {
   cwd: root,
   encoding: "utf8",
   env: { ...process.env, npm_config_ignore_scripts: "true" },
+  shell: process.platform === "win32",
 }));
 const files = new Set(packed[0]?.files?.map((entry) => entry.path) ?? []);
 const required = [
