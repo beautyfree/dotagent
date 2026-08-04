@@ -20,7 +20,10 @@ function defaultExec(file, args, options = {}) {
 }
 
 function commandFailure(label, result) {
-  const detail = `${result.stderr ?? ""}\n${result.stdout ?? ""}`.trim().slice(0, 1200);
+  const output = `${result.stderr ?? ""}\n${result.stdout ?? ""}`.trim();
+  // npm emits its useful error after a long package file list. Keep the tail
+  // so a failed release is diagnosable without exposing unbounded logs.
+  const detail = output.length > 1600 ? `…${output.slice(-1600)}` : output;
   throw new Error(`${label} failed${detail ? `: ${detail}` : ""}`);
 }
 
