@@ -34,8 +34,14 @@ dotagents setup
 ```
 
 That is all you need to start. dotagents looks at your existing agent skills,
-shows you what it found, and asks before changing anything. Your current files
-stay where they are — nothing is silently replaced or uploaded.
+shows you what it found, and asks once before changing anything. Your current
+files stay where they are — nothing is silently replaced or uploaded. Empty
+compatible agent folders are connected safely as part of that same setup.
+
+Afterwards, your library has one clear job: it is the home for the skills you
+choose to carry. Agents that already understand `.agents/skills` use it
+directly; other compatible agents receive safe links only when their own skills
+folder is empty. Existing agent files are left untouched.
 
 ## Keep your toolkit yours
 

@@ -32,6 +32,8 @@ export interface MachineInventory {
 export interface ScanMachineOptions {
     platform: Platform;
     home: string;
+    /** Optional process environment for deterministic discovery in callers and tests. */
+    environment?: NodeJS.ProcessEnv;
     port?: MachinePort;
 }
 export declare function expandMachinePath(template: string, home: string, platform: Platform): string;

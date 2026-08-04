@@ -101,7 +101,11 @@ export async function isSkillsOnlyMarker(marker, roots, platform, port) {
     return nested.length > 0 && containsOnlySkillBranches(markerResolved, nested, pathApi, port);
 }
 export async function scanMachineAgents(descriptors, options) {
-    const port = options.port ?? new NodeMachinePort({ platform: options.platform });
+    const port = options.port ??
+        new NodeMachinePort({
+            platform: options.platform,
+            ...(options.environment ? { env: options.environment } : {}),
+        });
     const agents = [];
     for (const descriptor of [...descriptors].sort((left, right) => left.slug.localeCompare(right.slug, "en"))) {
         if (!descriptor.platforms.includes(options.platform)) {

@@ -5,6 +5,7 @@ import process from "node:process";
 import { auditLibrary } from "./audit.js";
 import { parseOwnedImportSpec, validateImportCandidates } from "./cli-import.js";
 import { parseMaterializationTargetSpec } from "./cli-target.js";
+import { applyConnectPlan, planConnect } from "./connect.js";
 import { doctorLibrary } from "./doctor.js";
 import { GitDependencyResolver } from "./git-resolver.js";
 import { applyLibraryClone, applyLibraryCommit, applyLibraryGitInitialization, applyLibraryPull, applyLibraryPush, getLibraryGitStatus, planLibraryClone, planLibraryCommit, planLibraryGitInitialization, planLibraryPull, planLibraryPush, } from "./git-workspace.js";
@@ -44,8 +45,33 @@ function setupSummary(plan) {
         lines.push(`${summary.needsReview} ${summary.needsReview === 1 ? "skill needs" : "skills need"} review and will stay untouched.`);
     if (summary.linkedAliases)
         lines.push(`${summary.linkedAliases} linked ${summary.linkedAliases === 1 ? "alias is" : "aliases are"} already available; nothing will be copied.`);
-    lines.push("", "Nothing outside your new library will be removed or overwritten.");
+    lines.push("", "Nothing outside your library will be removed or overwritten. Compatible empty agent folders can be connected safely after you confirm.");
     return `${lines.join("\n")}\n`;
+}
+function connectSummary(plan) {
+    const { summary } = plan;
+    if (summary.agentsFound === 0)
+        return "No compatible installed agents were found. Your library is still ready to carry with you.\n";
+    const lines = [`Your library is ready for ${summary.agentsFound} ${summary.agentsFound === 1 ? "agent" : "agents"}.`];
+    if (summary.sharedAgents.length)
+        lines.push(`${summary.sharedAgents.join(", ")} already ${summary.sharedAgents.length === 1 ? "reads" : "read"} your shared library.`);
+    if (summary.linksToCreate)
+        lines.push(`${summary.linkedAgents.join(", ")} will get safe links to ${summary.linksToCreate} ${summary.linksToCreate === 1 ? "skill" : "skills"}.`);
+    if (summary.needsReview)
+        lines.push(`${summary.needsReview} ${summary.needsReview === 1 ? "existing skill needs" : "existing skills need"} review and will stay untouched.`);
+    lines.push("No existing agent files will be replaced.");
+    return `${lines.join("\n")}\n`;
+}
+function displayPath(value, home = process.env.HOME) {
+    if (!home)
+        return value;
+    const resolvedHome = path.resolve(home);
+    const resolvedValue = path.resolve(value);
+    if (resolvedValue === resolvedHome)
+        return "~";
+    if (resolvedValue.startsWith(`${resolvedHome}${path.sep}`))
+        return `~/${path.relative(resolvedHome, resolvedValue)}`;
+    return value;
 }
 function statusSummary(status) {
     if (status.targets.length === 0)
@@ -64,13 +90,13 @@ function statusSummary(status) {
         lines.push("Nothing managed by dotagents needs attention.");
     return `${lines.join("\n")}\n`;
 }
-async function confirmSetup() {
+async function confirm(question) {
     if (!process.stdin.isTTY || !process.stdout.isTTY)
         return false;
     const { createInterface } = await import("node:readline/promises");
     const prompt = createInterface({ input: process.stdin, output: process.stdout });
     try {
-        return /^(y|yes)$/i.test((await prompt.question("Create this library now? [y/N] ")).trim());
+        return /^(y|yes)$/i.test((await prompt.question(question)).trim());
     }
     finally {
         prompt.close();
@@ -137,7 +163,7 @@ async function main() {
     const directory = positional[0] ?? ".";
     const json = args.includes("--json");
     if (command === "help" || command === "--help" || command === "-h") {
-        process.stdout.write("Start here:\n  dotagents setup [library-directory] [--remote git-url] [--dry-run] [--yes] [--out setup-plan.json] [--json]\n  dotagents status [library-directory] [--json]\n  dotagents doctor [library-directory] [--json]\n\nSetup discovers existing skills, keeps verified external skills linked to their source, and never overwrites agent folders. Add --remote to make the new library a Git repository; in a terminal it asks before creating anything, while --yes is for automation.\n\nAdvanced workflows:\n  dotagents init [library-directory] [--name package-name] [--out plan.json] [--json]\n  dotagents inspect [library-directory] [--json]\n  dotagents import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\n  dotagents resolve [library-directory] [source-trust-options] [--minimum-release-age minutes] [--out plan.json] [--json]\n  dotagents git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\n  dotagents clone <git-url> <library-directory> [source-trust-options] [--out plan.json] [--json]\n  dotagents commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\n  dotagents sync [library-directory] [--pull|--push] [--public|--team] [source-trust-options] [--out plan.json]\n  dotagents plan [library-directory] --target slug=mode=path [source-trust-options] [--out plan.json] [--json]\n  dotagents apply <plan.json> --yes [--json]\n  dotagents recover [library-directory] [--plan-id id --yes] [--json]\n\nsource-trust-options (network is denied when omitted):\n  --trust-source git-url       Trust one exact normalized repository; repeatable.\n  --trust-host host            Trust one Git host; repeatable.\n  --trust-github-org owner     Trust one GitHub organization; repeatable.\n  --allow-local-sources        Required in addition to --trust-source for file: repositories.\n  --trust-all                  Explicitly trust every source (not recommended).\n  --minimum-release-age mins   Require a reviewed commit cooling-off period before content is accepted.\n");
+        process.stdout.write("Start here:\n  dotagents setup\n  dotagents connect\n  dotagents status\n\nSetup creates your portable library. Connect safely makes it available to compatible installed agents. Both ask before changing anything.\n\nAdvanced workflows:\n  dotagents setup [library-directory] [--remote git-url] [--dry-run] [--yes] [--out setup-plan.json] [--json]\n  dotagents connect [library-directory] [--dry-run] [--yes] [--out connect-plan.json] [--json]\n  dotagents init [library-directory] [--name package-name] [--out plan.json] [--json]\n  dotagents inspect [library-directory] [--json]\n  dotagents import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\n  dotagents resolve [library-directory] [source-trust-options] [--minimum-release-age minutes] [--out plan.json] [--json]\n  dotagents git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\n  dotagents clone <git-url> <library-directory> [source-trust-options] [--out plan.json] [--json]\n  dotagents commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\n  dotagents sync [library-directory] [--pull|--push] [--public|--team] [source-trust-options] [--out plan.json]\n  dotagents plan [library-directory] --target slug=mode=path [source-trust-options] [--out plan.json] [--json]\n  dotagents apply <plan.json> --yes [--json]\n  dotagents recover [library-directory] [--plan-id id --yes] [--json]\n\nsource-trust-options (network is denied when omitted):\n  --trust-source git-url       Trust one exact normalized repository; repeatable.\n  --trust-host host            Trust one Git host; repeatable.\n  --trust-github-org owner     Trust one GitHub organization; repeatable.\n  --allow-local-sources        Required in addition to --trust-source for file: repositories.\n  --trust-all                  Explicitly trust every source (not recommended).\n  --minimum-release-age mins   Require a reviewed commit cooling-off period before content is accepted.\n");
         return 0;
     }
     if (command === "setup") {
@@ -166,7 +192,7 @@ async function main() {
         }
         if (!json)
             process.stdout.write(setupSummary(plan));
-        const confirmed = args.includes("--yes") || (await confirmSetup());
+        const confirmed = args.includes("--yes") || (await confirm("Create this library now? [y/N] "));
         if (!confirmed) {
             if (json)
                 process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
@@ -175,10 +201,56 @@ async function main() {
             return 0;
         }
         const result = await applySetupPlan(plan);
+        const connection = await planConnect({ root: result.root, ...(home ? { home } : {}) });
+        const connected = !connection.materialization.hasConflicts && connection.summary.linksToCreate > 0
+            ? await applyConnectPlan(connection)
+            : null;
+        if (json)
+            process.stdout.write(`${JSON.stringify({ ok: true, plan, result, connection, connected }, null, 2)}\n`);
+        else {
+            process.stdout.write(`Your library is ready at ${displayPath(result.root)}: ${result.import.copied} copied, ${result.import.adopted} already there, and ${result.import.dependenciesRecorded} source-linked${result.gitInitialized ? "; Git is ready too" : ""}.\n`);
+            if (connection.materialization.hasConflicts)
+                process.stdout.write(`\n${connectSummary(connection)}`);
+            else {
+                if (connection.summary.sharedAgents.length)
+                    process.stdout.write(`${connection.summary.sharedAgents.join(", ")} can use your shared library now.\n`);
+                if (connected)
+                    process.stdout.write(`Connected ${connected.applied} ${connected.applied === 1 ? "skill" : "skills"} safely.\n`);
+            }
+        }
+        return 0;
+    }
+    if (command === "connect") {
+        const root = positional[0] ? path.resolve(positional[0]) : undefined;
+        const home = optionValue("--home");
+        const plan = await planConnect({ ...(root ? { root } : {}), ...(home ? { home } : {}) });
+        const output = optionValue("--out");
+        if (output)
+            await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+        if (args.includes("--dry-run") || output) {
+            if (json)
+                process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+            else
+                process.stdout.write(connectSummary(plan));
+            return plan.materialization.hasConflicts ? 1 : 0;
+        }
+        if (!json)
+            process.stdout.write(connectSummary(plan));
+        if (plan.materialization.hasConflicts)
+            return 1;
+        const confirmed = args.includes("--yes") || (await confirm("Connect these agents now? [y/N] "));
+        if (!confirmed) {
+            if (json)
+                process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+            else
+                process.stdout.write("Nothing changed. Run dotagents connect again whenever you are ready.\n");
+            return 0;
+        }
+        const result = await applyConnectPlan(plan);
         if (json)
             process.stdout.write(`${JSON.stringify({ ok: true, plan, result }, null, 2)}\n`);
         else
-            process.stdout.write(`Your library is ready at ${result.root}: ${result.import.copied} copied, ${result.import.adopted} already there, and ${result.import.dependenciesRecorded} source-linked${result.gitInitialized ? "; Git is ready too" : ""}.\n`);
+            process.stdout.write(`Connected ${result.applied} ${result.applied === 1 ? "skill" : "skills"} safely.\n`);
         return 0;
     }
     if (command === "init") {
@@ -422,7 +494,13 @@ async function main() {
             const result = await applySetupPlan(plan);
             process.stdout.write(json
                 ? `${JSON.stringify({ ok: true, ...result }, null, 2)}\n`
-                : `Your library is ready at ${result.root}: ${result.import.copied} copied, ${result.import.adopted} already there.\n`);
+                : `Your library is ready at ${displayPath(result.root)}: ${result.import.copied} copied, ${result.import.adopted} already there.\n`);
+        }
+        else if (plan.kind === "connect") {
+            const result = await applyConnectPlan(plan);
+            process.stdout.write(json
+                ? `${JSON.stringify({ ok: true, ...result }, null, 2)}\n`
+                : `Connected ${result.applied} ${result.applied === 1 ? "skill" : "skills"} safely.\n`);
         }
         else {
             throw new Error("Unsupported plan kind");

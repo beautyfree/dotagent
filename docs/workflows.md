@@ -14,6 +14,14 @@ dotagents setup
 keeps verified Skills CLI packages as source references, and leaves uncertain
 or unsafe folders on the current machine.
 
+After its one confirmation, setup connects compatible empty agent folders
+safely. You can repeat that connection later whenever you install another
+agent:
+
+```sh
+dotagents connect
+```
+
 Preview without changing anything:
 
 ```sh

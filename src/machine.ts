@@ -86,6 +86,8 @@ export interface MachineInventory {
 export interface ScanMachineOptions {
   platform: Platform;
   home: string;
+  /** Optional process environment for deterministic discovery in callers and tests. */
+  environment?: NodeJS.ProcessEnv;
   port?: MachinePort;
 }
 
@@ -150,7 +152,12 @@ export async function scanMachineAgents(
   descriptors: AgentDescriptor[],
   options: ScanMachineOptions,
 ): Promise<MachineInventory> {
-  const port = options.port ?? new NodeMachinePort({ platform: options.platform });
+  const port =
+    options.port ??
+    new NodeMachinePort({
+      platform: options.platform,
+      ...(options.environment ? { env: options.environment } : {}),
+    });
   const agents: MachineAgentInventory[] = [];
   for (const descriptor of [...descriptors].sort((left, right) => left.slug.localeCompare(right.slug, "en"))) {
     if (!descriptor.platforms.includes(options.platform)) {

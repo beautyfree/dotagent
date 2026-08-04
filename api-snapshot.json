@@ -6,7 +6,7 @@
     {
       "subpath": ".",
       "types": "./dist/index.d.ts",
-      "sha256": "6152afe022daddcd3bce058f9b07b5718142ff3b14b6ef98b3d7c0857d09667e"
+      "sha256": "6e9ea38f402c8d1a13770cfe67d510b617e84ca663f6913f030755665299e1ae"
     },
     {
       "subpath": "./adapters/skills-cli",
@@ -116,7 +116,7 @@
     {
       "subpath": "./machine",
       "types": "./dist/machine.d.ts",
-      "sha256": "7a869a88ebfdd278850c5bae7b5dccca67d271aa251594e3fb5c524bc0f03002"
+      "sha256": "896f75a36895959a0688c4a354ff8bfc07d4cb8cb9d50bc3f9dad6427ccc5f6f"
     },
     {
       "subpath": "./materialize",

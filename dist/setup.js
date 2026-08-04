@@ -47,7 +47,11 @@ export async function planSetup(options = {}) {
     const platform = setupPlatform(options.platform ?? process.platform);
     const catalog = builtinAgentCatalog();
     const descriptors = builtinAgentDescriptors({ platforms: [platform] });
-    const machine = await scanMachineAgents(descriptors, { platform, home });
+    const machine = await scanMachineAgents(descriptors, {
+        platform,
+        home,
+        ...(options.environment ? { environment: options.environment } : {}),
+    });
     const detected = new Set(machine.detectedSlugs);
     const roots = new Map();
     const addRoot = (entry) => {
