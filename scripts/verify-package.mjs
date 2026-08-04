@@ -36,6 +36,11 @@ for (const file of files) {
 }
 const cli = readFileSync(new URL("dist/cli.js", root), "utf8");
 if (!cli.startsWith("#!/usr/bin/env node")) throw new Error("Published CLI is missing its Node shebang");
+for (const [name, target] of Object.entries(manifest.bin ?? {})) {
+  if (typeof target !== "string" || target.startsWith("./"))
+    throw new Error(`Published bin ${name} must use an npm-valid package path`);
+  if (!files.has(target)) throw new Error(`Published bin ${name} has no packaged target`);
+}
 for (const [subpath, target] of Object.entries(manifest.exports ?? {})) {
   if (typeof target === "string") {
     const relative = target.replace(/^\.\//, "");

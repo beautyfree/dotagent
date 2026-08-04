@@ -196,7 +196,7 @@
     }
   },
   "bin": {
-    "dotagents": "./dist/cli.js"
+    "dotagents": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
