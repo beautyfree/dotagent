@@ -171,7 +171,7 @@ async function main() {
             if (json)
                 process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
             else
-                process.stdout.write("Nothing changed. Run dotagents setup --yes when you are ready.\n");
+                process.stdout.write("Nothing changed. Run dotagents setup again whenever you are ready.\n");
             return 0;
         }
         const result = await applySetupPlan(plan);
