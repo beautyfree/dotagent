@@ -81,7 +81,8 @@ requireEqual(sha(sbomPath, "sha256"), releaseManifest.sbom?.sha256, "SBOM SHA-25
 const sbom = JSON.parse(readFileSync(sbomPath, "utf8"));
 requireEqual(sbom.bomFormat, "CycloneDX", "SBOM format");
 requireEqual(sbom.metadata?.component?.version, packageManifest.version, "SBOM package version");
-if (!String(sbom.metadata?.component?.purl ?? "").includes("%40beautyfree/dotagents"))
+const npmPurlName = packageManifest.name.replace("@", "%40").replace("/", "%2F");
+if (!String(sbom.metadata?.component?.purl ?? "").includes(`pkg:npm/${npmPurlName}@${packageManifest.version}`))
   throw new Error("SBOM package identity is missing");
 
 const requiredDocumentation = new Set([

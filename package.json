@@ -1,7 +1,7 @@
 {
   "name": "dotagents",
-  "version": "0.0.0",
-  "description": "Canonical agent skill library engine and CLI",
+  "version": "0.1.0",
+  "description": "A portable, Git-backed library for your AI agent skills and setup",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,7 +12,18 @@
     "url": "https://github.com/beautyfree/dotagents/issues"
   },
   "type": "module",
-  "private": true,
+  "private": false,
+  "keywords": [
+    "ai-agents",
+    "agent-skills",
+    "skills",
+    "claude-code",
+    "codex",
+    "git"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },
@@ -197,11 +208,12 @@
     "api:check": "bun run build && node scripts/generate-api-snapshot.mjs --check",
     "check": "bun run lint && bun run format:check && bun run typecheck && bun run test && bun run schema:check && bun run api:check",
     "package:check": "bun run build && node scripts/verify-package.mjs",
+    "package:smoke": "bun run build && node scripts/verify-packed-install.mjs",
     "release:artifacts": "node scripts/build-release-artifacts.mjs",
     "release:verify": "node scripts/verify-release-artifacts.mjs",
     "release:publish": "node scripts/publish-release-artifacts.mjs",
     "ci": "bun run check && node dist/cli.js inspect fixtures/valid-library --json && node dist/cli.js audit fixtures/valid-library --public --json",
-    "release:check": "bun run ci && bun run package:check && bun run api:check"
+    "release:check": "bun run ci && bun run package:check && bun run package:smoke && bun run api:check"
   },
   "dependencies": {
     "yaml": "^2.8.3",

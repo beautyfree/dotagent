@@ -4,8 +4,11 @@ All notable changes to `dotagents` are recorded here. The project follows semant
 
 ## Unreleased
 
+## [0.1.0] - 2026-08-04
+
 ### Added
 
+- First public release of the independent `dotagents` CLI and TypeScript library.
 - Canonical `skills.json`, `skills.lock`, portable `dotagents.yaml`, and private `dotagents.local.yaml` schemas.
 - Cross-agent discovery, Skills CLI v3 support, and a provider-neutral catalog for 49 agent integrations.
 - Journaled import and materialization plans with rollback, recovery, stale-preview checks, and unmanaged-target protection.
@@ -26,6 +29,7 @@ All notable changes to `dotagents` are recorded here. The project follows semant
 - Interrupted import and materialization recovery now has a value-redacted no-write preview and a stale-checked plan ID before `--yes` can modify local state.
 - Release artifacts now bind the npm tarball, CycloneDX SBOM, changelog, migration/RFC documentation, package integrity, and immutable source commit through verified checksums.
 - Release publication is retry-safe: an existing npm version must match the reviewed tarball integrity, and a permanent GitHub Release stays draft until every verified artifact is uploaded.
+- A packed-install smoke test validates the published tarball's package exports and CLI in a clean consumer directory.
 
 ### Security
 
