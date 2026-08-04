@@ -142,12 +142,18 @@ export function publishReleaseArtifacts(options = {}) {
   if (existingRelease && !existingTagCommit && existingRelease.targetCommitish !== releaseManifest.source_commit)
     throw new Error(`GitHub release ${tag} does not target the reviewed source commit`);
 
-  const tarball = resolve(artifactRoot, tarballName);
   if (!existingIntegrity) {
     requireSuccess(
       "npm provenance publication",
-      exec("npm", ["publish", tarball, "--access", "public", "--provenance"], { env: commandEnv }),
+      // npm can generate a GitHub Actions provenance statement only while it
+      // can inspect this checked-out repository. Publishing the verified
+      // tarball path makes npm see a standalone archive and report
+      // "provider: null" instead.
+      exec("npm", ["publish", "--access", "public", "--provenance"], { cwd: root, env: commandEnv }),
     );
+    const publishedIntegrity = packageRegistryIntegrity(exec, packageManifest.name, packageManifest.version, commandEnv);
+    if (publishedIntegrity !== releaseManifest.npm_integrity)
+      throw new Error("npm published a tarball that does not match the reviewed release artifact");
     log(`Published ${packageManifest.name}@${packageManifest.version} to npm with provenance.`);
   } else {
     log(`npm already contains the verified ${packageManifest.name}@${packageManifest.version}; publication skipped.`);

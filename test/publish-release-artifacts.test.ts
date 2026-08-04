@@ -59,11 +59,15 @@ describe("permanent release publication", () => {
     const calls: string[] = [];
     let releaseExists = false;
     let published = false;
+    let npmPublished = false;
     const exec = (file: string, args: string[]) => {
       const command = `${file} ${args.join(" ")}`;
       calls.push(command);
-      if (command.startsWith("npm view ")) return notFound("npm");
-      if (command.startsWith("npm publish ")) return success();
+      if (command.startsWith("npm view ")) return npmPublished ? success(JSON.stringify(integrity)) : notFound("npm");
+      if (command.startsWith("npm publish ")) {
+        npmPublished = true;
+        return success();
+      }
       if (command.startsWith("gh release view ")) {
         if (!releaseExists) return notFound("github");
         return success(
