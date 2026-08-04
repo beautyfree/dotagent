@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 
 const root = new URL("../", import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL("package.json", root), "utf8"));
-const packed = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], {
+const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const packed = JSON.parse(execFileSync(npm, ["pack", "--dry-run", "--json"], {
   cwd: root,
   encoding: "utf8",
   env: { ...process.env, npm_config_ignore_scripts: "true" },

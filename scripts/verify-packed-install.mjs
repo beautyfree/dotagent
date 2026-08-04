@@ -6,6 +6,7 @@ import { basename, join, resolve } from "node:path";
 const root = resolve(new URL("..", import.meta.url).pathname);
 const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const scratch = mkdtempSync(join(tmpdir(), "dotagents-pack-"));
+const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 
 function run(file, args, options = {}) {
   return execFileSync(file, args, {
@@ -16,7 +17,7 @@ function run(file, args, options = {}) {
 }
 
 try {
-  const packed = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", scratch], { cwd: root }));
+  const packed = JSON.parse(run(npm, ["pack", "--json", "--pack-destination", scratch], { cwd: root }));
   const tarballName = basename(packed[0]?.filename ?? "");
   if (!tarballName.endsWith(".tgz")) throw new Error("npm pack did not produce a tarball");
   const tarball = join(scratch, tarballName);
@@ -25,7 +26,7 @@ try {
     join(scratch, "package.json"),
     `${JSON.stringify({ name: "dotagents-package-smoke", private: true, type: "module" })}\n`,
   );
-  run("npm", ["install", "--ignore-scripts", "--no-package-lock", tarball]);
+  run(npm, ["install", "--ignore-scripts", "--no-package-lock", tarball]);
 
   run(process.execPath, [
     "--input-type=module",
