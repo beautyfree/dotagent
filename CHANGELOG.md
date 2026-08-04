@@ -1,12 +1,12 @@
 # Changelog
 
-All notable changes to `@beautyfree/dotagent` are recorded here. The project follows semantic versioning after its first public package release.
+All notable changes to `dotagents` are recorded here. The project follows semantic versioning after its first public package release.
 
 ## Unreleased
 
 ### Added
 
-- Canonical `skills.json`, `skills.lock`, portable `dotagent.yaml`, and private `dotagent.local.yaml` schemas.
+- Canonical `skills.json`, `skills.lock`, portable `dotagents.yaml`, and private `dotagents.local.yaml` schemas.
 - Cross-agent discovery, Skills CLI v3 and Skiller v1-v3 compatibility adapters, and a provider-neutral catalog for 49 agent integrations.
 - Journaled import and materialization plans with rollback, recovery, stale-preview checks, and unmanaged-target protection.
 - Immutable Git dependency resolution, package integrity, license audit, prepared checkouts, and deterministic dependency update deltas.

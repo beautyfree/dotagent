@@ -34,7 +34,7 @@ const expectedArtifacts = new Set([
   tarballName,
   `${tarballName}.sha256`,
   "SHA256SUMS",
-  "dotagent.sbom.cdx.json",
+  "dotagents.sbom.cdx.json",
   "CHANGELOG.md",
   "RELEASE_NOTES.md",
   "migrating-from-skiller.md",
@@ -60,7 +60,7 @@ requireEqual(
 const checksumLines = readFileSync(resolve(artifactRoot, "SHA256SUMS"), "utf8").trim().split("\n");
 const requiredChecksums = new Set([
   tarballName,
-  "dotagent.sbom.cdx.json",
+  "dotagents.sbom.cdx.json",
   "CHANGELOG.md",
   "RELEASE_NOTES.md",
   "migrating-from-skiller.md",
@@ -77,13 +77,13 @@ for (const line of checksumLines) {
 if (requiredChecksums.size > 0) throw new Error(`Missing SHA256SUMS entries: ${[...requiredChecksums].join(", ")}`);
 
 const sbomName = releaseManifest.sbom?.file ?? "";
-if (sbomName !== "dotagent.sbom.cdx.json") throw new Error("SBOM file name is missing or unsafe");
+if (sbomName !== "dotagents.sbom.cdx.json") throw new Error("SBOM file name is missing or unsafe");
 const sbomPath = resolve(artifactRoot, sbomName);
 requireEqual(sha(sbomPath, "sha256"), releaseManifest.sbom?.sha256, "SBOM SHA-256");
 const sbom = JSON.parse(readFileSync(sbomPath, "utf8"));
 requireEqual(sbom.bomFormat, "CycloneDX", "SBOM format");
 requireEqual(sbom.metadata?.component?.version, packageManifest.version, "SBOM package version");
-if (!String(sbom.metadata?.component?.purl ?? "").includes("%40beautyfree/dotagent"))
+if (!String(sbom.metadata?.component?.purl ?? "").includes("%40beautyfree/dotagents"))
   throw new Error("SBOM package identity is missing");
 
 const requiredDocumentation = new Set([
@@ -117,7 +117,7 @@ for (const required of [
   "package/LICENSE",
   "package/schemas/skills.schema.json",
   "package/schemas/skills-lock.schema.json",
-  "package/schemas/dotagent.schema.json",
+  "package/schemas/dotagents.schema.json",
 ]) {
   if (!packageEntries.has(required)) throw new Error(`Tarball is missing ${required}`);
 }

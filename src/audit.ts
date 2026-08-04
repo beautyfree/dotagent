@@ -1,7 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
-import type { DotagentIssue } from "./issues.js";
+import type { DotagentsIssue } from "./issues.js";
 import { scanLibrary, type LibraryInventory } from "./inventory.js";
 import { loadLibrary } from "./library.js";
 
@@ -68,7 +68,7 @@ export async function scanSkillForSecrets(skillRoot: string): Promise<SecretFile
     const entries = await readdir(directory, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
     for (const entry of entries) {
-      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagent-managed.json") continue;
+      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagents-managed.json") continue;
       const absolute = path.join(directory, entry.name);
       if (entry.isSymbolicLink()) throw new Error(`Refusing to scan linked import content: ${absolute}`);
       if (entry.isDirectory()) {
@@ -98,7 +98,7 @@ export interface LibraryAuditReport {
   ok: boolean;
   publicReady: boolean;
   library: LibraryInventory | null;
-  issues: DotagentIssue[];
+  issues: DotagentsIssue[];
 }
 
 export type LibrarySecretFinding = SecretFileFinding & { skill: string };
@@ -121,7 +121,7 @@ function auditIssue(
   message: string,
   remediation: string,
   field?: string,
-): DotagentIssue {
+): DotagentsIssue {
   return { code, severity, message, remediation, ...(field ? { field } : {}) };
 }
 
@@ -141,7 +141,7 @@ function skillFrontmatter(input: string): Record<string, unknown> | null {
 /** Structural audit only: reads bounded files already accepted by inventory and never executes skill content. */
 export async function auditLibrary(options: AuditLibraryOptions): Promise<LibraryAuditReport> {
   const root = path.resolve(options.root);
-  const issues: DotagentIssue[] = [];
+  const issues: DotagentsIssue[] = [];
   const scanned = await scanLibrary(root);
   if (!scanned.ok)
     return {

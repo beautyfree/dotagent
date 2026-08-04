@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 function fixture(skillMd: string, license?: string): string {
-  const root = mkdtempSync(join(tmpdir(), "dotagent-audit-"));
+  const root = mkdtempSync(join(tmpdir(), "dotagents-audit-"));
   roots.push(root);
   mkdirSync(join(root, "skills/writing"), { recursive: true });
   writeFileSync(join(root, "skills/writing/SKILL.md"), skillMd);

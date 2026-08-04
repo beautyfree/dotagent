@@ -5,7 +5,7 @@ import path from "node:path";
 import { parse } from "yaml";
 import type { ImportCandidate } from "./import.js";
 import { scanOwnedSkill } from "./inventory.js";
-import type { DotagentIssue } from "./issues.js";
+import type { DotagentsIssue } from "./issues.js";
 
 export type DiscoveryLocationKind = "shared" | "agent-local" | "inherited";
 
@@ -42,7 +42,7 @@ export interface DiscoveryCollision {
 export interface SkillDiscoveryReport {
   skills: DiscoveredSkill[];
   collisions: DiscoveryCollision[];
-  issues: DotagentIssue[];
+  issues: DotagentsIssue[];
   linkedAliases: number;
 }
 
@@ -82,7 +82,7 @@ function integritySuffix(integrity: string): string {
   return createHash("sha256").update(integrity).digest("hex").slice(0, 8);
 }
 
-function issue(code: DotagentIssue["code"], message: string, remediation: string, issuePath: string): DotagentIssue {
+function issue(code: DotagentsIssue["code"], message: string, remediation: string, issuePath: string): DotagentsIssue {
   return { code, severity: "warning", message, remediation, path: issuePath };
 }
 
@@ -111,9 +111,9 @@ async function internalSkillMarkdownAlias(skillRoot: string, discoveryRoot: stri
 async function collectRoots(
   root: SkillDiscoveryRoot,
   limits: DiscoveryLimits,
-): Promise<{ paths: string[]; aliases: number; issues: DotagentIssue[] }> {
+): Promise<{ paths: string[]; aliases: number; issues: DotagentsIssue[] }> {
   const paths: string[] = [];
-  const issues: DotagentIssue[] = [];
+  const issues: DotagentsIssue[] = [];
   let aliases = 0;
   let visited = 0;
   const visit = async (directory: string, depth: number): Promise<void> => {
@@ -136,7 +136,7 @@ async function collectRoots(
     }
     entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
     for (const entry of entries) {
-      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagent") continue;
+      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagents") continue;
       const candidate = path.join(directory, entry.name);
       let directoryLike = entry.isDirectory();
       if (entry.isSymbolicLink()) {
@@ -175,7 +175,7 @@ export async function discoverSkills(
   limits: DiscoveryLimits = DEFAULT_DISCOVERY_LIMITS,
 ): Promise<SkillDiscoveryReport> {
   const byIntegrity = new Map<string, DiscoveredSkill>();
-  const issues: DotagentIssue[] = [];
+  const issues: DotagentsIssue[] = [];
   let linkedAliases = 0;
   const sortedRoots = [...roots].sort((left, right) =>
     `${left.kind}:${left.agent ?? ""}:${left.path}`.localeCompare(

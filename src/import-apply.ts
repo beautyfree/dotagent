@@ -3,7 +3,7 @@ import { lstat, mkdir, open, readdir, readFile, rename, rm, writeFile } from "no
 import path from "node:path";
 import { stringify } from "yaml";
 import { scanSkillForSecrets } from "./audit.js";
-import { DOTAGENT_CONFIG_FILE } from "./config.js";
+import { DOTAGENTS_CONFIG_FILE } from "./config.js";
 import type { ImportOperation, ImportPlan } from "./import.js";
 import { scanOwnedSkill } from "./inventory.js";
 import { computePlanId } from "./plan.js";
@@ -54,7 +54,7 @@ function hashText(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 function metadataRoot(library: string): string {
-  return path.join(library, ".dotagent");
+  return path.join(library, ".dotagents");
 }
 function journalPath(library: string): string {
   return path.join(metadataRoot(library), "import-journal.json");
@@ -86,8 +86,8 @@ function configText(plan: ImportPlan): string {
 async function writeAtomic(filePath: string, content: string): Promise<void> {
   await mkdir(path.dirname(filePath), { recursive: true });
   const suffix = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const temporary = `${filePath}.dotagent-tmp-${suffix}`;
-  const backup = `${filePath}.dotagent-backup-${suffix}`;
+  const temporary = `${filePath}.dotagents-tmp-${suffix}`;
+  const backup = `${filePath}.dotagents-backup-${suffix}`;
   await writeFile(temporary, content, { encoding: "utf8", flag: "wx" });
   const hadPrevious = await exists(filePath);
   if (hadPrevious) await rename(filePath, backup);
@@ -110,7 +110,7 @@ async function copyDirectory(source: string, target: string): Promise<void> {
   const entries = await readdir(source, { withFileTypes: true });
   entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
   for (const entry of entries) {
-    if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagent-managed.json") continue;
+    if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagents-managed.json") continue;
     const from = path.join(source, entry.name);
     const to = path.join(target, entry.name);
     if (entry.isSymbolicLink()) throw new Error(`Refusing linked import content: ${from}`);
@@ -153,7 +153,7 @@ async function rollbackJournal(journal: ImportJournal): Promise<void> {
   journal.phase = "rolling-back";
   await writeJournal(journal);
   const manifest = path.join(journal.library, "skills.json");
-  const config = path.join(journal.library, DOTAGENT_CONFIG_FILE);
+  const config = path.join(journal.library, DOTAGENTS_CONFIG_FILE);
   const currentManifest = await readFile(manifest, "utf8");
   const currentConfig = await readFile(config, "utf8");
   const allowedManifest = new Set([hashText(journal.baseManifestText), hashText(journal.nextManifestText)]);
@@ -206,7 +206,7 @@ export async function inspectImportRecovery(libraryRoot: string): Promise<Import
   if (!journal) return null;
   const [currentManifest, currentConfig] = await Promise.all([
     readFile(path.join(library, "skills.json"), "utf8"),
-    readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
+    readFile(path.join(library, DOTAGENTS_CONFIG_FILE), "utf8"),
   ]);
   const complete =
     hashText(currentManifest) === hashText(journal.nextManifestText) &&
@@ -234,7 +234,7 @@ export async function recoverImport(libraryRoot: string): Promise<"none" | "comp
   if (!journal) return "none";
   const [currentManifest, currentConfig] = await Promise.all([
     readFile(path.join(library, "skills.json"), "utf8"),
-    readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
+    readFile(path.join(library, DOTAGENTS_CONFIG_FILE), "utf8"),
   ]);
   const complete =
     hashText(currentManifest) === hashText(journal.nextManifestText) &&
@@ -269,7 +269,7 @@ export async function applyImportPlan(plan: ImportPlan, options: ApplyImportOpti
     throw new Error(`Import is blocked by ${plan.secretFindings.length} possible secret finding(s)`);
   if (await exists(journalPath(plan.library))) throw new Error("An unfinished import journal requires recovery first");
   const manifestPath = path.join(plan.library, "skills.json");
-  const configPath = path.join(plan.library, DOTAGENT_CONFIG_FILE);
+  const configPath = path.join(plan.library, DOTAGENTS_CONFIG_FILE);
   const [baseManifestText, baseConfigText] = await Promise.all([
     readFile(manifestPath, "utf8"),
     readFile(configPath, "utf8"),

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { GitDependencyResolver } from "./git-resolver.js";
 import { scanLibrary, scanOwnedSkill } from "./inventory.js";
-import { DotagentError } from "./issues.js";
+import { DotagentsError } from "./issues.js";
 import { loadLibrary } from "./library.js";
 /**
  * Combines owned skills with immutable, integrity-checked dependency checkouts.
@@ -11,17 +11,17 @@ export async function prepareMaterializationInventory(options) {
     const root = path.resolve(options.root);
     const [inventory, loaded] = await Promise.all([scanLibrary(root), loadLibrary(root)]);
     if (!inventory.ok)
-        throw new DotagentError("Cannot prepare an invalid library", inventory.issues);
+        throw new DotagentsError("Cannot prepare an invalid library", inventory.issues);
     if (!loaded.ok)
-        throw new DotagentError("Cannot prepare an invalid library", loaded.issues);
+        throw new DotagentsError("Cannot prepare an invalid library", loaded.issues);
     const dependencies = Object.entries(loaded.value.manifest.dependencies).sort(([left], [right]) => left.localeCompare(right, "en"));
     if (dependencies.length === 0)
         return inventory.value;
     const lock = loaded.value.lock;
     if (!lock)
         throw new Error("Dependencies require a reviewed skills.lock before materialization");
-    const resolver = options.resolver ?? new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") });
-    const checkoutRoot = path.resolve(options.checkoutRoot ?? path.join(root, ".dotagent", "cache", "checkouts"));
+    const resolver = options.resolver ?? new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagents", "cache", "git") });
+    const checkoutRoot = path.resolve(options.checkoutRoot ?? path.join(root, ".dotagents", "cache", "checkouts"));
     const prepared = await Promise.all(dependencies.map(async ([name, dependency]) => {
         const locked = lock.resolved[name];
         if (!locked)
@@ -34,7 +34,7 @@ export async function prepareMaterializationInventory(options) {
         for (const lockedSkill of dependency.skills) {
             const scanned = await scanOwnedSkill(dependency.root, lockedSkill.path);
             if (!scanned.ok)
-                throw new DotagentError(`Prepared dependency ${dependency.dependency} is invalid`, scanned.issues);
+                throw new DotagentsError(`Prepared dependency ${dependency.dependency} is invalid`, scanned.issues);
             if (scanned.value.name !== lockedSkill.name)
                 throw new Error(`Prepared dependency ${dependency.dependency} changed exported skill name`);
             const folded = scanned.value.name.toLocaleLowerCase("en-US");

@@ -1,10 +1,10 @@
-# dotagent documentation
+# dotagents documentation
 
-dotagent keeps one portable skill library in Git and materializes reviewed views for compatible agents.
+dotagents keeps one portable skill library in Git and materializes reviewed views for compatible agents.
 
 ## Start here
 
-- [Agent Skills RFC compatibility](./rfc-210-compatibility.md) explains which discussion #210 concepts are implemented and where dotagent intentionally differs.
+- [Agent Skills RFC compatibility](./rfc-210-compatibility.md) explains which discussion #210 concepts are implemented and where dotagents intentionally differs.
 - [Migrate from a Skiller sync repository](./migrating-from-skiller.md) explains the versioned compatibility path and canonical repository layout.
 - [Changelog](../CHANGELOG.md) records user-visible package and format changes.
 

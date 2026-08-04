@@ -56,7 +56,7 @@ const sourceTimestamp = execFileSync("git", ["show", "-s", "--format=%cI", sourc
 }).trim();
 sbom.serialNumber = `urn:uuid:${deterministicUuid(`${manifest.name}\0${manifest.version}\0${sourceCommit}\0${sha256}`)}`;
 sbom.metadata = { ...sbom.metadata, timestamp: sourceTimestamp };
-writeFileSync(resolve(output, "dotagent.sbom.cdx.json"), `${JSON.stringify(sbom, null, 2)}\n`);
+writeFileSync(resolve(output, "dotagents.sbom.cdx.json"), `${JSON.stringify(sbom, null, 2)}\n`);
 const documentation = [
   { source: "CHANGELOG.md", target: "CHANGELOG.md" },
   { source: "docs/migrating-from-skiller.md", target: "migrating-from-skiller.md" },
@@ -83,8 +83,8 @@ const releaseManifest = {
   package_size: packed[0]?.size ?? null,
   unpacked_size: packed[0]?.unpackedSize ?? null,
   sbom: {
-    file: "dotagent.sbom.cdx.json",
-    sha256: sha256File(resolve(output, "dotagent.sbom.cdx.json")),
+    file: "dotagents.sbom.cdx.json",
+    sha256: sha256File(resolve(output, "dotagents.sbom.cdx.json")),
   },
   documentation: releaseDocumentation.map((file) => ({
     file,
@@ -95,7 +95,7 @@ writeFileSync(resolve(output, "release-manifest.json"), `${JSON.stringify(releas
 
 const checksummed = [
   filename,
-  "dotagent.sbom.cdx.json",
+  "dotagents.sbom.cdx.json",
   ...releaseDocumentation,
   "release-manifest.json",
 ];

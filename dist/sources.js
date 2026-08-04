@@ -23,6 +23,8 @@ export function diffLibraryLocks(currentLock, nextLock) {
             toSource: normalizeGitIdentity(entry.url),
             fromCommit: previous?.commit ?? null,
             toCommit: entry.commit,
+            fromCommittedAt: previous?.committed_at ?? null,
+            toCommittedAt: entry.committed_at ?? null,
             fromIntegrity: previous?.integrity ?? null,
             toIntegrity: entry.integrity,
             fromLicense: previous?.license ?? null,
@@ -40,6 +42,8 @@ export function diffLibraryLocks(currentLock, nextLock) {
                 toSource: null,
                 fromCommit: previous.commit,
                 toCommit: null,
+                fromCommittedAt: previous.committed_at ?? null,
+                toCommittedAt: null,
                 fromIntegrity: previous.integrity,
                 toIntegrity: null,
                 fromLicense: previous.license ?? null,
@@ -65,7 +69,7 @@ function resolvedSkillNames(manifest, entries) {
     }
 }
 /** Dependencies resolve concurrently, then become a deterministically ordered immutable plan. */
-export async function planResolveDependencies(manifest, resolver, currentLock = null, generatedBy = "@beautyfree/dotagent@0.0.0") {
+export async function planResolveDependencies(manifest, resolver, currentLock = null, generatedBy = "dotagents@0.0.0") {
     const dependencies = Object.entries(manifest.dependencies).sort(([left], [right]) => left.localeCompare(right, "en"));
     const resolved = await Promise.all(dependencies.map(async ([name, dependency]) => {
         const result = await resolver.resolve(name, dependency);
@@ -82,17 +86,19 @@ export async function planResolveDependencies(manifest, resolver, currentLock = 
         resolved: Object.fromEntries(resolved),
     });
     const changes = diffLibraryLocks(currentLock, lock);
+    const sourcePolicy = resolver.sourcePolicy ?? null;
     const payload = {
         kind: "resolve-dependencies",
         schemaVersion: 1,
         manifestHash: computePlanId(manifest),
         lock,
         changes,
+        sourcePolicy,
     };
     return { ...payload, planId: computePlanId(payload) };
 }
 /** Binds a dependency-resolution preview to one local library for serialized CLI apply. */
-export async function planLibraryResolution(root, resolver, generatedBy = "@beautyfree/dotagent@0.0.0") {
+export async function planLibraryResolution(root, resolver, generatedBy = "dotagents@0.0.0") {
     const library = path.resolve(root);
     const loaded = await loadLibrary(library);
     if (!loaded.ok)
@@ -105,6 +111,7 @@ export async function planLibraryResolution(root, resolver, generatedBy = "@beau
         manifestHash: resolved.manifestHash,
         lock: resolved.lock,
         changes: resolved.changes,
+        sourcePolicy: resolved.sourcePolicy,
     };
     return { ...payload, planId: computePlanId(payload) };
 }

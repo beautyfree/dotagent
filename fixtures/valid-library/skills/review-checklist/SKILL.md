@@ -1,6 +1,6 @@
 ---
 name: review-checklist
-description: Example portable skill used by dotagent conformance tests.
+description: Example portable skill used by dotagents conformance tests.
 ---
 
 # Review checklist

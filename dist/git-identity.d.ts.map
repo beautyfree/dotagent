@@ -1,1 +1,1 @@
-{"version":3,"file":"git-identity.d.ts","sourceRoot":"","sources":["../src/git-identity.ts"],"names":[],"mappings":"AAAA,kGAAkG;AAClG,wBAAgB,oBAAoB,CAAC,KAAK,EAAE,MAAM,GAAG,MAAM,CAoB1D"}
+{"version":3,"file":"git-identity.d.ts","sourceRoot":"","sources":["../src/git-identity.ts"],"names":[],"mappings":"AAGA,kGAAkG;AAClG,wBAAgB,oBAAoB,CAAC,KAAK,EAAE,MAAM,GAAG,MAAM,CA8B1D"}

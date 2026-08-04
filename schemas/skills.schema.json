@@ -1,7 +1,7 @@
 {
-  "$ref": "#/definitions/DotagentSkillsManifest",
+  "$ref": "#/definitions/DotagentsSkillsManifest",
   "definitions": {
-    "DotagentSkillsManifest": {
+    "DotagentsSkillsManifest": {
       "type": "object",
       "properties": {
         "schema_version": {
@@ -56,6 +56,24 @@
                   "type": "string"
                 },
                 "minItems": 1
+              },
+              "subtree": {
+                "$ref": "#/definitions/DotagentsSkillsManifest/properties/dependencies/additionalProperties/properties/select/items"
+              },
+              "include": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "minItems": 1
+              },
+              "exclude": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/DotagentsSkillsManifest/properties/dependencies/additionalProperties/properties/include/items"
+                }
               }
             },
             "required": [

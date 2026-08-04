@@ -145,7 +145,7 @@ export function planLibraryReconciliation(input) {
     return { ...payload, planId: computePlanId(payload) };
 }
 function defaultJournalPath(plan) {
-    return path.join(path.dirname(plan.targetRoot), ".dotagent", "reconcile-journal.json");
+    return path.join(path.dirname(plan.targetRoot), ".dotagents", "reconcile-journal.json");
 }
 function writeJournal(filePath, journal) {
     mkdirSync(path.dirname(filePath), { recursive: true });
@@ -296,8 +296,8 @@ export function applyLibraryReconciliationPlan(plan, decisions, options = {}) {
         phase: "applying",
         entries: operations.map((operation) => ({
             operation,
-            stagePath: `${operation.target}.dotagent-stage-${nonce}`,
-            backupPath: `${operation.target}.dotagent-backup-${nonce}`,
+            stagePath: `${operation.target}.dotagents-stage-${nonce}`,
+            backupPath: `${operation.target}.dotagents-backup-${nonce}`,
             hadPrevious: operation.expectedTarget.kind !== "absent",
             status: "pending",
         })),

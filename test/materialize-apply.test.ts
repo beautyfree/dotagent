@@ -31,7 +31,7 @@ const copyAgent: AgentDescriptor = {
 };
 
 async function fixture(): Promise<{ library: string; targetRoot: string; inventory: LibraryInventory }> {
-  const root = mkdtempSync(join(tmpdir(), "dotagent-apply-"));
+  const root = mkdtempSync(join(tmpdir(), "dotagents-apply-"));
   roots.push(root);
   const library = join(root, "library");
   const targetRoot = join(root, "targets");
@@ -199,10 +199,10 @@ describe("materialization apply", () => {
     const target = operation.target;
     mkdirSync(target, { recursive: true });
     writeFileSync(join(target, "SKILL.md"), "# Writing\n");
-    writeFileSync(join(target, ".dotagent-managed.json"), JSON.stringify({ schemaVersion: 1, planId: plan.planId }));
-    mkdirSync(join(library, ".dotagent"), { recursive: true });
+    writeFileSync(join(target, ".dotagents-managed.json"), JSON.stringify({ schemaVersion: 1, planId: plan.planId }));
+    mkdirSync(join(library, ".dotagents"), { recursive: true });
     writeFileSync(
-      join(library, ".dotagent/journal.json"),
+      join(library, ".dotagents/journal.json"),
       JSON.stringify({
         schemaVersion: 1,
         planId: plan.planId,

@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { scanSkillForSecrets } from "./audit.js";
-import { DOTAGENT_CONFIG_FILE, parsePortableConfig } from "./config.js";
+import { DOTAGENTS_CONFIG_FILE, parsePortableConfig } from "./config.js";
 import { declaredSkillName, scanOwnedSkill } from "./inventory.js";
-import { DotagentError } from "./issues.js";
+import { DotagentsError } from "./issues.js";
 import { loadLibrary } from "./library.js";
 import { computePlanId } from "./plan.js";
 import { libraryManifestSchema } from "./schema.js";
@@ -79,18 +79,18 @@ export async function planImport(libraryRoot, candidates) {
     const library = path.resolve(libraryRoot);
     const loaded = await loadLibrary(library);
     if (!loaded.ok)
-        throw new DotagentError("Cannot import into an invalid dotagent library", loaded.issues);
+        throw new DotagentsError("Cannot import into an invalid dotagents library", loaded.issues);
     let manifestText;
     let configText;
     try {
         [manifestText, configText] = await Promise.all([
             readFile(path.join(library, "skills.json"), "utf8"),
-            readFile(path.join(library, DOTAGENT_CONFIG_FILE), "utf8"),
+            readFile(path.join(library, DOTAGENTS_CONFIG_FILE), "utf8"),
         ]);
     }
     catch (error) {
-        throw new DotagentError("Cannot read the portable library files", [
-            importIssue("The library manifest or portable config could not be read.", "Run doctor, restore skills.json and dotagent.yaml, then retry.", error instanceof Error ? error.message : undefined),
+        throw new DotagentsError("Cannot read the portable library files", [
+            importIssue("The library manifest or portable config could not be read.", "Run doctor, restore skills.json and dotagents.yaml, then retry.", error instanceof Error ? error.message : undefined),
         ]);
     }
     const config = parsePortableConfig(configText);
@@ -167,7 +167,7 @@ export async function planImport(libraryRoot, candidates) {
         const source = path.resolve(candidate.sourcePath);
         const scanned = await scanOwnedSkill(path.dirname(source), path.basename(source));
         if (!scanned.ok)
-            throw new DotagentError(`Cannot import ${candidate.skill}`, scanned.issues);
+            throw new DotagentsError(`Cannot import ${candidate.skill}`, scanned.issues);
         if (candidate.kind === "vendored") {
             normalizeGitIdentity(candidate.origin.url);
             if (candidate.origin.integrity !== scanned.value.integrity) {
@@ -176,7 +176,7 @@ export async function planImport(libraryRoot, candidates) {
         }
         const declaredName = declaredSkillName(await readFile(path.join(source, "SKILL.md"), "utf8"));
         if (declaredName !== candidate.skill) {
-            throw new DotagentError(`Cannot import ${candidate.skill}`, [
+            throw new DotagentsError(`Cannot import ${candidate.skill}`, [
                 {
                     code: "missing-skill-metadata",
                     severity: "error",

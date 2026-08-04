@@ -2,7 +2,7 @@
 
 > Existing `skiller-sync.yaml` repositories are never rewritten automatically. Create or connect a canonical library in Sync Center, review the resulting plan, and confirm the Git destination explicitly.
 
-Skiller can read legacy sync manifests v1, v2, and v3 through `@beautyfree/dotagent/adapters/skiller`. New libraries use the canonical dotagent layout.
+Skiller can read legacy sync manifests v1, v2, and v3 through `dotagents/adapters/skiller`. New libraries use the canonical dotagents layout.
 
 ## Create a canonical repository in Skiller
 
@@ -17,12 +17,12 @@ The new repository contains:
 ```text
 skills.json       # package identity, owned paths, and dependency requests
 skills.lock       # exact commits, integrity, licenses, and exported skills
-dotagent.yaml     # portable per-skill routing policy
+dotagents.yaml     # portable per-skill routing policy
 skills/           # reviewed owned skill files only
 README.md
 ```
 
-It does not contain absolute home paths, Git credentials, the local conflict ledger, dependency caches, or `dotagent.local.yaml`.
+It does not contain absolute home paths, Git credentials, the local conflict ledger, dependency caches, or `dotagents.local.yaml`.
 
 ## Connect the library on another computer
 
@@ -32,14 +32,14 @@ It does not contain absolute home paths, Git credentials, the local conflict led
 4. Choose **Connect & review**. This creates only a managed local Git workspace.
 5. Review remote-only, local-only, and conflicting skills before applying anything to agent folders.
 
-The selected agents are written to gitignored `dotagent.local.yaml`. Portable per-skill routes remain authoritative and are intersected with this machine selection.
+The selected agents are written to gitignored `dotagents.local.yaml`. Portable per-skill routes remain authoritative and are intersected with this machine selection.
 
 ## Verify from the CLI
 
 ```sh
-beautyfree-dotagent inspect /path/to/library --json
-beautyfree-dotagent doctor /path/to/library --json
-beautyfree-dotagent audit /path/to/library --public --json
+dotagents inspect /path/to/library --json
+dotagents doctor /path/to/library --json
+dotagents audit /path/to/library --public --json
 ```
 
 Use `--public` only for a repository intended for public distribution; a missing license is an error for public libraries and an advisory for private ones.

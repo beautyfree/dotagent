@@ -1,4 +1,4 @@
-import type { DotagentResult } from "./issues.js";
+import type { DotagentsResult } from "./issues.js";
 export interface ScanLimits {
     maxFilesPerSkill: number;
     maxFileBytes: number;
@@ -28,6 +28,6 @@ export interface ScannedSkill extends OwnedSkillInventory {
     root: string;
 }
 export declare function declaredSkillName(skillMd: string): string | null;
-export declare function scanOwnedSkill(root: string, skillPath: string, limits?: ScanLimits): Promise<DotagentResult<ScannedSkill>>;
-export declare function scanLibrary(root: string, limits?: ScanLimits): Promise<DotagentResult<LibraryInventory>>;
+export declare function scanOwnedSkill(root: string, skillPath: string, limits?: ScanLimits): Promise<DotagentsResult<ScannedSkill>>;
+export declare function scanLibrary(root: string, limits?: ScanLimits): Promise<DotagentsResult<LibraryInventory>>;
 //# sourceMappingURL=inventory.d.ts.map

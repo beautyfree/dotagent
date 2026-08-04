@@ -2,13 +2,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { z, ZodError } from "zod";
 import { libraryLockSchema, libraryManifestSchema, type LibraryLock, type LibraryManifest } from "./schema.js";
-import type { DotagentIssue, DotagentResult } from "./issues.js";
+import type { DotagentsIssue, DotagentsResult } from "./issues.js";
 
-function schemaIssues(error: ZodError, code: "invalid-manifest" | "invalid-lockfile"): DotagentIssue[] {
+function schemaIssues(error: ZodError, code: "invalid-manifest" | "invalid-lockfile"): DotagentsIssue[] {
   return error.issues.map((issue) => ({
     code,
     message: issue.message,
-    remediation: "Fix the reported field or regenerate the file with a compatible dotagent version.",
+    remediation: "Fix the reported field or regenerate the file with a compatible dotagents version.",
     ...(issue.path.length > 0 ? { field: issue.path.join(".") } : {}),
   }));
 }
@@ -17,7 +17,7 @@ function parseJson<TSchema extends z.ZodTypeAny>(
   input: string,
   schema: TSchema,
   code: "invalid-manifest" | "invalid-lockfile",
-): DotagentResult<z.output<TSchema>> {
+): DotagentsResult<z.output<TSchema>> {
   let raw: unknown;
   try {
     raw = JSON.parse(input);
@@ -35,11 +35,11 @@ function parseJson<TSchema extends z.ZodTypeAny>(
     : { ok: false, issues: schemaIssues(parsed.error, code) };
 }
 
-export function parseLibraryManifest(input: string): DotagentResult<LibraryManifest> {
+export function parseLibraryManifest(input: string): DotagentsResult<LibraryManifest> {
   return parseJson(input, libraryManifestSchema, "invalid-manifest");
 }
 
-export function parseLibraryLock(input: string): DotagentResult<LibraryLock> {
+export function parseLibraryLock(input: string): DotagentsResult<LibraryLock> {
   return parseJson(input, libraryLockSchema, "invalid-lockfile");
 }
 
@@ -58,7 +58,7 @@ async function readOptional(filePath: string): Promise<string | null> {
   }
 }
 
-export async function loadLibrary(root: string): Promise<DotagentResult<LibraryFiles>> {
+export async function loadLibrary(root: string): Promise<DotagentsResult<LibraryFiles>> {
   const manifestPath = path.join(root, "skills.json");
   let manifestText: string;
   try {
@@ -72,7 +72,7 @@ export async function loadLibrary(root: string): Promise<DotagentResult<LibraryF
           code: missing ? "file-not-found" : "io-error",
           message: missing ? `No skills.json found at ${manifestPath}.` : `Could not read ${manifestPath}.`,
           remediation: missing
-            ? "Run beautyfree-dotagent init or choose a library directory."
+            ? "Run dotagents init or choose a library directory."
             : "Check file permissions and retry.",
           path: manifestPath,
         },

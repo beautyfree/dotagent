@@ -42,7 +42,7 @@ export async function scanSkillForSecrets(skillRoot) {
         const entries = await readdir(directory, { withFileTypes: true });
         entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
         for (const entry of entries) {
-            if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagent-managed.json")
+            if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagents-managed.json")
                 continue;
             const absolute = path.join(directory, entry.name);
             if (entry.isSymbolicLink())

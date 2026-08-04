@@ -1,4 +1,5 @@
 import { scanTextForSecrets } from "./audit.js";
+import { type SourceSecurityPolicy, type SourceSecurityPolicyInput, type SourceTrustDecision } from "./source-policy.js";
 export interface WorkspaceGitPort {
     run(args: string[], cwd: string, options?: {
         nonInteractive?: boolean;
@@ -27,11 +28,19 @@ export type GitWorkspaceSecretFinding = {
 };
 export interface GitClonePlan {
     kind: "git-clone";
-    schemaVersion: 1;
+    schemaVersion: 4;
     planId: string;
     remote: string;
     remoteIdentity: string;
     destination: string;
+    requestedRef: string;
+    branch: string | null;
+    resolvedCommit: string;
+    committedAt: string;
+    minimumAgeMinutes: number;
+    releaseAgeExcluded: boolean;
+    sourcePolicy: SourceSecurityPolicy;
+    trust: SourceTrustDecision;
 }
 export interface GitInitializePlan {
     kind: "git-initialize";
@@ -67,7 +76,7 @@ export interface GitCommitPlan {
 }
 export interface GitPullPlan {
     kind: "git-pull";
-    schemaVersion: 1;
+    schemaVersion: 3;
     planId: string;
     library: string;
     visibility: "private" | "team" | "public";
@@ -84,30 +93,46 @@ export interface GitPullPlan {
         field?: string;
     }[];
     hasBlockers: boolean;
+    remoteIdentity: string;
+    committedAt: string;
+    minimumAgeMinutes: number;
+    releaseAgeExcluded: boolean;
+    sourcePolicy: SourceSecurityPolicy;
+    trust: SourceTrustDecision;
 }
 export interface GitPushPlan {
     kind: "git-push";
-    schemaVersion: 1;
+    schemaVersion: 2;
     planId: string;
     library: string;
     branch: string;
     head: string;
     remoteIdentity: string;
     ahead: number;
+    sourcePolicy: SourceSecurityPolicy;
+    trust: SourceTrustDecision;
 }
 export declare function initializeLibraryGit(root: string, remote?: string, git?: WorkspaceGitPort): Promise<void>;
 export declare function setLibraryRemote(root: string, remote: string, git?: WorkspaceGitPort): Promise<void>;
 export declare function planLibraryGitInitialization(root: string, remote?: string, git?: WorkspaceGitPort): Promise<GitInitializePlan>;
 export declare function applyLibraryGitInitialization(plan: GitInitializePlan, git?: WorkspaceGitPort): Promise<void>;
-export declare function cloneLibrary(remote: string, target: string, git?: WorkspaceGitPort): Promise<void>;
-export declare function planLibraryClone(remote: string, target: string): Promise<GitClonePlan>;
+export declare function cloneLibrary(remote: string, target: string, sourcePolicy?: SourceSecurityPolicyInput, git?: WorkspaceGitPort): Promise<void>;
+export declare function planLibraryClone(remote: string, target: string, sourcePolicy?: SourceSecurityPolicyInput, git?: WorkspaceGitPort): Promise<GitClonePlan>;
+/**
+ * Resolve a branch, tag, HEAD, or immutable SHA into an exact reviewed commit.
+ * The plan may contact only a source already allowed by Device policy; apply
+ * fetches that exact commit and rejects any changed timestamp or policy.
+ */
+export declare function planGitCheckout(remote: string, target: string, requestedRef?: string, sourcePolicy?: SourceSecurityPolicyInput, git?: WorkspaceGitPort): Promise<GitClonePlan>;
+/** Apply the exact reviewed commit without assuming a particular library manifest. */
+export declare function applyGitClonePlan(plan: GitClonePlan, git?: WorkspaceGitPort): Promise<void>;
 export declare function applyLibraryClone(plan: GitClonePlan, git?: WorkspaceGitPort): Promise<void>;
 export declare function getLibraryGitStatus(root: string, git?: WorkspaceGitPort): Promise<GitWorkspaceStatus>;
 export declare function planLibraryCommit(root: string, message: string, visibility?: GitCommitPlan["visibility"], git?: WorkspaceGitPort): Promise<GitCommitPlan>;
 export declare function applyLibraryCommit(plan: GitCommitPlan, git?: WorkspaceGitPort): Promise<string | null>;
-export declare function fetchLibrary(root: string, git?: WorkspaceGitPort): Promise<void>;
-export declare function planLibraryPull(root: string, visibility?: GitPullPlan["visibility"], git?: WorkspaceGitPort): Promise<GitPullPlan>;
+export declare function fetchLibrary(root: string, sourcePolicy?: SourceSecurityPolicyInput, git?: WorkspaceGitPort): Promise<void>;
+export declare function planLibraryPull(root: string, visibility?: GitPullPlan["visibility"], sourcePolicy?: SourceSecurityPolicyInput, git?: WorkspaceGitPort): Promise<GitPullPlan>;
 export declare function applyLibraryPull(plan: GitPullPlan, git?: WorkspaceGitPort): Promise<string>;
-export declare function planLibraryPush(root: string, git?: WorkspaceGitPort): Promise<GitPushPlan>;
+export declare function planLibraryPush(root: string, sourcePolicy?: SourceSecurityPolicyInput, git?: WorkspaceGitPort): Promise<GitPushPlan>;
 export declare function applyLibraryPush(plan: GitPushPlan, git?: WorkspaceGitPort): Promise<void>;
 //# sourceMappingURL=git-workspace.d.ts.map

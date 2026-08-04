@@ -22,7 +22,7 @@ function inspectLock(loaded) {
     const issues = [];
     const dependencies = loaded.manifest.dependencies;
     if (Object.keys(dependencies).length > 0 && !loaded.lock) {
-        issues.push(issue("lockfile-missing", "warning", "Dependencies are not pinned by skills.lock.", "Run beautyfree-dotagent resolve, review the plan, then rerun with --write."));
+        issues.push(issue("lockfile-missing", "warning", "Dependencies are not pinned by skills.lock.", "Run dotagents resolve, review the plan, then rerun with --write."));
         return issues;
     }
     if (!loaded.lock)
@@ -42,7 +42,13 @@ function inspectLock(loaded) {
         }
         const selectedPaths = dependency.select ? [...dependency.select].sort() : null;
         const lockedPaths = resolved.skills.map((skill) => skill.path).sort();
-        const sameSelection = selectedPaths === null || JSON.stringify(selectedPaths) === JSON.stringify(lockedPaths);
+        const sameSelection = dependency.include
+            ? Boolean(resolved.selection &&
+                JSON.stringify([...dependency.include].sort()) === JSON.stringify(resolved.selection.include) &&
+                JSON.stringify([...(dependency.exclude ?? [])].sort()) === JSON.stringify(resolved.selection.exclude) &&
+                (dependency.subtree ?? ".") === resolved.selection.subtree)
+            : !resolved.selection &&
+                (selectedPaths === null || JSON.stringify(selectedPaths) === JSON.stringify(lockedPaths));
         if (!sameSource || resolved.requested_ref !== dependency.ref || !sameSelection) {
             issues.push(issue("lockfile-stale", "error", `Dependency ${name} no longer matches its locked source, ref, or selected skill paths.`, "Resolve dependencies again; do not materialize the stale lock."));
         }
@@ -55,8 +61,8 @@ function inspectLock(loaded) {
 }
 async function inspectConfiguration(root) {
     const issues = [];
-    const portablePath = path.join(root, "dotagent.yaml");
-    const localPath = path.join(root, "dotagent.local.yaml");
+    const portablePath = path.join(root, "dotagents.yaml");
+    const localPath = path.join(root, "dotagents.local.yaml");
     const portable = await readOptional(portablePath);
     const local = await readOptional(localPath);
     if (portable !== null) {
@@ -64,7 +70,7 @@ async function inspectConfiguration(root) {
             parsePortableConfig(portable);
         }
         catch (error) {
-            issues.push(issue("invalid-config", "error", error instanceof Error ? error.message : "Invalid dotagent.yaml", "Fix the portable configuration before syncing.", portablePath));
+            issues.push(issue("invalid-config", "error", error instanceof Error ? error.message : "Invalid dotagents.yaml", "Fix the portable configuration before syncing.", portablePath));
         }
     }
     if (local !== null) {
@@ -72,14 +78,14 @@ async function inspectConfiguration(root) {
             parseLocalConfig(local);
         }
         catch (error) {
-            issues.push(issue("invalid-config", "error", error instanceof Error ? error.message : "Invalid dotagent.local.yaml", "Keep only machine-local paths and environment references in the local configuration.", localPath));
+            issues.push(issue("invalid-config", "error", error instanceof Error ? error.message : "Invalid dotagents.local.yaml", "Keep only machine-local paths and environment references in the local configuration.", localPath));
         }
     }
     const gitignorePath = path.join(root, ".gitignore");
     const gitignore = await readOptional(gitignorePath);
     const lines = new Set((gitignore ?? "").split(/\r?\n/).map((line) => line.trim().replace(/^\//, "")));
-    if (!lines.has("dotagent.local.yaml") || !lines.has(".dotagent/")) {
-        issues.push(issue("local-state-not-ignored", "error", "Machine-local dotagent state is not fully ignored by Git.", "Add dotagent.local.yaml and .dotagent/ to the repository .gitignore before publishing.", gitignorePath));
+    if (!lines.has("dotagents.local.yaml") || !lines.has(".dotagents/")) {
+        issues.push(issue("local-state-not-ignored", "error", "Machine-local dotagents state is not fully ignored by Git.", "Add dotagents.local.yaml and .dotagents/ to the repository .gitignore before publishing.", gitignorePath));
     }
     return issues;
 }

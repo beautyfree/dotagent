@@ -1,5 +1,5 @@
 import type { ImportCandidate } from "./import.js";
-import type { DotagentIssue } from "./issues.js";
+import type { DotagentsIssue } from "./issues.js";
 export type DiscoveryLocationKind = "shared" | "agent-local" | "inherited";
 export interface SkillDiscoveryRoot {
     path: string;
@@ -30,7 +30,7 @@ export interface DiscoveryCollision {
 export interface SkillDiscoveryReport {
     skills: DiscoveredSkill[];
     collisions: DiscoveryCollision[];
-    issues: DotagentIssue[];
+    issues: DotagentsIssue[];
     linkedAliases: number;
 }
 export interface DiscoveryLimits {

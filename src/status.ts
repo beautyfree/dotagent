@@ -35,7 +35,7 @@ async function pathKind(filePath: string): Promise<"missing" | "link" | "directo
   }
 }
 
-/** Reads only dotagent-owned ledger entries; unmanaged filesystem targets are discovered by machine planning. */
+/** Reads only dotagents-owned ledger entries; unmanaged filesystem targets are discovered by machine planning. */
 export async function getMaterializationStatus(libraryRoot: string): Promise<MaterializationStatus> {
   const root = path.resolve(libraryRoot);
   const state = await readMaterializationState(root);
@@ -86,7 +86,7 @@ export async function getMaterializationStatus(libraryRoot: string): Promise<Mat
   return { library: root, targets, byAgent };
 }
 
-/** Combines dotagent ownership state with explicit target existence for a no-write plan. */
+/** Combines dotagents ownership state with explicit target existence for a no-write plan. */
 export async function existingTargetsForPlan(
   libraryRoot: string,
   agentSlug: string,

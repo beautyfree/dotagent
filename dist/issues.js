@@ -1,8 +1,8 @@
-export class DotagentError extends Error {
+export class DotagentsError extends Error {
     issues;
     constructor(message, issues) {
         super(message);
-        this.name = "DotagentError";
+        this.name = "DotagentsError";
         this.issues = issues;
     }
 }

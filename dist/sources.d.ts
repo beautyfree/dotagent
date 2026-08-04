@@ -1,3 +1,4 @@
+import type { SourceSecurityPolicy } from "./source-policy.js";
 export { normalizeGitIdentity } from "./git-identity.js";
 import { type DependencyReference, type LibraryLock, type LibraryManifest, type ResolvedPackage } from "./schema.js";
 export type ResolutionChange = {
@@ -7,6 +8,8 @@ export type ResolutionChange = {
     toSource: string | null;
     fromCommit: string | null;
     toCommit: string | null;
+    fromCommittedAt: string | null;
+    toCommittedAt: string | null;
     fromIntegrity: string | null;
     toIntegrity: string | null;
     fromLicense: string | null;
@@ -21,6 +24,7 @@ export interface ResolutionPlan {
     manifestHash: string;
     lock: LibraryLock;
     changes: ResolutionChange[];
+    sourcePolicy: SourceSecurityPolicy | null;
 }
 export interface LibraryResolutionPlan {
     kind: "resolve-library-dependencies";
@@ -30,8 +34,11 @@ export interface LibraryResolutionPlan {
     manifestHash: string;
     lock: LibraryLock;
     changes: ResolutionChange[];
+    sourcePolicy: SourceSecurityPolicy | null;
 }
 export interface DependencyResolver {
+    /** Serializable device policy included in the reviewed plan when available. */
+    readonly sourcePolicy?: SourceSecurityPolicy | null;
     /** Resolve and audit in isolation. Implementations must not write to agent targets. */
     resolve(name: string, dependency: DependencyReference): Promise<ResolvedPackage>;
 }

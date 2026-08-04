@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 function makeLibrary(skillPath = "skills/writing"): string {
-  const root = mkdtempSync(join(tmpdir(), "dotagent-library-"));
+  const root = mkdtempSync(join(tmpdir(), "dotagents-library-"));
   roots.push(root);
   mkdirSync(join(root, skillPath), { recursive: true });
   writeFileSync(

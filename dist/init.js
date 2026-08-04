@@ -21,16 +21,16 @@ export function planInitializeLibrary(root, requestedName = path.basename(root))
             content: `${JSON.stringify({ schema_version: 1, name, version: "0.1.0", skills: [], dependencies: {} }, null, 2)}\n`,
         },
         {
-            path: "dotagent.yaml",
+            path: "dotagents.yaml",
             content: "schema_version: 1\ndefaults:\n  include: all\nskills: {}\n",
         },
         {
             path: ".gitignore",
-            content: "dotagent.local.yaml\n.dotagent/\n",
+            content: "dotagents.local.yaml\n.dotagents/\n",
         },
         {
             path: "README.md",
-            content: `# ${name}\n\nA portable agent skill library managed by [beautyfree/dotagent](https://github.com/beautyfree/dotagent).\n`,
+            content: `# ${name}\n\nA portable agent skill library managed by [beautyfree/dotagents](https://github.com/beautyfree/dotagents).\n`,
         },
     ];
     const payload = { kind: "initialize-library", schemaVersion: 1, root: absoluteRoot, files };
@@ -57,7 +57,7 @@ export async function applyInitializeLibraryPlan(plan) {
             throw new Error(`Refusing to overwrite ${file.path}`);
     }
     await mkdir(path.join(plan.root, "skills"), { recursive: true });
-    await mkdir(path.join(plan.root, ".dotagent"), { recursive: true });
+    await mkdir(path.join(plan.root, ".dotagents"), { recursive: true });
     for (const file of plan.files) {
         const destination = path.join(plan.root, file.path);
         await mkdir(path.dirname(destination), { recursive: true });

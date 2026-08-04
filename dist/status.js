@@ -17,7 +17,7 @@ async function pathKind(filePath) {
         throw error;
     }
 }
-/** Reads only dotagent-owned ledger entries; unmanaged filesystem targets are discovered by machine planning. */
+/** Reads only dotagents-owned ledger entries; unmanaged filesystem targets are discovered by machine planning. */
 export async function getMaterializationStatus(libraryRoot) {
     const root = path.resolve(libraryRoot);
     const state = await readMaterializationState(root);
@@ -69,7 +69,7 @@ export async function getMaterializationStatus(libraryRoot) {
     }
     return { library: root, targets, byAgent };
 }
-/** Combines dotagent ownership state with explicit target existence for a no-write plan. */
+/** Combines dotagents ownership state with explicit target existence for a no-write plan. */
 export async function existingTargetsForPlan(libraryRoot, agentSlug, targetRoot, skillNames) {
     const status = await getMaterializationStatus(libraryRoot);
     const managed = status.byAgent[agentSlug] ?? {};

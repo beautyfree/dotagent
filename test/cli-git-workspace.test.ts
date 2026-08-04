@@ -15,7 +15,7 @@ afterEach(() => {
 
 describe("Git workspace CLI", () => {
   it("keeps commit and push previews separate from confirmed mutations", async () => {
-    const parent = mkdtempSync(join(tmpdir(), "dotagent-cli-git-"));
+    const parent = mkdtempSync(join(tmpdir(), "dotagents-cli-git-"));
     roots.push(parent);
     const library = join(parent, "library");
     const remote = join(parent, "library.git");
@@ -24,6 +24,7 @@ describe("Git workspace CLI", () => {
     const clonePlan = join(parent, "clone.json");
     const initPlan = join(parent, "init.json");
     const gitInitPlan = join(parent, "git-init.json");
+    const remoteUrl = pathToFileURL(remote).href;
     execFileSync("git", ["init", "--bare", "--initial-branch", "main", remote]);
 
     await run("bun", ["src/cli.ts", "init", library, "--name", "portable", "--out", initPlan], {
@@ -39,11 +40,9 @@ describe("Git workspace CLI", () => {
     const manifest = JSON.parse(readFileSync(join(library, "skills.json"), "utf8"));
     manifest.skills = ["skills/writing"];
     writeFileSync(join(library, "skills.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-    await run(
-      "bun",
-      ["src/cli.ts", "git-init", library, "--remote", pathToFileURL(remote).href, "--out", gitInitPlan],
-      { cwd: repository },
-    );
+    await run("bun", ["src/cli.ts", "git-init", library, "--remote", remoteUrl, "--out", gitInitPlan], {
+      cwd: repository,
+    });
     expect(existsSync(join(library, ".git"))).toBe(false);
     await run("bun", ["src/cli.ts", "apply", gitInitPlan, "--yes"], { cwd: repository });
 
@@ -54,15 +53,43 @@ describe("Git workspace CLI", () => {
     await expect(run("bun", ["src/cli.ts", "apply", commitPlan], { cwd: repository })).rejects.toThrow();
     await run("bun", ["src/cli.ts", "apply", commitPlan, "--yes"], { cwd: repository });
 
-    await run("bun", ["src/cli.ts", "sync", library, "--push", "--out", pushPlan], { cwd: repository });
+    await run(
+      "bun",
+      [
+        "src/cli.ts",
+        "sync",
+        library,
+        "--push",
+        "--trust-source",
+        remoteUrl,
+        "--allow-local-sources",
+        "--out",
+        pushPlan,
+      ],
+      { cwd: repository },
+    );
     expect(existsSync(join(remote, "refs", "heads", "main"))).toBe(false);
     await run("bun", ["src/cli.ts", "apply", pushPlan, "--yes"], { cwd: repository });
     expect(execFileSync("git", ["--git-dir", remote, "show-ref"], { encoding: "utf8" })).toContain("refs/heads/main");
 
     const clone = join(parent, "clone");
-    await run("bun", ["src/cli.ts", "clone", pathToFileURL(remote).href, clone, "--out", clonePlan], {
-      cwd: repository,
-    });
+    await run(
+      "bun",
+      [
+        "src/cli.ts",
+        "clone",
+        remoteUrl,
+        clone,
+        "--trust-source",
+        remoteUrl,
+        "--allow-local-sources",
+        "--out",
+        clonePlan,
+      ],
+      {
+        cwd: repository,
+      },
+    );
     expect(existsSync(clone)).toBe(false);
     const result = await run("bun", ["src/cli.ts", "apply", clonePlan, "--yes", "--json"], { cwd: repository });
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: true, root: clone, branch: "main", changed: false });

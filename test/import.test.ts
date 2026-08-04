@@ -18,14 +18,14 @@ afterEach(() => {
 });
 
 async function library(): Promise<string> {
-  const root = mkdtempSync(join(tmpdir(), "dotagent-import-library-"));
+  const root = mkdtempSync(join(tmpdir(), "dotagents-import-library-"));
   roots.push(root);
   await applyInitializeLibraryPlan(planInitializeLibrary(root, "portable-library"));
   return root;
 }
 
 function skill(name: string, extra = ""): string {
-  const parent = mkdtempSync(join(tmpdir(), "dotagent-import-source-"));
+  const parent = mkdtempSync(join(tmpdir(), "dotagents-import-source-"));
   roots.push(parent);
   const root = join(parent, name);
   mkdirSync(root);
@@ -79,7 +79,7 @@ describe("canonical import planning and apply", () => {
     expect(result).toMatchObject({ copied: 1, dependenciesRecorded: 1, requiresResolve: true });
     expect(readFileSync(join(root, "skills", "writing", "guide.md"), "utf8")).toBe("portable content\n");
     expect(readFileSync(join(owned, "guide.md"), "utf8")).toBe("portable content\n");
-    expect(parse(readFileSync(join(root, "dotagent.yaml"), "utf8"))).toMatchObject({
+    expect(parse(readFileSync(join(root, "dotagents.yaml"), "utf8"))).toMatchObject({
       skills: { writing: { include: true, agents: ["claude-code", "codex"] }, review: { distribution: "dependency" } },
     });
     const inventory = await scanLibrary(root);
@@ -190,7 +190,7 @@ describe("canonical import planning and apply", () => {
     );
     await expect(run(process.execPath, [runner], { cwd: process.cwd() })).rejects.toThrow();
     expect(existsSync(join(root, "skills", "first"))).toBe(true);
-    expect(existsSync(join(root, ".dotagent", "import-journal.json"))).toBe(true);
+    expect(existsSync(join(root, ".dotagents", "import-journal.json"))).toBe(true);
     expect(await inspectImportRecovery(root)).toMatchObject({
       kind: "import-recovery",
       journalPlanId: plan.planId,
@@ -200,7 +200,7 @@ describe("canonical import planning and apply", () => {
     });
     expect(await recoverImport(root)).toBe("rolled-back");
     expect(existsSync(join(root, "skills", "first"))).toBe(false);
-    expect(existsSync(join(root, ".dotagent", "import-journal.json"))).toBe(false);
+    expect(existsSync(join(root, ".dotagents", "import-journal.json"))).toBe(false);
     expect(await inspectImportRecovery(root)).toBeNull();
   });
 });

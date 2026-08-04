@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "../src/init.js";
 import { GitDependencyResolver } from "../src/git-resolver.js";
+import { exactSourceSecurityPolicy } from "../src/source-policy.js";
 import { applyMaterializationPlan } from "../src/materialize-apply.js";
 import { planMaterialization } from "../src/materialize.js";
 import { prepareMaterializationInventory } from "../src/prepared-library.js";
@@ -18,14 +19,14 @@ afterEach(() => {
 
 describe("prepared dependency library", () => {
   it("materializes owned and locked dependency skills through the same safe plan", async () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-prepared-library-"));
-    const source = mkdtempSync(join(tmpdir(), "dotagent-prepared-source-"));
-    const target = mkdtempSync(join(tmpdir(), "dotagent-prepared-target-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-prepared-library-"));
+    const source = mkdtempSync(join(tmpdir(), "dotagents-prepared-source-"));
+    const target = mkdtempSync(join(tmpdir(), "dotagents-prepared-target-"));
     roots.push(root, source, target);
     await applyInitializeLibraryPlan(planInitializeLibrary(root, "portable-library"));
     execFileSync("git", ["init", source]);
-    execFileSync("git", ["config", "user.email", "test@dotagent.local"], { cwd: source });
-    execFileSync("git", ["config", "user.name", "dotagent test"], { cwd: source });
+    execFileSync("git", ["config", "user.email", "test@dotagents.local"], { cwd: source });
+    execFileSync("git", ["config", "user.name", "dotagents test"], { cwd: source });
     mkdirSync(join(source, "skills/review"), { recursive: true });
     writeFileSync(
       join(source, "skills/review/SKILL.md"),
@@ -52,11 +53,14 @@ describe("prepared dependency library", () => {
       dependencies: { review: dependency },
     };
     writeFileSync(join(root, "skills.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-    const resolver = new GitDependencyResolver({ cacheRoot: join(root, ".dotagent/cache/git") });
+    const resolver = new GitDependencyResolver({
+      cacheRoot: join(root, ".dotagents/cache/git"),
+      sourcePolicy: exactSourceSecurityPolicy([dependency.url]),
+    });
     const resolution = await planResolveDependencies(manifest, resolver);
     await applyResolutionPlan(root, resolution);
 
-    const inventory = await prepareMaterializationInventory({ root });
+    const inventory = await prepareMaterializationInventory({ root, resolver });
     expect(inventory.ownedSkills).toHaveLength(1);
     expect(inventory.ownedSkills[0]).toMatchObject({ name: "review", sourceKind: "dependency", dependency: "review" });
     const plan = planMaterialization(inventory, [

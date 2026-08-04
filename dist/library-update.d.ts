@@ -67,12 +67,15 @@ export interface LibraryUpdatePlan {
 export interface ApplyLibraryUpdateOptions {
     portableFiles: Record<string, string>;
     journalPath?: string;
+    /** Human-readable origin retained in Device-local history. */
+    historyOperation?: "library-update" | "resource-adopt" | "doctor-repair" | "scope-migration";
     /** Test/UI seam. Throwing rolls back every committed operation. */
     beforeOperation?: (operation: LibraryUpdateOperation, index: number) => void;
 }
 export interface ApplyLibraryUpdateResult {
     planId: string;
     updated: string[];
+    historyId: string;
 }
 export declare const LIBRARY_UPDATE_JOURNAL_VERSION: 1;
 /**

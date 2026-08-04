@@ -12,7 +12,7 @@ afterEach(() => {
 
 describe("library initialization", () => {
   it("creates a valid empty library from a deterministic reviewed plan", async () => {
-    const parent = mkdtempSync(join(tmpdir(), "dotagent-init-"));
+    const parent = mkdtempSync(join(tmpdir(), "dotagents-init-"));
     roots.push(parent);
     const root = join(parent, "My Library");
     const first = planInitializeLibrary(root);
@@ -24,7 +24,7 @@ describe("library initialization", () => {
   });
 
   it("rejects a modified plan and existing files", async () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-init-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-init-"));
     roots.push(root);
     const plan = planInitializeLibrary(root, "safe");
     await expect(applyInitializeLibraryPlan({ ...plan, root: join(root, "other") })).rejects.toThrow(

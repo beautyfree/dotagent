@@ -4,7 +4,7 @@ import type { VendoredOrigin } from "../config.js";
 import { planSkillExport, type SkillExportFinding, type SkillExportPlan } from "../export-policy.js";
 import { computePlanId } from "../plan.js";
 
-/** Compatibility format used by Skiller before beautyfree/dotagent libraries. */
+/** Compatibility format used by Skiller before beautyfree/dotagents libraries. */
 export const SKILLER_SYNC_MANIFEST_FILE = "skiller-sync.yaml";
 export const SKILLER_SYNC_MANIFEST_VERSION = 3 as const;
 
@@ -237,7 +237,7 @@ function normalizedInstallations(agentSlugs: string[] | undefined): string[] | u
 
 /**
  * Builds Skiller's compatibility publish payload without writing to the library.
- * Source inspection, integrity, and secret findings come from dotagent's shared export policy.
+ * Source inspection, integrity, and secret findings come from dotagents's shared export policy.
  */
 export function planSkillerSyncPublish(
   profileId: string,

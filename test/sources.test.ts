@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { libraryManifestSchema, type ResolvedPackage } from "../src/schema.js";
+import { exactSourceSecurityPolicy } from "../src/source-policy.js";
 import {
   applyResolutionPlan,
   normalizeGitIdentity,
@@ -24,6 +25,7 @@ describe("source resolution planning", () => {
   it("normalizes common Git transports without retaining credentials", () => {
     expect(normalizeGitIdentity("git@github.com:Owner/Repo.git")).toBe("https://github.com/Owner/Repo");
     expect(normalizeGitIdentity("https://github.com/Owner/Repo.git/")).toBe("https://github.com/Owner/Repo");
+    expect(normalizeGitIdentity("C:\\Users\\dev\\skills.git")).toBe("file:///C:/Users/dev/skills.git");
     expect(() => normalizeGitIdentity("https://user:password@example.com/repo")).toThrow("credentials");
   });
 
@@ -63,6 +65,26 @@ describe("source resolution planning", () => {
     expect(plan.planId).toHaveLength(64);
   });
 
+  it("binds the reviewed source policy into the deterministic plan ID", async () => {
+    const source = "https://github.com/example/source";
+    const manifest = libraryManifestSchema.parse({
+      schema_version: 1,
+      name: "personal",
+      version: "1.0.0",
+      skills: [],
+      dependencies: { source: { url: source, ref: "main" } },
+    });
+    const makeResolver = (minimumAge: number): DependencyResolver => ({
+      sourcePolicy: exactSourceSecurityPolicy([source], { minimum_release_age_minutes: minimumAge }),
+      resolve: async (_name, dependency) => resolved(dependency.url, dependency.ref, "writing", "a".repeat(40)),
+    });
+    const immediate = await planResolveDependencies(manifest, makeResolver(0));
+    const cooled = await planResolveDependencies(manifest, makeResolver(60));
+    expect(immediate.sourcePolicy?.minimum_release_age_minutes).toBe(0);
+    expect(cooled.sourcePolicy?.minimum_release_age_minutes).toBe(60);
+    expect(cooled.planId).not.toBe(immediate.planId);
+  });
+
   it("blocks flat skill-name collisions", async () => {
     const manifest = libraryManifestSchema.parse({
       schema_version: 1,
@@ -81,7 +103,7 @@ describe("source resolution planning", () => {
   });
 
   it("writes only an unchanged reviewed manifest plan", async () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-resolution-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-resolution-"));
     try {
       mkdirSync(join(root, "skills"));
       const manifest = libraryManifestSchema.parse({

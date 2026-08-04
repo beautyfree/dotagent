@@ -15,6 +15,7 @@ import { type SecretFinding, scanTextForSecrets } from "./audit.js";
 import { planSkillExport, type SkillExportPlan } from "./export-policy.js";
 import { normalizePortablePath } from "./paths.js";
 import { computePlanId } from "./plan.js";
+import { removeOperationHistory, writeOperationHistory, type HistoryTargetSnapshot } from "./history.js";
 
 export interface LibraryUpdateSkillInput {
   skill: string;
@@ -73,6 +74,8 @@ export interface LibraryUpdatePlan {
 export interface ApplyLibraryUpdateOptions {
   portableFiles: Record<string, string>;
   journalPath?: string;
+  /** Human-readable origin retained in Device-local history. */
+  historyOperation?: "library-update" | "resource-adopt" | "doctor-repair" | "scope-migration";
   /** Test/UI seam. Throwing rolls back every committed operation. */
   beforeOperation?: (operation: LibraryUpdateOperation, index: number) => void;
 }
@@ -80,6 +83,7 @@ export interface ApplyLibraryUpdateOptions {
 export interface ApplyLibraryUpdateResult {
   planId: string;
   updated: string[];
+  historyId: string;
 }
 
 export const LIBRARY_UPDATE_JOURNAL_VERSION = 1 as const;
@@ -97,6 +101,7 @@ type LibraryUpdateJournal = {
   schemaVersion: typeof LIBRARY_UPDATE_JOURNAL_VERSION;
   planId: string;
   phase: "applying" | "completed" | "rolling-back";
+  historyId: string | null;
   entries: LibraryUpdateJournalEntry[];
 };
 
@@ -240,7 +245,7 @@ export function planLibraryUpdate(input: PlanLibraryUpdateInput): LibraryUpdateP
 }
 
 export function libraryUpdateJournalPath(root: string): string {
-  return path.join(path.resolve(root), ".dotagent", "library-update-journal.json");
+  return path.join(path.resolve(root), ".dotagents", "library-update-journal.json");
 }
 
 function assertRootUnchanged(plan: LibraryUpdatePlan): void {
@@ -374,6 +379,7 @@ function rollbackLibraryUpdate(filePath: string, journal: LibraryUpdateJournal):
       rmSync(entry.operation.target, { recursive: true, force: true });
     }
   }
+  if (journal.historyId) removeOperationHistory(path.dirname(path.dirname(filePath)), journal.historyId);
   rmSync(filePath, { force: true });
 }
 
@@ -425,10 +431,11 @@ export function applyLibraryUpdatePlan(
     schemaVersion: LIBRARY_UPDATE_JOURNAL_VERSION,
     planId,
     phase: "applying",
+    historyId: null,
     entries: plan.operations.map((operation) => ({
       operation,
-      stagePath: `${operation.target}.dotagent-stage-${nonce}`,
-      backupPath: `${operation.target}.dotagent-backup-${nonce}`,
+      stagePath: `${operation.target}.dotagents-stage-${nonce}`,
+      backupPath: `${operation.target}.dotagents-backup-${nonce}`,
       hadPrevious: operation.expectedTarget.kind !== "absent",
       status: "pending",
     })),
@@ -458,6 +465,22 @@ export function applyLibraryUpdatePlan(
       entry.status = "applied";
       writeJournal(journalPath, journal);
     }
+    journal.historyId = `${new Date().toISOString().replace(/[:.]/g, "-")}-${planId.slice(0, 12)}-${nonce.slice(0, 8)}`;
+    writeJournal(journalPath, journal);
+    const history = writeOperationHistory(plan.root, {
+      operation: options.historyOperation ?? "library-update",
+      sourcePlanId: planId,
+      recordId: journal.historyId,
+      changes: journal.entries.map((entry) => ({
+        path: entry.operation.path,
+        itemKind: entry.operation.kind,
+        ...(entry.operation.kind === "skill" ? { skill: entry.operation.skill } : {}),
+        postcondition: (entry.operation.kind === "file"
+          ? { kind: "file", sha256: entry.operation.sha256 }
+          : { kind: "directory", integrity: entry.operation.sourcePlan.sha256 }) as HistoryTargetSnapshot,
+        ...(entry.hadPrevious ? { previousPath: entry.backupPath } : {}),
+      })),
+    });
     journal.phase = "completed";
     writeJournal(journalPath, journal);
     for (const entry of journal.entries) {
@@ -465,7 +488,7 @@ export function applyLibraryUpdatePlan(
       rmSync(entry.backupPath, { recursive: true, force: true });
     }
     rmSync(journalPath, { force: true });
-    return { planId, updated: journal.entries.map((entry) => entry.operation.path) };
+    return { planId, updated: journal.entries.map((entry) => entry.operation.path), historyId: history.id };
   } catch (error) {
     rollbackLibraryUpdate(journalPath, journal);
     throw error;

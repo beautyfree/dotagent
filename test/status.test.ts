@@ -11,15 +11,15 @@ afterEach(() => {
 
 describe("materialization status", () => {
   it("reports local copy changes with a three-way planning snapshot", async () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-status-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-status-"));
     roots.push(root);
     const target = join(root, "targets/writing");
     mkdirSync(target, { recursive: true });
     writeFileSync(join(target, "SKILL.md"), "# Changed locally\n");
-    writeFileSync(join(target, ".dotagent-managed.json"), JSON.stringify({ schemaVersion: 1, planId: "old" }));
-    mkdirSync(join(root, ".dotagent"));
+    writeFileSync(join(target, ".dotagents-managed.json"), JSON.stringify({ schemaVersion: 1, planId: "old" }));
+    mkdirSync(join(root, ".dotagents"));
     writeFileSync(
-      join(root, ".dotagent/materialization-state.json"),
+      join(root, ".dotagents/materialization-state.json"),
       JSON.stringify({
         schemaVersion: 1,
         targets: {

@@ -1,14 +1,14 @@
 {
-  "$ref": "#/definitions/DotagentPortableConfig",
+  "$ref": "#/definitions/DotagentsPortableConfig",
   "definitions": {
-    "DotagentPortableConfig": {
+    "DotagentsPortableConfig": {
       "type": "object",
       "properties": {
         "schema_version": {
           "type": "number",
           "const": 1
         },
-        "minimum_dotagent_version": {
+        "minimum_dotagents_version": {
           "type": "string",
           "minLength": 1,
           "maxLength": 128

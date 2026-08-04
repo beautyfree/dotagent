@@ -3,16 +3,30 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { NodeWorkspaceGitPort, type WorkspaceGitPort } from "./git-workspace.js";
 import { computePlanId } from "./plan.js";
+import {
+  parseSourceSecurityPolicy,
+  requireMinimumReleaseAge,
+  requireTrustedSource,
+  type SourceSecurityPolicy,
+  type SourceSecurityPolicyInput,
+  type SourceTrustDecision,
+} from "./source-policy.js";
 
 export interface GitFastForwardPlan {
   kind: "git-fast-forward";
-  schemaVersion: 1;
+  schemaVersion: 3;
   planId: string;
   workspace: string;
   branch: string;
   baseHead: string;
   remoteHead: string;
+  committedAt: string;
+  minimumAgeMinutes: number;
+  releaseAgeExcluded: boolean;
   files: string[];
+  remoteIdentity: string;
+  sourcePolicy: SourceSecurityPolicy;
+  trust: SourceTrustDecision;
 }
 
 function parseNullPaths(value: string): string[] {
@@ -33,6 +47,7 @@ function assertPlanId(plan: GitFastForwardPlan): void {
  */
 export async function planGitFastForward(
   root: string,
+  sourcePolicy: SourceSecurityPolicyInput = {},
   git: WorkspaceGitPort = new NodeWorkspaceGitPort(),
 ): Promise<GitFastForwardPlan> {
   const workspace = await realpath(path.resolve(root));
@@ -42,12 +57,16 @@ export async function planGitFastForward(
   if (changed.length > 0) throw new Error("Git workspace has uncommitted changes; resolve them before review");
   const branch = await git.run(["symbolic-ref", "--quiet", "--short", "HEAD"], workspace);
   if (!branch) throw new Error("Git workspace must have a checked-out branch");
-  await git.run(["remote", "get-url", "origin"], workspace);
+  const remote = await git.run(["remote", "get-url", "origin"], workspace);
+  const policy = parseSourceSecurityPolicy(sourcePolicy);
+  const trust = requireTrustedSource(remote, policy);
   const baseHead = await git.run(["rev-parse", "HEAD"], workspace);
   await git.run(["-c", "credential.interactive=false", "fetch", "origin", "--prune", "--no-tags"], workspace, {
     nonInteractive: true,
   });
   const remoteHead = await git.run(["rev-parse", `refs/remotes/origin/${branch}`], workspace);
+  const committedAt = await git.run(["show", "-s", "--format=%cI", remoteHead], workspace);
+  const releaseAge = requireMinimumReleaseAge(trust.source, committedAt, policy);
   const fastForward = await git.run(["merge-base", "--is-ancestor", baseHead, remoteHead], workspace).then(
     () => true,
     () => false,
@@ -61,12 +80,18 @@ export async function planGitFastForward(
         );
   const payload = {
     kind: "git-fast-forward" as const,
-    schemaVersion: 1 as const,
+    schemaVersion: 3 as const,
     workspace,
     branch,
     baseHead,
     remoteHead,
+    committedAt: releaseAge.committedAt,
+    minimumAgeMinutes: releaseAge.minimumAgeMinutes,
+    releaseAgeExcluded: releaseAge.excluded,
     files,
+    remoteIdentity: trust.source,
+    sourcePolicy: policy,
+    trust,
   };
   return { ...payload, planId: computePlanId(payload) };
 }
@@ -78,9 +103,9 @@ export async function inspectGitFastForwardPlan<T>(
   git: WorkspaceGitPort = new NodeWorkspaceGitPort(),
 ): Promise<T> {
   assertPlanId(plan);
-  const current = await planGitFastForward(plan.workspace, git);
+  const current = await planGitFastForward(plan.workspace, plan.sourcePolicy, git);
   if (current.planId !== plan.planId) throw new Error("Remote or local Git state changed after review");
-  const parent = await mkdtemp(path.join(tmpdir(), "dotagent-fast-forward-review-"));
+  const parent = await mkdtemp(path.join(tmpdir(), "dotagents-fast-forward-review-"));
   const checkout = path.join(parent, "checkout");
   try {
     await git.run(["worktree", "add", "--detach", checkout, plan.remoteHead], plan.workspace);
@@ -101,7 +126,7 @@ export async function applyGitFastForwardPlan(
   git: WorkspaceGitPort = new NodeWorkspaceGitPort(),
 ): Promise<string> {
   assertPlanId(plan);
-  const current = await planGitFastForward(plan.workspace, git);
+  const current = await planGitFastForward(plan.workspace, plan.sourcePolicy, git);
   if (current.planId !== plan.planId) throw new Error("Remote or local Git state changed after review");
   if (plan.baseHead !== plan.remoteHead) await git.run(["merge", "--ff-only", plan.remoteHead], plan.workspace);
   return git.run(["rev-parse", "HEAD"], plan.workspace);

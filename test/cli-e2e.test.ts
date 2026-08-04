@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
@@ -12,8 +13,16 @@ afterEach(() => {
 });
 
 describe("CLI materialization flow", () => {
+  it("documents deny-by-default trust for every networked Git command", async () => {
+    const help = await run("bun", ["src/cli.ts", "--help"], { cwd: join(import.meta.dir, "..") });
+    expect(help.stdout).toContain("clone <git-url> <library-directory> [source-trust-options]");
+    expect(help.stdout).toContain("sync [library-directory] [--pull|--push]");
+    expect(help.stdout).toContain("network is denied when omitted");
+    expect(help.stdout).toContain("--allow-local-sources");
+  });
+
   it("previews, requires confirmation, applies, and reports status", async () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-cli-e2e-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-cli-e2e-"));
     roots.push(root);
     const library = join(root, "library");
     const targets = join(root, "targets");
@@ -49,7 +58,7 @@ describe("CLI materialization flow", () => {
   });
 
   it("previews recovery and rejects an unreviewed confirmation", async () => {
-    const library = mkdtempSync(join(tmpdir(), "dotagent-cli-recovery-"));
+    const library = mkdtempSync(join(tmpdir(), "dotagents-cli-recovery-"));
     roots.push(library);
     const preview = await run("bun", ["src/cli.ts", "recover", library, "--json"], {
       cwd: join(import.meta.dir, ".."),
@@ -65,4 +74,54 @@ describe("CLI materialization flow", () => {
     });
     expect(JSON.parse(applied.stdout)).toEqual({ recovered: false, import: "none", materialization: false });
   });
+
+  it("serializes the normalized reviewed source policy into a dependency plan", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dotagents-cli-policy-"));
+    roots.push(root);
+    const upstream = join(root, "upstream");
+    const library = join(root, "library");
+    mkdirSync(join(upstream, "skills", "review"), { recursive: true });
+    mkdirSync(library, { recursive: true });
+    writeFileSync(
+      join(upstream, "skills", "review", "SKILL.md"),
+      "---\nname: review\ndescription: Reviews work.\n---\n# Review\n",
+    );
+    execFileSync("git", ["init", "--initial-branch", "main"], { cwd: upstream });
+    execFileSync("git", ["config", "user.email", "test@example.invalid"], { cwd: upstream });
+    execFileSync("git", ["config", "user.name", "test"], { cwd: upstream });
+    execFileSync("git", ["add", "."], { cwd: upstream });
+    execFileSync("git", ["commit", "-m", "review skill"], { cwd: upstream });
+    const source = pathToFileURL(upstream).href;
+    writeFileSync(
+      join(library, "skills.json"),
+      JSON.stringify({
+        schema_version: 1,
+        name: "policy-fixture",
+        version: "1.0.0",
+        skills: [],
+        dependencies: { review: { url: source, ref: "HEAD", select: ["skills/review"] } },
+      }),
+    );
+
+    const preview = await run(
+      "bun",
+      [
+        "src/cli.ts",
+        "resolve",
+        library,
+        "--trust-source",
+        source,
+        "--allow-local-sources",
+        "--minimum-release-age",
+        "0",
+        "--json",
+      ],
+      { cwd: join(import.meta.dir, "..") },
+    );
+    expect(JSON.parse(preview.stdout).sourcePolicy).toEqual({
+      trust: { mode: "allowlist", repositories: [source], hosts: [], github_organizations: [], allow_local: true },
+      minimum_release_age_minutes: 0,
+      minimum_release_age_exclude: [],
+    });
+  }, 20_000);
 });

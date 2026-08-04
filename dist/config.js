@@ -2,9 +2,10 @@ import { parse } from "yaml";
 import { z } from "zod";
 import { normalizeGitIdentity } from "./git-identity.js";
 import { normalizeSkillPath } from "./paths.js";
-export const DOTAGENT_CONFIG_VERSION = 1;
-export const DOTAGENT_CONFIG_FILE = "dotagent.yaml";
-export const DOTAGENT_LOCAL_CONFIG_FILE = "dotagent.local.yaml";
+import { DENY_ALL_SOURCE_SECURITY_POLICY, sourceSecurityPolicySchema } from "./source-policy.js";
+export const DOTAGENTS_CONFIG_VERSION = 1;
+export const DOTAGENTS_CONFIG_FILE = "dotagents.yaml";
+export const DOTAGENTS_LOCAL_CONFIG_FILE = "dotagents.local.yaml";
 const slug = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/);
 const vendoredOriginSchema = z
     .object({
@@ -60,8 +61,8 @@ const portableSkillPolicySchema = z
 });
 export const portableConfigSchema = z
     .object({
-    schema_version: z.literal(DOTAGENT_CONFIG_VERSION),
-    minimum_dotagent_version: z.string().min(1).max(128).optional(),
+    schema_version: z.literal(DOTAGENTS_CONFIG_VERSION),
+    minimum_dotagents_version: z.string().min(1).max(128).optional(),
     defaults: z
         .object({
         include: z.enum(["all", "owned", "selected"]).default("all"),
@@ -74,7 +75,7 @@ export const portableConfigSchema = z
 const envReference = z.string().regex(/^\$\{[A-Z_][A-Z0-9_]*\}$/);
 export const localConfigSchema = z
     .object({
-    schema_version: z.literal(DOTAGENT_CONFIG_VERSION),
+    schema_version: z.literal(DOTAGENTS_CONFIG_VERSION),
     agents: z
         .object({
         selected: z.array(slug).optional(),
@@ -85,6 +86,7 @@ export const localConfigSchema = z
     materialization: z.enum(["auto", "native", "symlink", "junction", "copy"]).optional(),
     exclusions: z.array(slug).default([]),
     environment: z.record(slug, envReference).default({}),
+    source_security: sourceSecurityPolicySchema.optional(),
 })
     .strict();
 function parseYamlSchema(input, schema, filename) {
@@ -104,10 +106,10 @@ function parseYamlSchema(input, schema, filename) {
     return result.data;
 }
 export function parsePortableConfig(input) {
-    return parseYamlSchema(input, portableConfigSchema, DOTAGENT_CONFIG_FILE);
+    return parseYamlSchema(input, portableConfigSchema, DOTAGENTS_CONFIG_FILE);
 }
 export function parseLocalConfig(input) {
-    return parseYamlSchema(input, localConfigSchema, DOTAGENT_LOCAL_CONFIG_FILE);
+    return parseYamlSchema(input, localConfigSchema, DOTAGENTS_LOCAL_CONFIG_FILE);
 }
 /** Local values are explicit overlays; provenance lets a UI explain every effective field. */
 export function mergeConfig(portable, local) {
@@ -118,6 +120,7 @@ export function mergeConfig(portable, local) {
         materialization: "local",
         exclusions: "local",
         environment: "local",
+        sourceSecurity: "local",
     };
     return {
         defaults: portable.defaults,
@@ -126,6 +129,7 @@ export function mergeConfig(portable, local) {
         materialization: local?.materialization ?? "auto",
         exclusions: [...(local?.exclusions ?? [])].sort(),
         environment: Object.fromEntries(Object.entries(local?.environment ?? {}).sort(([a], [b]) => a.localeCompare(b))),
+        sourceSecurity: local?.source_security ?? DENY_ALL_SOURCE_SECURITY_POLICY,
         provenance,
     };
 }

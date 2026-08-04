@@ -5,7 +5,7 @@ function schemaIssues(error, code) {
     return error.issues.map((issue) => ({
         code,
         message: issue.message,
-        remediation: "Fix the reported field or regenerate the file with a compatible dotagent version.",
+        remediation: "Fix the reported field or regenerate the file with a compatible dotagents version.",
         ...(issue.path.length > 0 ? { field: issue.path.join(".") } : {}),
     }));
 }
@@ -58,7 +58,7 @@ export async function loadLibrary(root) {
                     code: missing ? "file-not-found" : "io-error",
                     message: missing ? `No skills.json found at ${manifestPath}.` : `Could not read ${manifestPath}.`,
                     remediation: missing
-                        ? "Run beautyfree-dotagent init or choose a library directory."
+                        ? "Run dotagents init or choose a library directory."
                         : "Check file permissions and retry.",
                     path: manifestPath,
                 },

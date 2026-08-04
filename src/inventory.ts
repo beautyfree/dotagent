@@ -2,7 +2,7 @@ import type { Dirent, Stats } from "node:fs";
 import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { computeSkillIntegrity, type IntegrityFile } from "./integrity.js";
-import type { DotagentIssue, DotagentResult } from "./issues.js";
+import type { DotagentsIssue, DotagentsResult } from "./issues.js";
 import { loadLibrary } from "./library.js";
 import { parse } from "yaml";
 
@@ -55,17 +55,17 @@ export function declaredSkillName(skillMd: string): string | null {
   }
 }
 
-function issue(code: DotagentIssue["code"], message: string, remediation: string, filePath: string): DotagentIssue {
+function issue(code: DotagentsIssue["code"], message: string, remediation: string, filePath: string): DotagentsIssue {
   return { code, message, remediation, path: filePath };
 }
 
 async function collectSkillFiles(
   skillRoot: string,
   limits: ScanLimits,
-): Promise<DotagentResult<{ files: IntegrityFile[]; bytes: number }>> {
+): Promise<DotagentsResult<{ files: IntegrityFile[]; bytes: number }>> {
   const files: IntegrityFile[] = [];
   let bytes = 0;
-  const walk = async (directory: string): Promise<DotagentIssue | null> => {
+  const walk = async (directory: string): Promise<DotagentsIssue | null> => {
     let entries: Dirent[];
     try {
       entries = await readdir(directory, { withFileTypes: true });
@@ -81,7 +81,7 @@ async function collectSkillFiles(
     for (const entry of entries) {
       const absolute = path.join(directory, entry.name);
       const relative = path.relative(skillRoot, absolute).replaceAll(path.sep, "/");
-      if (relative === ".dotagent-managed.json") continue;
+      if (relative === ".dotagents-managed.json") continue;
       if (entry.isSymbolicLink()) {
         return issue(
           "unsafe-link",
@@ -135,7 +135,7 @@ export async function scanOwnedSkill(
   root: string,
   skillPath: string,
   limits: ScanLimits = DEFAULT_SCAN_LIMITS,
-): Promise<DotagentResult<ScannedSkill>> {
+): Promise<DotagentsResult<ScannedSkill>> {
   const skillRoot = skillPath === "." ? root : path.join(root, ...skillPath.split("/"));
   let metadata: Stats;
   try {
@@ -256,7 +256,7 @@ export async function scanOwnedSkill(
 export async function scanLibrary(
   root: string,
   limits: ScanLimits = DEFAULT_SCAN_LIMITS,
-): Promise<DotagentResult<LibraryInventory>> {
+): Promise<DotagentsResult<LibraryInventory>> {
   const loaded = await loadLibrary(root);
   if (!loaded.ok) return loaded;
   const ownedSkills: OwnedSkillInventory[] = [];

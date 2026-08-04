@@ -23,7 +23,7 @@ function fixture(skills: Record<string, string> = { writing: "# Remote\n" }): {
   targetRoot: string;
   sources: { id: string; path: string; integrity: string }[];
 } {
-  const root = mkdtempSync(path.join(tmpdir(), "dotagent-reconcile-"));
+  const root = mkdtempSync(path.join(tmpdir(), "dotagents-reconcile-"));
   roots.push(root);
   const sourceRoot = path.join(root, "remote");
   const targetRoot = path.join(root, "local", "skills");
@@ -171,8 +171,8 @@ describe("library reconciliation", () => {
     mkdirSync(operation.target, { recursive: true });
     writeFileSync(path.join(operation.target, "SKILL.md"), "# Remote\n");
     const journalPath = path.join(current.root, "state", "reconcile-journal.json");
-    const stagePath = `${operation.target}.dotagent-stage-test`;
-    const backupPath = `${operation.target}.dotagent-backup-test`;
+    const stagePath = `${operation.target}.dotagents-stage-test`;
+    const backupPath = `${operation.target}.dotagents-backup-test`;
     mkdirSync(path.dirname(journalPath), { recursive: true });
     writeFileSync(
       journalPath,

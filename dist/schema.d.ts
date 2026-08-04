@@ -5,22 +5,37 @@ export declare const dependencyReferenceSchema: z.ZodEffects<z.ZodObject<{
     url: z.ZodString;
     ref: z.ZodString;
     select: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
+    subtree: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    include: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
+    exclude: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
 }, "strict", z.ZodTypeAny, {
     url: string;
     ref: string;
     select?: string[] | undefined;
+    subtree?: string | undefined;
+    include?: string[] | undefined;
+    exclude?: string[] | undefined;
 }, {
     url: string;
     ref: string;
     select?: string[] | undefined;
+    subtree?: string | undefined;
+    include?: string[] | undefined;
+    exclude?: string[] | undefined;
 }>, {
     url: string;
     ref: string;
     select?: string[] | undefined;
+    subtree?: string | undefined;
+    include?: string[] | undefined;
+    exclude?: string[] | undefined;
 }, {
     url: string;
     ref: string;
     select?: string[] | undefined;
+    subtree?: string | undefined;
+    include?: string[] | undefined;
+    exclude?: string[] | undefined;
 }>;
 export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
     schema_version: z.ZodLiteral<1>;
@@ -33,22 +48,37 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
         url: z.ZodString;
         ref: z.ZodString;
         select: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
+        subtree: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+        include: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
+        exclude: z.ZodOptional<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
     }, "strict", z.ZodTypeAny, {
         url: string;
         ref: string;
         select?: string[] | undefined;
+        subtree?: string | undefined;
+        include?: string[] | undefined;
+        exclude?: string[] | undefined;
     }, {
         url: string;
         ref: string;
         select?: string[] | undefined;
+        subtree?: string | undefined;
+        include?: string[] | undefined;
+        exclude?: string[] | undefined;
     }>, {
         url: string;
         ref: string;
         select?: string[] | undefined;
+        subtree?: string | undefined;
+        include?: string[] | undefined;
+        exclude?: string[] | undefined;
     }, {
         url: string;
         ref: string;
         select?: string[] | undefined;
+        subtree?: string | undefined;
+        include?: string[] | undefined;
+        exclude?: string[] | undefined;
     }>>>;
     metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strict", z.ZodTypeAny, {
@@ -60,6 +90,9 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
         url: string;
         ref: string;
         select?: string[] | undefined;
+        subtree?: string | undefined;
+        include?: string[] | undefined;
+        exclude?: string[] | undefined;
     }>;
     description?: string | undefined;
     license?: string | undefined;
@@ -75,6 +108,9 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
         url: string;
         ref: string;
         select?: string[] | undefined;
+        subtree?: string | undefined;
+        include?: string[] | undefined;
+        exclude?: string[] | undefined;
     }> | undefined;
     metadata?: Record<string, unknown> | undefined;
 }>, {
@@ -86,6 +122,9 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
         url: string;
         ref: string;
         select?: string[] | undefined;
+        subtree?: string | undefined;
+        include?: string[] | undefined;
+        exclude?: string[] | undefined;
     }>;
     description?: string | undefined;
     license?: string | undefined;
@@ -101,6 +140,9 @@ export declare const libraryManifestSchema: z.ZodEffects<z.ZodObject<{
         url: string;
         ref: string;
         select?: string[] | undefined;
+        subtree?: string | undefined;
+        include?: string[] | undefined;
+        exclude?: string[] | undefined;
     }> | undefined;
     metadata?: Record<string, unknown> | undefined;
 }>;
@@ -108,8 +150,48 @@ export declare const resolvedPackageSchema: z.ZodObject<{
     url: z.ZodString;
     requested_ref: z.ZodString;
     commit: z.ZodString;
+    committed_at: z.ZodOptional<z.ZodString>;
     integrity: z.ZodString;
     license: z.ZodOptional<z.ZodString>;
+    selection: z.ZodOptional<z.ZodObject<{
+        subtree: z.ZodEffects<z.ZodString, string, string>;
+        include: z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">;
+        exclude: z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">;
+        index_integrity: z.ZodString;
+        excluded: z.ZodArray<z.ZodObject<{
+            path: z.ZodEffects<z.ZodString, string, string>;
+            reason: z.ZodEnum<["excluded", "not-matched"]>;
+            matched_pattern: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+        }, "strict", z.ZodTypeAny, {
+            path: string;
+            reason: "excluded" | "not-matched";
+            matched_pattern?: string | undefined;
+        }, {
+            path: string;
+            reason: "excluded" | "not-matched";
+            matched_pattern?: string | undefined;
+        }>, "many">;
+    }, "strict", z.ZodTypeAny, {
+        excluded: {
+            path: string;
+            reason: "excluded" | "not-matched";
+            matched_pattern?: string | undefined;
+        }[];
+        subtree: string;
+        include: string[];
+        exclude: string[];
+        index_integrity: string;
+    }, {
+        excluded: {
+            path: string;
+            reason: "excluded" | "not-matched";
+            matched_pattern?: string | undefined;
+        }[];
+        subtree: string;
+        include: string[];
+        exclude: string[];
+        index_integrity: string;
+    }>>;
     skills: z.ZodArray<z.ZodObject<{
         name: z.ZodString;
         path: z.ZodEffects<z.ZodString, string, string>;
@@ -130,6 +212,18 @@ export declare const resolvedPackageSchema: z.ZodObject<{
     commit: string;
     integrity: string;
     license?: string | undefined;
+    committed_at?: string | undefined;
+    selection?: {
+        excluded: {
+            path: string;
+            reason: "excluded" | "not-matched";
+            matched_pattern?: string | undefined;
+        }[];
+        subtree: string;
+        include: string[];
+        exclude: string[];
+        index_integrity: string;
+    } | undefined;
 }, {
     url: string;
     skills: {
@@ -140,6 +234,18 @@ export declare const resolvedPackageSchema: z.ZodObject<{
     commit: string;
     integrity: string;
     license?: string | undefined;
+    committed_at?: string | undefined;
+    selection?: {
+        excluded: {
+            path: string;
+            reason: "excluded" | "not-matched";
+            matched_pattern?: string | undefined;
+        }[];
+        subtree: string;
+        include: string[];
+        exclude: string[];
+        index_integrity: string;
+    } | undefined;
 }>;
 export declare const libraryLockSchema: z.ZodObject<{
     lockfile_version: z.ZodLiteral<1>;
@@ -148,8 +254,48 @@ export declare const libraryLockSchema: z.ZodObject<{
         url: z.ZodString;
         requested_ref: z.ZodString;
         commit: z.ZodString;
+        committed_at: z.ZodOptional<z.ZodString>;
         integrity: z.ZodString;
         license: z.ZodOptional<z.ZodString>;
+        selection: z.ZodOptional<z.ZodObject<{
+            subtree: z.ZodEffects<z.ZodString, string, string>;
+            include: z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">;
+            exclude: z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">;
+            index_integrity: z.ZodString;
+            excluded: z.ZodArray<z.ZodObject<{
+                path: z.ZodEffects<z.ZodString, string, string>;
+                reason: z.ZodEnum<["excluded", "not-matched"]>;
+                matched_pattern: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+            }, "strict", z.ZodTypeAny, {
+                path: string;
+                reason: "excluded" | "not-matched";
+                matched_pattern?: string | undefined;
+            }, {
+                path: string;
+                reason: "excluded" | "not-matched";
+                matched_pattern?: string | undefined;
+            }>, "many">;
+        }, "strict", z.ZodTypeAny, {
+            excluded: {
+                path: string;
+                reason: "excluded" | "not-matched";
+                matched_pattern?: string | undefined;
+            }[];
+            subtree: string;
+            include: string[];
+            exclude: string[];
+            index_integrity: string;
+        }, {
+            excluded: {
+                path: string;
+                reason: "excluded" | "not-matched";
+                matched_pattern?: string | undefined;
+            }[];
+            subtree: string;
+            include: string[];
+            exclude: string[];
+            index_integrity: string;
+        }>>;
         skills: z.ZodArray<z.ZodObject<{
             name: z.ZodString;
             path: z.ZodEffects<z.ZodString, string, string>;
@@ -170,6 +316,18 @@ export declare const libraryLockSchema: z.ZodObject<{
         commit: string;
         integrity: string;
         license?: string | undefined;
+        committed_at?: string | undefined;
+        selection?: {
+            excluded: {
+                path: string;
+                reason: "excluded" | "not-matched";
+                matched_pattern?: string | undefined;
+            }[];
+            subtree: string;
+            include: string[];
+            exclude: string[];
+            index_integrity: string;
+        } | undefined;
     }, {
         url: string;
         skills: {
@@ -180,6 +338,18 @@ export declare const libraryLockSchema: z.ZodObject<{
         commit: string;
         integrity: string;
         license?: string | undefined;
+        committed_at?: string | undefined;
+        selection?: {
+            excluded: {
+                path: string;
+                reason: "excluded" | "not-matched";
+                matched_pattern?: string | undefined;
+            }[];
+            subtree: string;
+            include: string[];
+            exclude: string[];
+            index_integrity: string;
+        } | undefined;
     }>>;
 }, "strict", z.ZodTypeAny, {
     lockfile_version: 1;
@@ -194,6 +364,18 @@ export declare const libraryLockSchema: z.ZodObject<{
         commit: string;
         integrity: string;
         license?: string | undefined;
+        committed_at?: string | undefined;
+        selection?: {
+            excluded: {
+                path: string;
+                reason: "excluded" | "not-matched";
+                matched_pattern?: string | undefined;
+            }[];
+            subtree: string;
+            include: string[];
+            exclude: string[];
+            index_integrity: string;
+        } | undefined;
     }>;
 }, {
     lockfile_version: 1;
@@ -208,6 +390,18 @@ export declare const libraryLockSchema: z.ZodObject<{
         commit: string;
         integrity: string;
         license?: string | undefined;
+        committed_at?: string | undefined;
+        selection?: {
+            excluded: {
+                path: string;
+                reason: "excluded" | "not-matched";
+                matched_pattern?: string | undefined;
+            }[];
+            subtree: string;
+            include: string[];
+            exclude: string[];
+            index_integrity: string;
+        } | undefined;
     }>;
 }>;
 export type DependencyReference = z.infer<typeof dependencyReferenceSchema>;

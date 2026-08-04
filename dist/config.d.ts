@@ -1,7 +1,7 @@
 import { z } from "zod";
-export declare const DOTAGENT_CONFIG_VERSION: 1;
-export declare const DOTAGENT_CONFIG_FILE = "dotagent.yaml";
-export declare const DOTAGENT_LOCAL_CONFIG_FILE = "dotagent.local.yaml";
+export declare const DOTAGENTS_CONFIG_VERSION: 1;
+export declare const DOTAGENTS_CONFIG_FILE = "dotagents.yaml";
+export declare const DOTAGENTS_LOCAL_CONFIG_FILE = "dotagents.local.yaml";
 declare const vendoredOriginSchema: z.ZodEffects<z.ZodObject<{
     url: z.ZodString;
     commit: z.ZodString;
@@ -35,7 +35,7 @@ declare const vendoredOriginSchema: z.ZodEffects<z.ZodObject<{
 }>;
 export declare const portableConfigSchema: z.ZodObject<{
     schema_version: z.ZodLiteral<1>;
-    minimum_dotagent_version: z.ZodOptional<z.ZodString>;
+    minimum_dotagents_version: z.ZodOptional<z.ZodString>;
     defaults: z.ZodDefault<z.ZodObject<{
         include: z.ZodDefault<z.ZodEnum<["all", "owned", "selected"]>>;
     }, "strict", z.ZodTypeAny, {
@@ -140,7 +140,7 @@ export declare const portableConfigSchema: z.ZodObject<{
     defaults: {
         include: "all" | "owned" | "selected";
     };
-    minimum_dotagent_version?: string | undefined;
+    minimum_dotagents_version?: string | undefined;
 }, {
     schema_version: 1;
     skills?: Record<string, {
@@ -155,7 +155,7 @@ export declare const portableConfigSchema: z.ZodObject<{
             skill_path: string;
         } | undefined;
     }> | undefined;
-    minimum_dotagent_version?: string | undefined;
+    minimum_dotagents_version?: string | undefined;
     defaults?: {
         include?: "all" | "owned" | "selected" | undefined;
     } | undefined;
@@ -175,6 +175,49 @@ export declare const localConfigSchema: z.ZodObject<{
     materialization: z.ZodOptional<z.ZodEnum<["auto", "native", "symlink", "junction", "copy"]>>;
     exclusions: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
     environment: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodString>>;
+    source_security: z.ZodOptional<z.ZodObject<{
+        trust: z.ZodDefault<z.ZodObject<{
+            mode: z.ZodDefault<z.ZodEnum<["deny", "allowlist", "allow-all"]>>;
+            repositories: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+            hosts: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+            github_organizations: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+            allow_local: z.ZodDefault<z.ZodBoolean>;
+        }, "strict", z.ZodTypeAny, {
+            mode: "deny" | "allowlist" | "allow-all";
+            repositories: string[];
+            hosts: string[];
+            github_organizations: string[];
+            allow_local: boolean;
+        }, {
+            mode?: "deny" | "allowlist" | "allow-all" | undefined;
+            repositories?: string[] | undefined;
+            hosts?: string[] | undefined;
+            github_organizations?: string[] | undefined;
+            allow_local?: boolean | undefined;
+        }>>;
+        minimum_release_age_minutes: z.ZodDefault<z.ZodNumber>;
+        minimum_release_age_exclude: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    }, "strict", z.ZodTypeAny, {
+        trust: {
+            mode: "deny" | "allowlist" | "allow-all";
+            repositories: string[];
+            hosts: string[];
+            github_organizations: string[];
+            allow_local: boolean;
+        };
+        minimum_release_age_minutes: number;
+        minimum_release_age_exclude: string[];
+    }, {
+        trust?: {
+            mode?: "deny" | "allowlist" | "allow-all" | undefined;
+            repositories?: string[] | undefined;
+            hosts?: string[] | undefined;
+            github_organizations?: string[] | undefined;
+            allow_local?: boolean | undefined;
+        } | undefined;
+        minimum_release_age_minutes?: number | undefined;
+        minimum_release_age_exclude?: string[] | undefined;
+    }>>;
 }, "strict", z.ZodTypeAny, {
     schema_version: 1;
     exclusions: string[];
@@ -183,16 +226,38 @@ export declare const localConfigSchema: z.ZodObject<{
         roots?: Record<string, string> | undefined;
         selected?: string[] | undefined;
     } | undefined;
-    materialization?: "auto" | "native" | "symlink" | "junction" | "copy" | undefined;
+    materialization?: "symlink" | "native" | "auto" | "junction" | "copy" | undefined;
+    source_security?: {
+        trust: {
+            mode: "deny" | "allowlist" | "allow-all";
+            repositories: string[];
+            hosts: string[];
+            github_organizations: string[];
+            allow_local: boolean;
+        };
+        minimum_release_age_minutes: number;
+        minimum_release_age_exclude: string[];
+    } | undefined;
 }, {
     schema_version: 1;
     agents?: {
         roots?: Record<string, string> | undefined;
         selected?: string[] | undefined;
     } | undefined;
-    materialization?: "auto" | "native" | "symlink" | "junction" | "copy" | undefined;
+    materialization?: "symlink" | "native" | "auto" | "junction" | "copy" | undefined;
     exclusions?: string[] | undefined;
     environment?: Record<string, string> | undefined;
+    source_security?: {
+        trust?: {
+            mode?: "deny" | "allowlist" | "allow-all" | undefined;
+            repositories?: string[] | undefined;
+            hosts?: string[] | undefined;
+            github_organizations?: string[] | undefined;
+            allow_local?: boolean | undefined;
+        } | undefined;
+        minimum_release_age_minutes?: number | undefined;
+        minimum_release_age_exclude?: string[] | undefined;
+    } | undefined;
 }>;
 export type PortableConfig = z.infer<typeof portableConfigSchema>;
 export type VendoredOrigin = z.infer<typeof vendoredOriginSchema>;
@@ -205,6 +270,7 @@ export interface EffectiveConfig {
     materialization: NonNullable<LocalConfig["materialization"]>;
     exclusions: string[];
     environment: Record<string, string>;
+    sourceSecurity: NonNullable<LocalConfig["source_security"]>;
     provenance: Record<string, ConfigProvenance>;
 }
 export interface SkillAgentSelection {

@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
-  "package": "@beautyfree/dotagent",
+  "package": "dotagents",
   "note": "Update deliberately after reviewing the generated declaration diff.",
   "exports": [
     {
       "subpath": ".",
       "types": "./dist/index.d.ts",
-      "sha256": "ec8b74696ea5079bcf4e9d31687297735c872927cf9442f22f9c91b6c3e099ce"
+      "sha256": "542999938635c03239e45e53d115fdcd83b51baf978f87e6a32e3eb23a53d7e6"
     },
     {
       "subpath": "./adapters/skiller",
       "types": "./dist/adapters/skiller.d.ts",
-      "sha256": "8ca4f159f930cb32d95c3016645ee1f45a3fbd37b5a4dbae8d0abaaafd69deef"
+      "sha256": "116d1f2fab390be46a5b53d0aec36363af93360bc8859ffe6a4afc623ad24af0"
     },
     {
       "subpath": "./adapters/skiller-agents",
@@ -24,14 +24,19 @@
       "sha256": "83a82b3a638e2718c505e36cadc42cc1d12d722af6608a44d0691511fa6e9a08"
     },
     {
+      "subpath": "./adopt",
+      "types": "./dist/adopt.d.ts",
+      "sha256": "97665ae61afcc0d75397c945bc4d0c96c7919c417d5621224605c0c655bd8d18"
+    },
+    {
       "subpath": "./agents",
       "types": "./dist/agents.d.ts",
-      "sha256": "d13191262bf63141ad59fe0fab7951b160c4247180837bc4d1074c9b5072fd2f"
+      "sha256": "fa202bfd5c7b224a89e673f785020da2aa1bb25d75bc621556fb21ad677ab0c2"
     },
     {
       "subpath": "./audit",
       "types": "./dist/audit.d.ts",
-      "sha256": "c12e88a0a251c02c99907882313fcef867d8e363b34449ab614dc5856b58c363"
+      "sha256": "e5c555a4dbae213d08284d67f91d426a36fea1cb4301d692dd342ec734e81a8b"
     },
     {
       "subpath": "./catalog",
@@ -46,22 +51,22 @@
     {
       "subpath": "./config",
       "types": "./dist/config.d.ts",
-      "sha256": "8762a254adc295065c6ec604aefe98c3a7ad30fc5f1641eb252e66a2afed13e0"
+      "sha256": "c40a9b28ed889fc2843b579468c70cc1092bb6d9c01b66794d18cbf314ee09bf"
     },
     {
       "subpath": "./decisions",
       "types": "./dist/decisions.d.ts",
-      "sha256": "8401f6c94aa126f25d40c60171bcc302d1a3c1aa05f603b03036847f6157ab78"
+      "sha256": "df9a3a776b685da8fd82a87976d230413257fed7230e4c89ff8eb0f80e10b55c"
     },
     {
       "subpath": "./discovery",
       "types": "./dist/discovery.d.ts",
-      "sha256": "57466a72f5bcbfd0d81c3e94bf54d1f703513615966950897d5a402650af506e"
+      "sha256": "682b9c80d0cb3d50b7120b7c77de68352066d185decc9af2724caa1154c6cd82"
     },
     {
       "subpath": "./doctor",
       "types": "./dist/doctor.d.ts",
-      "sha256": "2fca230f0866cf22723f9f61a184cb919fd44b0dc60a46887537999b5f7b74f4"
+      "sha256": "cce8a6b55efb6848accfcc6ca79a52e356d075d0778e8f35e800ee02be2191a3"
     },
     {
       "subpath": "./export-policy",
@@ -71,12 +76,17 @@
     {
       "subpath": "./git-fast-forward",
       "types": "./dist/git-fast-forward.d.ts",
-      "sha256": "ab6f270654e6c426c8b6e36141243f2eb8d32df540cad16ab1a0b2c39d965d87"
+      "sha256": "cec0d24699824bf49f593115ca6046be890d78b7b3c5c6a71ed962df542c3ae6"
     },
     {
       "subpath": "./git-workspace",
       "types": "./dist/git-workspace.d.ts",
-      "sha256": "27484c8a3fb450935302b1f6189243d8f99c3befeab285a135c9bebe4c9c5419"
+      "sha256": "f61a0ff765498f03fdcce567c792736c2220fb8fe65a2e52333d0abfd55279aa"
+    },
+    {
+      "subpath": "./history",
+      "types": "./dist/history.d.ts",
+      "sha256": "5d1b028e0bd94dc5cecf81d63e4e9ab8fb81bc8f41e99c6cf4716f90004f3a3f"
     },
     {
       "subpath": "./import",
@@ -101,17 +111,17 @@
     {
       "subpath": "./inventory",
       "types": "./dist/inventory.d.ts",
-      "sha256": "b17aeb114526e629148dbd1b16fabda3909b26c0166625262cf2c5b08c15245a"
+      "sha256": "8d153a856e22ee98a28213cc6184f2e7ff75b98ba5bf611c360db7a2985f469d"
     },
     {
       "subpath": "./library",
       "types": "./dist/library.d.ts",
-      "sha256": "31d4fed8254f861a868583bcbfa8d763c061b6f7bb1af2c2cf610b1a395e05ee"
+      "sha256": "fe3e4f8ee084d2ba2b708bd78e441576c1c60c9e76c2bbca5114f79ec518d326"
     },
     {
       "subpath": "./library-update",
       "types": "./dist/library-update.d.ts",
-      "sha256": "c2bb4adef55ae21cbc033e030ba81da13fb6d4aa0c93034a8329410401523fe8"
+      "sha256": "32a49355883bfc204cc80a4fbd7d36ec9eee549fd830fa4cc5b4b3e25bb55517"
     },
     {
       "subpath": "./machine",
@@ -139,19 +149,54 @@
       "sha256": "8c6eeb34c0b1a9ea8e43a604ce55529f2dce631167198b78a605d0bc26aa68f0"
     },
     {
+      "subpath": "./repair",
+      "types": "./dist/repair.d.ts",
+      "sha256": "56d3537a963e713dd62c965ec0590b9e7bc58ee1ed76607ad6677c1dfa3be681"
+    },
+    {
+      "subpath": "./resource-apply",
+      "types": "./dist/resource-apply.d.ts",
+      "sha256": "81aec4978a2c92d5e55e340601cef3991bfea60546396e79fdc6f34b1916df6b"
+    },
+    {
+      "subpath": "./resource-model",
+      "types": "./dist/resource-model.d.ts",
+      "sha256": "a6504560724b9c442bdd608efadfe56243006f0c01bc79a143f44c1538a4eb08"
+    },
+    {
       "subpath": "./schema",
       "types": "./dist/schema.d.ts",
-      "sha256": "f701bd8e6b043e699ab670f2432f4067f5c5977efb292824b722d00a3e3ba109"
+      "sha256": "a6590f49be857684fa099042d3519888ab41355977bb66957447f9a5250ecab3"
+    },
+    {
+      "subpath": "./scope",
+      "types": "./dist/scope.d.ts",
+      "sha256": "278c84d95d807c1e913c09e35cd7a8b2841b067fbb784a72388c61acaabcdd1d"
+    },
+    {
+      "subpath": "./selection",
+      "types": "./dist/selection.d.ts",
+      "sha256": "40cc0e565f7651f8d4c301dc74a5012d3e26fac038d5d7b1a197da4bf35a3776"
+    },
+    {
+      "subpath": "./source-policy",
+      "types": "./dist/source-policy.d.ts",
+      "sha256": "77435639a992c589980c669add6c219de7a429aff5e5af0eb619f4b5ce582f96"
     },
     {
       "subpath": "./sources",
       "types": "./dist/sources.d.ts",
-      "sha256": "03caf38e820cab593f129c63ac8633bf625455b957638b36e25ecb8c71e7b247"
+      "sha256": "9a0ca340e0aea1a2399c5253dcb452be7bc0657629f9f7dbadeef6a72c157788"
     },
     {
       "subpath": "./status",
       "types": "./dist/status.d.ts",
-      "sha256": "f4ee3b343796e8dcbc547b4e4face305b625c51c7654fb6685ba340279161ad6"
+      "sha256": "f96ea8d305d2c5657e01c6fd3670965e9c0d442a9d11d2e5d74daceb50364900"
+    },
+    {
+      "subpath": "./well-known",
+      "types": "./dist/well-known.d.ts",
+      "sha256": "62905d1f67745a80f26c05c0508df12885d96340d355e63b6a5cb4e5ef6a886b"
     }
   ]
 }

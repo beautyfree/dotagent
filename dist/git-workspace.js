@@ -9,10 +9,12 @@ import { normalizeGitIdentity } from "./git-identity.js";
 import { loadLibrary } from "./library.js";
 import { normalizePortablePath } from "./paths.js";
 import { computePlanId } from "./plan.js";
+import { resourceManifestSchema, scanResourceManifest } from "./resource-model.js";
+import { parseSourceSecurityPolicy, requireMinimumReleaseAge, requireTrustedSource, } from "./source-policy.js";
 const execFileAsync = promisify(execFile);
 const DEFAULT_BRANCH = "main";
-const GIT_NAME = "dotagent library";
-const GIT_EMAIL = "library@dotagent.local";
+const GIT_NAME = "dotagents library";
+const GIT_EMAIL = "library@dotagents.local";
 export class NodeWorkspaceGitPort {
     async run(args, cwd, options = {}) {
         const result = await execFileAsync("git", args, {
@@ -20,7 +22,11 @@ export class NodeWorkspaceGitPort {
             encoding: "utf8",
             maxBuffer: 10 * 1024 * 1024,
             env: options.nonInteractive
-                ? { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: "ssh -o BatchMode=yes" }
+                ? {
+                    ...process.env,
+                    GIT_TERMINAL_PROMPT: "0",
+                    GIT_SSH_COMMAND: "ssh -o BatchMode=yes",
+                }
                 : process.env,
         });
         // Porcelain `-z` records can legitimately start with a space (for example
@@ -95,11 +101,13 @@ function parseNullPaths(output) {
 }
 function isMachineLocalIgnoredPath(filePath) {
     const normalized = filePath.replaceAll("\\", "/").replace(/^\.\//, "");
-    return normalized === "dotagent.local.yaml" || normalized === ".dotagent" || normalized.startsWith(".dotagent/");
+    return normalized === "dotagents.local.yaml" || normalized === ".dotagents" || normalized.startsWith(".dotagents/");
 }
 async function changedLibraryPaths(root, git) {
     const [status, ignored] = await Promise.all([
-        git.run(["status", "--porcelain=v1", "-z", "--untracked-files=all"], root, { raw: true }),
+        git.run(["status", "--porcelain=v1", "-z", "--untracked-files=all"], root, {
+            raw: true,
+        }),
         git.run(["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], root, { raw: true }),
     ]);
     return {
@@ -113,9 +121,59 @@ function portableGitPath(filePath) {
     const normalized = normalizePortablePath(filePath);
     if (!normalized)
         return null;
-    const allowedFile = /^(?:skills\.json|skills\.lock|dotagent\.yaml|README(?:\.[^/]+)?|LICENSE(?:\.[^/]+)?|NOTICE(?:\.[^/]+)?|\.gitignore)$/i.test(normalized);
-    const allowedTree = /^(?:skills|docs|assets|examples)\//.test(normalized);
+    const allowedFile = /^(?:skills\.json|skills\.lock|resources\.json|dotagents\.yaml|README(?:\.[^/]+)?|LICENSE(?:\.[^/]+)?|NOTICE(?:\.[^/]+)?|\.gitignore)$/i.test(normalized);
+    const allowedTree = /^(?:skills|instructions|commands|subagents|docs|assets|examples)\//.test(normalized);
     return allowedFile || allowedTree ? normalized : null;
+}
+async function auditPortableResources(root, repositoryPaths) {
+    const manifestPath = path.join(root, "resources.json");
+    const resourceTreePaths = repositoryPaths.filter((entry) => /^(?:instructions|commands|subagents)\//.test(entry));
+    if (!(await exists(manifestPath))) {
+        return {
+            secretFindings: [],
+            unsafePaths: resourceTreePaths,
+            auditErrors: [],
+        };
+    }
+    try {
+        const metadata = await lstat(manifestPath);
+        if (metadata.isSymbolicLink() || !metadata.isFile() || metadata.size > 1024 * 1024) {
+            throw new Error("resources.json must be a bounded regular file");
+        }
+        const manifest = resourceManifestSchema.parse(JSON.parse(await readFile(manifestPath, "utf8")));
+        const declared = manifest.resources.map((resource) => ({
+            kind: resource.kind,
+            path: resource.path,
+        }));
+        const unsafePaths = resourceTreePaths.filter((candidate) => !declared.some((resource) => resource.kind === "skill" ? candidate.startsWith(`${resource.path}/`) : candidate === resource.path));
+        const scanned = await scanResourceManifest(root, manifest);
+        const secretFindings = scanned.resources.flatMap((resource) => resource.secretFindings.map((finding) => ({
+            file: resource.kind === "skill" ? `${resource.path}/${finding.relativePath}` : finding.relativePath,
+            rule: finding.rule,
+            line: finding.line,
+            column: finding.column,
+        })));
+        return { secretFindings, unsafePaths, auditErrors: [] };
+    }
+    catch (error) {
+        return {
+            secretFindings: [],
+            unsafePaths: resourceTreePaths,
+            auditErrors: [
+                {
+                    code: "invalid-resource-manifest",
+                    message: error instanceof Error ? error.message : "resources.json could not be reviewed safely",
+                    remediation: "Repair resources.json and every declared data resource before syncing the library.",
+                    field: "resources.json",
+                },
+            ],
+        };
+    }
+}
+function uniqueSecretFindings(findings) {
+    return [
+        ...new Map(findings.map((finding) => [`${finding.file}:${finding.rule}:${finding.line}:${finding.column}`, finding])).values(),
+    ].sort((left, right) => `${left.file}:${left.line}:${left.column}`.localeCompare(`${right.file}:${right.line}:${right.column}`, "en"));
 }
 async function snapshotFiles(root, files) {
     const snapshots = [];
@@ -144,7 +202,10 @@ async function snapshotFiles(root, files) {
             continue;
         }
         const content = await readFile(absolute);
-        snapshots.push({ path: portable, hash: createHash("sha256").update(content).digest("hex") });
+        snapshots.push({
+            path: portable,
+            hash: createHash("sha256").update(content).digest("hex"),
+        });
         if (!content.subarray(0, Math.min(content.length, 8_192)).includes(0)) {
             for (const finding of scanTextForSecrets(content.toString("utf8")))
                 secretFindings.push({ file: portable, ...finding });
@@ -178,6 +239,107 @@ function credentialFreeGitRemote(remote) {
             throw new Error("Git URL must not contain query parameters or fragments");
     }
     return { remote: value, identity };
+}
+function parseRemoteHead(output) {
+    const lines = output.split(/\r?\n/).filter(Boolean);
+    const symbolic = lines.find((line) => line.startsWith("ref: refs/heads/") && line.endsWith("\tHEAD"));
+    const symbolicBranch = symbolic?.slice("ref: refs/heads/".length, -"\tHEAD".length);
+    const advertised = new Map(lines.flatMap((line) => {
+        const match = line.match(/^([a-f0-9]{40})\t(.+)$/i);
+        const commit = match?.[1];
+        const reference = match?.[2];
+        return commit && reference ? [[reference, commit.toLowerCase()]] : [];
+    }));
+    const branch = symbolicBranch && (advertised.has("HEAD") || advertised.has(`refs/heads/${symbolicBranch}`))
+        ? symbolicBranch
+        : advertised.has("refs/heads/main")
+            ? "main"
+            : advertised.has("refs/heads/master")
+                ? "master"
+                : undefined;
+    const commit = branch ? (advertised.get("HEAD") ?? advertised.get(`refs/heads/${branch}`)) : undefined;
+    if (!branch || !commit)
+        throw new Error("Git remote HEAD must advertise a default branch and immutable commit");
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(branch) || branch.includes("..") || branch.endsWith("/")) {
+        throw new Error("Git remote advertised an unsafe default branch");
+    }
+    return { branch, commit };
+}
+function validatedRequestedRef(input) {
+    const requested = input.trim();
+    if (!requested || /[\r\n\0]/.test(requested) || requested.startsWith("-")) {
+        throw new Error("Git ref must be a safe non-empty branch, tag, or commit");
+    }
+    if (/^[a-f0-9]{40}$/i.test(requested))
+        return requested.toLowerCase();
+    if (requested.includes("..") ||
+        requested.includes("@{") ||
+        requested.includes("\\") ||
+        requested.includes("//") ||
+        requested.endsWith("/") ||
+        requested.endsWith(".") ||
+        /[\s~^:?*[\]]/.test(requested)) {
+        throw new Error("Git ref contains unsafe or ambiguous characters");
+    }
+    const unqualified = requested.replace(/^refs\/(?:heads|tags)\//, "");
+    if (!unqualified || unqualified.startsWith(".") || unqualified.endsWith(".lock")) {
+        throw new Error("Git ref contains an unsafe branch or tag name");
+    }
+    if (requested.startsWith("refs/") && !/^refs\/(?:heads|tags)\//.test(requested)) {
+        throw new Error("Only branch and tag refs can be reviewed for checkout");
+    }
+    return requested;
+}
+async function resolveRemoteCheckout(remote, requestedInput, git) {
+    const requestedRef = validatedRequestedRef(requestedInput);
+    if (requestedRef === "HEAD") {
+        const advertised = parseRemoteHead(await git.run(["ls-remote", "--symref", "--exit-code", "--", remote, "HEAD", "refs/heads/main", "refs/heads/master"], process.cwd(), { nonInteractive: true, raw: true }));
+        return {
+            requestedRef,
+            branch: advertised.branch,
+            commit: advertised.commit,
+        };
+    }
+    if (/^[a-f0-9]{40}$/.test(requestedRef)) {
+        return { requestedRef, branch: null, commit: requestedRef };
+    }
+    const explicitBranch = requestedRef.startsWith("refs/heads/") ? requestedRef : null;
+    const explicitTag = requestedRef.startsWith("refs/tags/") ? requestedRef : null;
+    const branchRef = explicitBranch ?? (explicitTag ? null : `refs/heads/${requestedRef}`);
+    const tagRef = explicitTag ?? (explicitBranch ? null : `refs/tags/${requestedRef}`);
+    const patterns = [branchRef, tagRef, tagRef ? `${tagRef}^{}` : null].filter((value) => Boolean(value));
+    const output = await git.run(["ls-remote", "--exit-code", "--", remote, ...patterns], process.cwd(), {
+        nonInteractive: true,
+        raw: true,
+    });
+    const advertised = new Map(output.split(/\r?\n/).flatMap((line) => {
+        const match = line.match(/^([a-f0-9]{40})\t(.+)$/i);
+        return match?.[1] && match[2] ? [[match[2], match[1].toLowerCase()]] : [];
+    }));
+    const branchCommit = branchRef ? advertised.get(branchRef) : undefined;
+    const tagCommit = tagRef ? (advertised.get(`${tagRef}^{}`) ?? advertised.get(tagRef)) : undefined;
+    if (branchCommit && tagCommit) {
+        throw new Error(`Git ref ${requestedRef} is ambiguous because both a branch and tag exist`);
+    }
+    if (branchCommit && branchRef) {
+        return {
+            requestedRef,
+            branch: branchRef.slice("refs/heads/".length),
+            commit: branchCommit,
+        };
+    }
+    if (tagCommit)
+        return { requestedRef, branch: null, commit: tagCommit };
+    throw new Error(`Git ref ${requestedRef} was not advertised by the reviewed remote`);
+}
+async function reviewedRemoteCommit(remoteIdentity, commit, cwd, sourcePolicy, git) {
+    const committedAt = await git.run(["show", "-s", "--format=%cI", commit], cwd);
+    const decision = requireMinimumReleaseAge(remoteIdentity, committedAt, sourcePolicy);
+    return {
+        committedAt: decision.committedAt,
+        minimumAgeMinutes: decision.minimumAgeMinutes,
+        releaseAgeExcluded: decision.excluded,
+    };
 }
 export async function initializeLibraryGit(root, remote, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
@@ -230,35 +392,93 @@ export async function applyLibraryGitInitialization(plan, git = new NodeWorkspac
         throw new Error("Git repository or remote changed after the preview");
     await initializeLibraryGit(plan.library, plan.remote ?? undefined, git);
 }
-export async function cloneLibrary(remote, target, git = new NodeWorkspaceGitPort()) {
-    const plan = await planLibraryClone(remote, target);
+export async function cloneLibrary(remote, target, sourcePolicy = {}, git = new NodeWorkspaceGitPort()) {
+    const plan = await planLibraryClone(remote, target, sourcePolicy, git);
     await applyLibraryClone(plan, git);
 }
-export async function planLibraryClone(remote, target) {
+export async function planLibraryClone(remote, target, sourcePolicy = {}, git = new NodeWorkspaceGitPort()) {
+    return planGitCheckout(remote, target, "HEAD", sourcePolicy, git);
+}
+/**
+ * Resolve a branch, tag, HEAD, or immutable SHA into an exact reviewed commit.
+ * The plan may contact only a source already allowed by Device policy; apply
+ * fetches that exact commit and rejects any changed timestamp or policy.
+ */
+export async function planGitCheckout(remote, target, requestedRef = "HEAD", sourcePolicy = {}, git = new NodeWorkspaceGitPort()) {
     const validated = credentialFreeGitRemote(remote);
+    const policy = parseSourceSecurityPolicy(sourcePolicy);
+    const trust = requireTrustedSource(validated.remote, policy);
     const destination = path.resolve(target);
     if (await exists(destination))
         throw new Error("Clone destination must not already exist");
+    const advertised = await resolveRemoteCheckout(validated.remote, requestedRef, git);
+    const reviewRoot = await mkdtemp(path.join(tmpdir(), "dotagents-clone-review-"));
+    let age;
+    try {
+        await git.run(["init", "--bare"], reviewRoot);
+        await git.run(["remote", "add", "origin", validated.remote], reviewRoot);
+        await git.run(["fetch", "--no-tags", "--depth=1", "origin", advertised.commit], reviewRoot, {
+            nonInteractive: true,
+        });
+        const fetched = (await git.run(["rev-parse", "FETCH_HEAD"], reviewRoot)).toLowerCase();
+        if (fetched !== advertised.commit)
+            throw new Error("Git remote returned a different commit than the reviewed HEAD");
+        age = await reviewedRemoteCommit(validated.identity, fetched, reviewRoot, policy, git);
+    }
+    finally {
+        await rm(reviewRoot, { recursive: true, force: true });
+    }
     return withPlanId({
         kind: "git-clone",
-        schemaVersion: 1,
+        schemaVersion: 4,
         remote: validated.remote,
         remoteIdentity: validated.identity,
         destination,
+        requestedRef: advertised.requestedRef,
+        branch: advertised.branch,
+        resolvedCommit: advertised.commit,
+        ...age,
+        sourcePolicy: policy,
+        trust,
     });
 }
-export async function applyLibraryClone(plan, git = new NodeWorkspaceGitPort()) {
+async function applyReviewedGitClone(plan, git, validateLibrary) {
     assertPlanId(plan);
-    const current = await planLibraryClone(plan.remote, plan.destination);
-    if (current.planId !== plan.planId)
-        throw new Error("Clone destination or remote changed after the preview");
+    const validated = credentialFreeGitRemote(plan.remote);
+    if (validated.identity !== plan.remoteIdentity)
+        throw new Error("Clone remote changed after the preview");
+    requireTrustedSource(validated.remote, plan.sourcePolicy);
+    requireMinimumReleaseAge(plan.remoteIdentity, plan.committedAt, plan.sourcePolicy);
     const destination = plan.destination;
+    if (await exists(destination))
+        throw new Error("Clone destination must not already exist");
     await mkdir(path.dirname(destination), { recursive: true });
-    const staging = await mkdtemp(path.join(path.dirname(destination), `.${path.basename(destination)}.dotagent-clone-`));
+    const staging = await mkdtemp(path.join(path.dirname(destination), `.${path.basename(destination)}.dotagents-clone-`));
     try {
-        await rm(staging, { recursive: true, force: true });
-        await git.run(["clone", "--", plan.remote, staging], path.dirname(destination));
-        await ensureLibrary(staging);
+        await git.run(["init", `--initial-branch=${plan.branch ?? DEFAULT_BRANCH}`], staging);
+        await git.run(["remote", "add", "origin", plan.remote], staging);
+        await git.run(["fetch", "--no-tags", "--depth=1", "origin", plan.resolvedCommit], staging, {
+            nonInteractive: true,
+        });
+        const fetched = (await git.run(["rev-parse", "FETCH_HEAD"], staging)).toLowerCase();
+        if (fetched !== plan.resolvedCommit)
+            throw new Error("Git remote did not return the reviewed immutable commit");
+        const age = await reviewedRemoteCommit(plan.remoteIdentity, fetched, staging, plan.sourcePolicy, git);
+        if (age.committedAt !== plan.committedAt ||
+            age.minimumAgeMinutes !== plan.minimumAgeMinutes ||
+            age.releaseAgeExcluded !== plan.releaseAgeExcluded) {
+            throw new Error("Remote commit or release-age policy changed after the preview");
+        }
+        if (plan.branch) {
+            await git.run(["checkout", "-B", plan.branch, plan.resolvedCommit], staging);
+            await git.run(["config", `branch.${plan.branch}.remote`, "origin"], staging);
+            await git.run(["config", `branch.${plan.branch}.merge`, `refs/heads/${plan.branch}`], staging);
+        }
+        else {
+            await git.run(["checkout", "--detach", plan.resolvedCommit], staging);
+        }
+        if (validateLibrary)
+            await ensureLibrary(staging);
         await git.run(["config", "user.name", GIT_NAME], staging);
         await git.run(["config", "user.email", GIT_EMAIL], staging);
         if (await exists(destination))
@@ -269,6 +489,13 @@ export async function applyLibraryClone(plan, git = new NodeWorkspaceGitPort()) 
         await rm(staging, { recursive: true, force: true });
         throw error;
     }
+}
+/** Apply the exact reviewed commit without assuming a particular library manifest. */
+export async function applyGitClonePlan(plan, git = new NodeWorkspaceGitPort()) {
+    await applyReviewedGitClone(plan, git, false);
+}
+export async function applyLibraryClone(plan, git = new NodeWorkspaceGitPort()) {
+    await applyReviewedGitClone(plan, git, true);
 }
 export async function getLibraryGitStatus(root, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
@@ -296,7 +523,14 @@ export async function getLibraryGitStatus(root, git = new NodeWorkspaceGitPort()
     catch {
         /* no upstream yet */
     }
-    return { branch, changed: paths.changed.length > 0 || paths.ignored.length > 0, ahead, behind, remoteIdentity, head };
+    return {
+        branch,
+        changed: paths.changed.length > 0 || paths.ignored.length > 0,
+        ahead,
+        behind,
+        remoteIdentity,
+        head,
+    };
 }
 export async function planLibraryCommit(root, message, visibility = "private", git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
@@ -304,12 +538,18 @@ export async function planLibraryCommit(root, message, visibility = "private", g
     if (!commitMessage || commitMessage.length > 200 || /[\r\n\0]/.test(commitMessage))
         throw new Error("Commit message must be one line between 1 and 200 characters");
     const paths = await changedLibraryPaths(library, git);
-    const [snapshot, report, baseHead] = await Promise.all([
+    const repositoryPaths = [
+        ...new Set([...parseNullPaths(await git.run(["ls-files", "-z"], library, { raw: true })), ...paths.changed]),
+    ];
+    const [snapshot, report, resourceAudit, baseHead] = await Promise.all([
         snapshotFiles(library, paths.changed),
         auditLibrary({ root: library, visibility }),
+        auditPortableResources(library, repositoryPaths),
         gitHead(library, git),
     ]);
-    const errors = auditErrors(report);
+    const errors = [...auditErrors(report), ...resourceAudit.auditErrors];
+    const secretFindings = uniqueSecretFindings([...snapshot.secretFindings, ...resourceAudit.secretFindings]);
+    const unsafePaths = [...new Set([...snapshot.unsafePaths, ...resourceAudit.unsafePaths, ...paths.ignored])].sort();
     const payload = {
         kind: "git-commit",
         schemaVersion: 1,
@@ -318,13 +558,10 @@ export async function planLibraryCommit(root, message, visibility = "private", g
         message: commitMessage,
         baseHead,
         files: snapshot.snapshots,
-        secretFindings: snapshot.secretFindings,
-        unsafePaths: [...new Set([...snapshot.unsafePaths, ...paths.ignored])].sort(),
+        secretFindings,
+        unsafePaths,
         auditErrors: errors,
-        hasBlockers: snapshot.secretFindings.length > 0 ||
-            snapshot.unsafePaths.length > 0 ||
-            paths.ignored.length > 0 ||
-            errors.length > 0,
+        hasBlockers: secretFindings.length > 0 || unsafePaths.length > 0 || errors.length > 0,
     };
     return withPlanId(payload);
 }
@@ -341,36 +578,62 @@ export async function applyLibraryCommit(plan, git = new NodeWorkspaceGitPort())
     await git.run(["commit", "-m", plan.message], plan.library);
     return gitHead(plan.library, git);
 }
-export async function fetchLibrary(root, git = new NodeWorkspaceGitPort()) {
+async function reviewedWorkspaceRemote(library, sourcePolicy, git) {
+    const remote = await git.run(["remote", "get-url", "origin"], library);
+    const policy = parseSourceSecurityPolicy(sourcePolicy);
+    const trust = requireTrustedSource(remote, policy);
+    return {
+        remoteIdentity: normalizeGitIdentity(remote),
+        sourcePolicy: policy,
+        trust,
+    };
+}
+export async function fetchLibrary(root, sourcePolicy = {}, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
+    await reviewedWorkspaceRemote(library, sourcePolicy, git);
     await git.run(["-c", "credential.interactive=false", "fetch", "origin", "--prune", "--no-tags"], library, {
         nonInteractive: true,
     });
 }
-export async function planLibraryPull(root, visibility = "private", git = new NodeWorkspaceGitPort()) {
+export async function planLibraryPull(root, visibility = "private", sourcePolicy = {}, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
+    const reviewedRemote = await reviewedWorkspaceRemote(library, sourcePolicy, git);
     const before = await getLibraryGitStatus(library, git);
     if (before.changed)
         throw new Error("Library has uncommitted changes; commit or discard them before pull review");
     if (!before.head)
         throw new Error("Library has no local commit to fast-forward");
-    await fetchLibrary(library, git);
+    await fetchLibrary(library, reviewedRemote.sourcePolicy, git);
     const branch = before.branch || DEFAULT_BRANCH;
     const remoteHead = await git.run(["rev-parse", `refs/remotes/origin/${branch}`], library);
+    const age = await reviewedRemoteCommit(reviewedRemote.remoteIdentity, remoteHead, library, reviewedRemote.sourcePolicy, git);
     const ancestry = await git.run(["merge-base", "--is-ancestor", before.head, remoteHead], library).then(() => true, () => false);
     if (!ancestry)
         throw new Error("Remote history is not a fast-forward; reconcile it explicitly");
     const files = before.head === remoteHead
         ? []
         : parseNullPaths(await git.run(["diff", "--name-only", "-z", `${before.head}..${remoteHead}`], library, { raw: true }));
-    const worktreeParent = await mkdtemp(path.join(tmpdir(), "dotagent-pull-review-"));
+    const worktreeParent = await mkdtemp(path.join(tmpdir(), "dotagents-pull-review-"));
     const worktree = path.join(worktreeParent, "checkout");
-    let snapshot = { snapshots: [], unsafePaths: [], secretFindings: [] };
+    let snapshot = {
+        snapshots: [],
+        unsafePaths: [],
+        secretFindings: [],
+    };
     let errors = [];
+    let resourceAudit = {
+        secretFindings: [],
+        unsafePaths: [],
+        auditErrors: [],
+    };
     try {
         await git.run(["worktree", "add", "--detach", worktree, remoteHead], library);
-        snapshot = await snapshotFiles(worktree, files);
-        errors = auditErrors(await auditLibrary({ root: worktree, visibility }));
+        const repositoryPaths = parseNullPaths(await git.run(["ls-files", "-z"], worktree, { raw: true }));
+        [snapshot, resourceAudit] = await Promise.all([
+            snapshotFiles(worktree, files),
+            auditPortableResources(worktree, repositoryPaths),
+        ]);
+        errors = [...auditErrors(await auditLibrary({ root: worktree, visibility })), ...resourceAudit.auditErrors];
     }
     finally {
         try {
@@ -383,23 +646,31 @@ export async function planLibraryPull(root, visibility = "private", git = new No
     }
     const payload = {
         kind: "git-pull",
-        schemaVersion: 1,
+        schemaVersion: 3,
         library,
         visibility,
         branch,
         baseHead: before.head,
         remoteHead,
         files,
-        secretFindings: snapshot.secretFindings,
-        unsafePaths: snapshot.unsafePaths,
+        secretFindings: uniqueSecretFindings([...snapshot.secretFindings, ...resourceAudit.secretFindings]),
+        unsafePaths: [...new Set([...snapshot.unsafePaths, ...resourceAudit.unsafePaths])].sort(),
         auditErrors: errors,
-        hasBlockers: snapshot.secretFindings.length > 0 || snapshot.unsafePaths.length > 0 || errors.length > 0,
+        hasBlockers: snapshot.secretFindings.length > 0 ||
+            resourceAudit.secretFindings.length > 0 ||
+            snapshot.unsafePaths.length > 0 ||
+            resourceAudit.unsafePaths.length > 0 ||
+            errors.length > 0,
+        remoteIdentity: reviewedRemote.remoteIdentity,
+        ...age,
+        sourcePolicy: reviewedRemote.sourcePolicy,
+        trust: reviewedRemote.trust,
     };
     return withPlanId(payload);
 }
 export async function applyLibraryPull(plan, git = new NodeWorkspaceGitPort()) {
     assertPlanId(plan);
-    const current = await planLibraryPull(plan.library, plan.visibility, git);
+    const current = await planLibraryPull(plan.library, plan.visibility, plan.sourcePolicy, git);
     if (current.planId !== plan.planId)
         throw new Error("Remote or local library changed after the pull preview");
     if (plan.hasBlockers)
@@ -411,8 +682,9 @@ export async function applyLibraryPull(plan, git = new NodeWorkspaceGitPort()) {
         throw new Error("Pull completed without a readable Git HEAD");
     return head;
 }
-export async function planLibraryPush(root, git = new NodeWorkspaceGitPort()) {
+export async function planLibraryPush(root, sourcePolicy = {}, git = new NodeWorkspaceGitPort()) {
     const library = await ensureLibrary(root);
+    const reviewedRemote = await reviewedWorkspaceRemote(library, sourcePolicy, git);
     const status = await getLibraryGitStatus(library, git);
     if (status.changed)
         throw new Error("Library has uncommitted changes; review and commit them before push");
@@ -422,18 +694,20 @@ export async function planLibraryPush(root, git = new NodeWorkspaceGitPort()) {
         throw new Error("Library has no origin remote");
     const payload = {
         kind: "git-push",
-        schemaVersion: 1,
+        schemaVersion: 2,
         library,
         branch: status.branch || DEFAULT_BRANCH,
         head: status.head,
         remoteIdentity: status.remoteIdentity,
         ahead: status.ahead,
+        sourcePolicy: reviewedRemote.sourcePolicy,
+        trust: reviewedRemote.trust,
     };
     return withPlanId(payload);
 }
 export async function applyLibraryPush(plan, git = new NodeWorkspaceGitPort()) {
     assertPlanId(plan);
-    const current = await planLibraryPush(plan.library, git);
+    const current = await planLibraryPush(plan.library, plan.sourcePolicy, git);
     if (current.planId !== plan.planId)
         throw new Error("Library changed after the push preview");
     await git.run(["push", "-u", "origin", `HEAD:${plan.branch}`], plan.library);

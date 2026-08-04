@@ -1,15 +1,15 @@
 {
-  "name": "@beautyfree/dotagent",
+  "name": "dotagents",
   "version": "0.0.0",
   "description": "Canonical agent skill library engine and CLI",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/beautyfree/dotagent.git"
+    "url": "git+https://github.com/beautyfree/dotagents.git"
   },
-  "homepage": "https://github.com/beautyfree/dotagent#readme",
+  "homepage": "https://github.com/beautyfree/dotagents#readme",
   "bugs": {
-    "url": "https://github.com/beautyfree/dotagent/issues"
+    "url": "https://github.com/beautyfree/dotagents/issues"
   },
   "type": "module",
   "private": true,
@@ -35,6 +35,38 @@
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
+    },
+    "./scope": {
+      "types": "./dist/scope.d.ts",
+      "import": "./dist/scope.js"
+    },
+    "./history": {
+      "types": "./dist/history.d.ts",
+      "import": "./dist/history.js"
+    },
+    "./repair": {
+      "types": "./dist/repair.d.ts",
+      "import": "./dist/repair.js"
+    },
+    "./selection": {
+      "types": "./dist/selection.d.ts",
+      "import": "./dist/selection.js"
+    },
+    "./well-known": {
+      "types": "./dist/well-known.d.ts",
+      "import": "./dist/well-known.js"
+    },
+    "./resource-model": {
+      "types": "./dist/resource-model.d.ts",
+      "import": "./dist/resource-model.js"
+    },
+    "./resource-apply": {
+      "types": "./dist/resource-apply.d.ts",
+      "import": "./dist/resource-apply.js"
+    },
+    "./adopt": {
+      "types": "./dist/adopt.d.ts",
+      "import": "./dist/adopt.js"
     },
     "./library": {
       "types": "./dist/library.d.ts",
@@ -114,7 +146,8 @@
     },
     "./schemas/skills.json": "./schemas/skills.schema.json",
     "./schemas/skills-lock.json": "./schemas/skills-lock.schema.json",
-    "./schemas/dotagent.json": "./schemas/dotagent.schema.json",
+    "./schemas/dotagents.json": "./schemas/dotagents.schema.json",
+    "./schemas/resources.json": "./schemas/resources.schema.json",
     "./materialize": {
       "types": "./dist/materialize.d.ts",
       "import": "./dist/materialize.js"
@@ -130,6 +163,10 @@
     "./sources": {
       "types": "./dist/sources.d.ts",
       "import": "./dist/sources.js"
+    },
+    "./source-policy": {
+      "types": "./dist/source-policy.d.ts",
+      "import": "./dist/source-policy.js"
     },
     "./git-workspace": {
       "types": "./dist/git-workspace.d.ts",
@@ -153,7 +190,7 @@
     }
   },
   "bin": {
-    "beautyfree-dotagent": "./dist/cli.js"
+    "dotagents": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

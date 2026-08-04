@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 function library(): string {
-  const root = mkdtempSync(join(tmpdir(), "dotagent-doctor-"));
+  const root = mkdtempSync(join(tmpdir(), "dotagents-doctor-"));
   roots.push(root);
   mkdirSync(join(root, "skills/writing"), { recursive: true });
   writeFileSync(join(root, "skills/writing/SKILL.md"), "# Writing\n");
@@ -24,8 +24,8 @@ function library(): string {
       dependencies: {},
     }),
   );
-  writeFileSync(join(root, "dotagent.yaml"), "schema_version: 1\ndefaults: { include: all }\nskills: {}\n");
-  writeFileSync(join(root, ".gitignore"), "dotagent.local.yaml\n.dotagent/\n");
+  writeFileSync(join(root, "dotagents.yaml"), "schema_version: 1\ndefaults: { include: all }\nskills: {}\n");
+  writeFileSync(join(root, ".gitignore"), "dotagents.local.yaml\n.dotagents/\n");
   return root;
 }
 

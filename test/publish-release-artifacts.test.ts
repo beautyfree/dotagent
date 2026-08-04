@@ -8,21 +8,21 @@ const temporaryDirectories: string[] = [];
 const sourceCommit = "a".repeat(40);
 const integrity = `sha512-${Buffer.from("verified tarball").toString("base64")}`;
 const packageManifest = {
-  name: "@beautyfree/dotagent",
+  name: "dotagents",
   version: "0.1.0",
   private: false,
-  repository: { url: "git+https://github.com/beautyfree/dotagent.git" },
+  repository: { url: "git+https://github.com/beautyfree/dotagents.git" },
 };
 const releaseManifest = {
   package: packageManifest.name,
   version: packageManifest.version,
   source_commit: sourceCommit,
   npm_integrity: integrity,
-  tarball: "beautyfree-dotagent-0.1.0.tgz",
+  tarball: "dotagents-0.1.0.tgz",
 };
 const releaseEnvironment = {
   GITHUB_SHA: sourceCommit,
-  GITHUB_REPOSITORY: "beautyfree/dotagent",
+  GITHUB_REPOSITORY: "beautyfree/dotagents",
   GH_TOKEN: "test-token",
 };
 
@@ -31,12 +31,12 @@ afterEach(() => {
 });
 
 function artifactDirectory(): string {
-  const directory = mkdtempSync(resolve(tmpdir(), "dotagent-publish-test-"));
+  const directory = mkdtempSync(resolve(tmpdir(), "dotagents-publish-test-"));
   temporaryDirectories.push(directory);
   writeFileSync(resolve(directory, releaseManifest.tarball), "verified tarball");
   writeFileSync(resolve(directory, `${releaseManifest.tarball}.sha256`), "checksum\n");
   writeFileSync(resolve(directory, "SHA256SUMS"), "checksums\n");
-  writeFileSync(resolve(directory, "dotagent.sbom.cdx.json"), "{}\n");
+  writeFileSync(resolve(directory, "dotagents.sbom.cdx.json"), "{}\n");
   writeFileSync(resolve(directory, "CHANGELOG.md"), "# Changelog\n");
   writeFileSync(resolve(directory, "RELEASE_NOTES.md"), "## 0.1.0\n\nFirst release.\n");
   writeFileSync(resolve(directory, "migrating-from-skiller.md"), "# Migration\n");
@@ -71,12 +71,12 @@ describe("permanent release publication", () => {
           JSON.stringify({
             isDraft: !published,
             targetCommitish: sourceCommit,
-            url: "https://github.com/beautyfree/dotagent/releases/tag/v0.1.0",
+            url: "https://github.com/beautyfree/dotagents/releases/tag/v0.1.0",
             assets: published ? assets.map((name) => ({ name, size: statSync(resolve(directory, name)).size })) : [],
           }),
         );
       }
-      if (command.startsWith("gh api repos/beautyfree/dotagent/git/ref/tags/"))
+      if (command.startsWith("gh api repos/beautyfree/dotagents/git/ref/tags/"))
         return published
           ? success(JSON.stringify({ object: { type: "commit", sha: sourceCommit } }))
           : notFound("github");
@@ -118,14 +118,14 @@ describe("permanent release publication", () => {
       const command = `${file} ${args.join(" ")}`;
       calls.push(command);
       if (command.startsWith("npm view ")) return success(JSON.stringify(integrity));
-      if (command.startsWith("gh api repos/beautyfree/dotagent/git/ref/tags/"))
+      if (command.startsWith("gh api repos/beautyfree/dotagents/git/ref/tags/"))
         return success(JSON.stringify({ object: { type: "commit", sha: sourceCommit } }));
       if (command.startsWith("gh release view "))
         return success(
           JSON.stringify({
             isDraft: false,
             targetCommitish: sourceCommit,
-            url: "https://github.com/beautyfree/dotagent/releases/tag/v0.1.0",
+            url: "https://github.com/beautyfree/dotagents/releases/tag/v0.1.0",
             assets: assets.map((name) => ({ name, size: statSync(resolve(directory, name)).size })),
           }),
         );
@@ -178,7 +178,7 @@ describe("permanent release publication", () => {
           const command = `${file} ${args.join(" ")}`;
           if (command.startsWith("npm view ")) return success(JSON.stringify(integrity));
           if (command.startsWith("gh release view ")) return notFound("github");
-          if (command.startsWith("gh api repos/beautyfree/dotagent/git/ref/tags/"))
+          if (command.startsWith("gh api repos/beautyfree/dotagents/git/ref/tags/"))
             return success(JSON.stringify({ object: { type: "commit", sha: "b".repeat(40) } }));
           if (/npm publish|gh release create|gh release upload|gh release edit/.test(command))
             tagMutations.push(command);

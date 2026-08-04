@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { VendoredOrigin } from "../config.js";
 import { type SkillExportFinding, type SkillExportPlan } from "../export-policy.js";
-/** Compatibility format used by Skiller before beautyfree/dotagent libraries. */
+/** Compatibility format used by Skiller before beautyfree/dotagents libraries. */
 export declare const SKILLER_SYNC_MANIFEST_FILE = "skiller-sync.yaml";
 export declare const SKILLER_SYNC_MANIFEST_VERSION: 3;
 export declare const skillerStableIdSchema: z.ZodString;
@@ -34,18 +34,18 @@ export declare const skillerReferenceSkillSchema: z.ZodObject<{
     installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     ref: string;
-    skill_path: string;
     kind: "reference";
-    repository: string;
     id: string;
+    repository: string;
+    skill_path: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
 }, {
     ref: string;
-    skill_path: string;
     kind: "reference";
-    repository: string;
     id: string;
+    repository: string;
+    skill_path: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
 }>;
@@ -59,17 +59,17 @@ export declare const skillerSkillsShSkillSchema: z.ZodObject<{
     installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     ref: string;
-    skill_path: string;
     kind: "skills_sh";
     id: string;
+    skill_path: string;
     source_url: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
 }, {
     ref: string;
-    skill_path: string;
     kind: "skills_sh";
     id: string;
+    skill_path: string;
     source_url: string;
     sha256?: string | undefined;
     installations?: string[] | undefined;
@@ -79,11 +79,11 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         id: z.ZodString;
         mode: z.ZodEnum<["private", "team", "public"]>;
     }, "strip", z.ZodTypeAny, {
-        mode: "private" | "team" | "public";
         id: string;
+        mode: "private" | "team" | "public";
     }, {
-        mode: "private" | "team" | "public";
         id: string;
+        mode: "private" | "team" | "public";
     }>;
     agent_policy: z.ZodDiscriminatedUnion<"mode", [z.ZodObject<{
         mode: z.ZodLiteral<"detected">;
@@ -131,18 +131,18 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         ref: string;
-        skill_path: string;
         kind: "reference";
-        repository: string;
         id: string;
+        repository: string;
+        skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     }, {
         ref: string;
-        skill_path: string;
         kind: "reference";
-        repository: string;
         id: string;
+        repository: string;
+        skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     }>, z.ZodObject<{
@@ -155,17 +155,17 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         installations: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         ref: string;
-        skill_path: string;
         kind: "skills_sh";
         id: string;
+        skill_path: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     }, {
         ref: string;
-        skill_path: string;
         kind: "skills_sh";
         id: string;
+        skill_path: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
@@ -180,24 +180,24 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         installations?: string[] | undefined;
     } | {
         ref: string;
-        skill_path: string;
         kind: "reference";
-        repository: string;
         id: string;
+        repository: string;
+        skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     } | {
         ref: string;
-        skill_path: string;
         kind: "skills_sh";
         id: string;
+        skill_path: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     })[];
     profile: {
-        mode: "private" | "team" | "public";
         id: string;
+        mode: "private" | "team" | "public";
     };
     agent_policy: {
         mode: "detected";
@@ -215,24 +215,24 @@ export declare const skillerSyncManifestSchema: z.ZodObject<{
         installations?: string[] | undefined;
     } | {
         ref: string;
-        skill_path: string;
         kind: "reference";
-        repository: string;
         id: string;
+        repository: string;
+        skill_path: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     } | {
         ref: string;
-        skill_path: string;
         kind: "skills_sh";
         id: string;
+        skill_path: string;
         source_url: string;
         sha256?: string | undefined;
         installations?: string[] | undefined;
     })[];
     profile: {
-        mode: "private" | "team" | "public";
         id: string;
+        mode: "private" | "team" | "public";
     };
     agent_policy: {
         mode: "detected";
@@ -301,7 +301,7 @@ export declare function stringifySkillerSyncManifest(manifest: SkillerSyncManife
 export declare function createSkillerSyncManifest(profileId: string, mode?: SkillerSyncManifest["profile"]["mode"], agentPolicy?: SkillerSyncManifest["agent_policy"]): SkillerSyncManifest;
 /**
  * Builds Skiller's compatibility publish payload without writing to the library.
- * Source inspection, integrity, and secret findings come from dotagent's shared export policy.
+ * Source inspection, integrity, and secret findings come from dotagents's shared export policy.
  */
 export declare function planSkillerSyncPublish(profileId: string, mode: SkillerSyncManifest["profile"]["mode"], candidates: SkillerSyncPublishCandidate[], agentPolicy?: SkillerSyncManifest["agent_policy"]): SkillerSyncPublishPlan;
 /** Keeps untouched remote skills while applying an explicitly reviewed owned-skill update. */

@@ -18,7 +18,7 @@ import { computePlanId } from "./plan.js";
 
 export const MATERIALIZATION_STATE_VERSION = 1 as const;
 export const MATERIALIZATION_JOURNAL_VERSION = 1 as const;
-const COPY_MARKER = ".dotagent-managed.json";
+const COPY_MARKER = ".dotagents-managed.json";
 
 export interface ManagedTargetState {
   agent: string;
@@ -68,7 +68,7 @@ export interface MaterializationRecoveryPreview {
 }
 
 function metadataRoot(libraryRoot: string): string {
-  return path.join(libraryRoot, ".dotagent");
+  return path.join(libraryRoot, ".dotagents");
 }
 function statePath(libraryRoot: string): string {
   return path.join(metadataRoot(libraryRoot), "materialization-state.json");
@@ -142,11 +142,11 @@ async function copyDirectory(source: string, destination: string): Promise<void>
 }
 
 function backupPath(operation: MaterializationOperation, planId: string): string {
-  return `${operation.target}.dotagent-backup-${planId}`;
+  return `${operation.target}.dotagents-backup-${planId}`;
 }
 
 function stagePath(operation: MaterializationOperation, planId: string): string {
-  return `${operation.target}.dotagent-stage-${planId}`;
+  return `${operation.target}.dotagents-stage-${planId}`;
 }
 
 async function writeCopyMarker(

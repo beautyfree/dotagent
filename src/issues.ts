@@ -1,4 +1,4 @@
-export type DotagentIssueCode =
+export type DotagentsIssueCode =
   | "invalid-json"
   | "invalid-manifest"
   | "invalid-lockfile"
@@ -18,8 +18,8 @@ export type DotagentIssueCode =
   | "file-not-found"
   | "io-error";
 
-export interface DotagentIssue {
-  code: DotagentIssueCode;
+export interface DotagentsIssue {
+  code: DotagentsIssueCode;
   message: string;
   remediation: string;
   path?: string;
@@ -27,14 +27,14 @@ export interface DotagentIssue {
   severity?: "error" | "warning" | "info";
 }
 
-export type DotagentResult<T> = { ok: true; value: T; issues: [] } | { ok: false; issues: DotagentIssue[] };
+export type DotagentsResult<T> = { ok: true; value: T; issues: [] } | { ok: false; issues: DotagentsIssue[] };
 
-export class DotagentError extends Error {
-  readonly issues: DotagentIssue[];
+export class DotagentsError extends Error {
+  readonly issues: DotagentsIssue[];
 
-  constructor(message: string, issues: DotagentIssue[]) {
+  constructor(message: string, issues: DotagentsIssue[]) {
     super(message);
-    this.name = "DotagentError";
+    this.name = "DotagentsError";
     this.issues = issues;
   }
 }

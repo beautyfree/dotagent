@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyGitFastForwardPlan, inspectGitFastForwardPlan, planGitFastForward } from "../src/git-fast-forward.js";
+import { exactSourceSecurityPolicy } from "../src/source-policy.js";
 
 const roots: string[] = [];
 
@@ -27,7 +28,7 @@ function readText(repository: string): string {
 
 describe("generic Git fast-forward review", () => {
   it("inspects an exact remote commit without changing the worktree and rejects a stale apply", async () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-fast-forward-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-fast-forward-"));
     roots.push(root);
     const remote = join(root, "remote.git");
     const publisher = join(root, "publisher");
@@ -42,7 +43,18 @@ describe("generic Git fast-forward review", () => {
 
     commitFile(publisher, "second\n", "second");
     git(publisher, "push");
-    const plan = await planGitFastForward(observer);
+    const policy = exactSourceSecurityPolicy([remote]);
+    await expect(planGitFastForward(observer)).rejects.toThrow("allow_local");
+    await expect(
+      planGitFastForward(
+        observer,
+        exactSourceSecurityPolicy([remote], {
+          minimum_release_age_minutes: 60,
+        }),
+      ),
+    ).rejects.toThrow("reviewed minimum is 60 minutes");
+    const plan = await planGitFastForward(observer, policy);
+    expect(plan).toMatchObject({ schemaVersion: 3, minimumAgeMinutes: 0, releaseAgeExcluded: false });
     expect(plan.files).toEqual(["library.txt"]);
     expect(readText(observer)).toBe("first\n");
     expect(await inspectGitFastForwardPlan(plan, readText)).toBe("second\n");
@@ -51,7 +63,7 @@ describe("generic Git fast-forward review", () => {
     await applyGitFastForwardPlan(plan);
     expect(readText(observer)).toBe("second\n");
 
-    const stale = await planGitFastForward(observer);
+    const stale = await planGitFastForward(observer, policy);
     commitFile(publisher, "third\n", "third");
     git(publisher, "push");
     await expect(applyGitFastForwardPlan(stale)).rejects.toThrow("changed after review");

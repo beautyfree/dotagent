@@ -1,7 +1,7 @@
 {
-  "$ref": "#/definitions/DotagentSkillsLock",
+  "$ref": "#/definitions/DotagentsSkillsLock",
   "definitions": {
-    "DotagentSkillsLock": {
+    "DotagentsSkillsLock": {
       "type": "object",
       "properties": {
         "lockfile_version": {
@@ -32,6 +32,10 @@
                 "type": "string",
                 "pattern": "^[a-f0-9]{40}$"
               },
+              "committed_at": {
+                "type": "string",
+                "format": "date-time"
+              },
               "integrity": {
                 "type": "string",
                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
@@ -40,6 +44,67 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 128
+              },
+              "selection": {
+                "type": "object",
+                "properties": {
+                  "subtree": {
+                    "type": "string"
+                  },
+                  "include": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "minItems": 1
+                  },
+                  "exclude": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/DotagentsSkillsLock/properties/resolved/additionalProperties/properties/selection/properties/include/items"
+                    }
+                  },
+                  "index_integrity": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "excluded": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "$ref": "#/definitions/DotagentsSkillsLock/properties/resolved/additionalProperties/properties/selection/properties/subtree"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "excluded",
+                            "not-matched"
+                          ]
+                        },
+                        "matched_pattern": {
+                          "$ref": "#/definitions/DotagentsSkillsLock/properties/resolved/additionalProperties/properties/selection/properties/include/items"
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "subtree",
+                  "include",
+                  "exclude",
+                  "index_integrity",
+                  "excluded"
+                ],
+                "additionalProperties": false
               },
               "skills": {
                 "type": "array",
@@ -53,7 +118,7 @@
                       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
                     },
                     "path": {
-                      "type": "string"
+                      "$ref": "#/definitions/DotagentsSkillsLock/properties/resolved/additionalProperties/properties/selection/properties/subtree"
                     }
                   },
                   "required": [

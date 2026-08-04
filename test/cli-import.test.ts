@@ -13,7 +13,7 @@ afterEach(() => {
 
 describe("import CLI", () => {
   it("keeps preview and confirmed apply as separate steps", async () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-cli-import-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-cli-import-"));
     roots.push(root);
     const library = join(root, "library");
     const source = join(root, "source");

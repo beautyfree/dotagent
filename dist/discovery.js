@@ -75,7 +75,7 @@ async function collectRoots(root, limits) {
         }
         entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
         for (const entry of entries) {
-            if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagent")
+            if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".dotagents")
                 continue;
             const candidate = path.join(directory, entry.name);
             let directoryLike = entry.isDirectory();

@@ -3,6 +3,7 @@ import path from "node:path";
 import { normalizeGitIdentity } from "./git-identity.js";
 import { loadLibrary } from "./library.js";
 import { computePlanId } from "./plan.js";
+import type { SourceSecurityPolicy } from "./source-policy.js";
 
 export { normalizeGitIdentity } from "./git-identity.js";
 
@@ -21,6 +22,8 @@ export type ResolutionChange = {
   toSource: string | null;
   fromCommit: string | null;
   toCommit: string | null;
+  fromCommittedAt: string | null;
+  toCommittedAt: string | null;
   fromIntegrity: string | null;
   toIntegrity: string | null;
   fromLicense: string | null;
@@ -36,6 +39,7 @@ export interface ResolutionPlan {
   manifestHash: string;
   lock: LibraryLock;
   changes: ResolutionChange[];
+  sourcePolicy: SourceSecurityPolicy | null;
 }
 
 export interface LibraryResolutionPlan {
@@ -46,9 +50,12 @@ export interface LibraryResolutionPlan {
   manifestHash: string;
   lock: LibraryLock;
   changes: ResolutionChange[];
+  sourcePolicy: SourceSecurityPolicy | null;
 }
 
 export interface DependencyResolver {
+  /** Serializable device policy included in the reviewed plan when available. */
+  readonly sourcePolicy?: SourceSecurityPolicy | null;
   /** Resolve and audit in isolation. Implementations must not write to agent targets. */
   resolve(name: string, dependency: DependencyReference): Promise<ResolvedPackage>;
 }
@@ -73,6 +80,8 @@ export function diffLibraryLocks(currentLock: LibraryLock | null, nextLock: Libr
       toSource: normalizeGitIdentity(entry.url),
       fromCommit: previous?.commit ?? null,
       toCommit: entry.commit,
+      fromCommittedAt: previous?.committed_at ?? null,
+      toCommittedAt: entry.committed_at ?? null,
       fromIntegrity: previous?.integrity ?? null,
       toIntegrity: entry.integrity,
       fromLicense: previous?.license ?? null,
@@ -92,6 +101,8 @@ export function diffLibraryLocks(currentLock: LibraryLock | null, nextLock: Libr
         toSource: null,
         fromCommit: previous.commit,
         toCommit: null,
+        fromCommittedAt: previous.committed_at ?? null,
+        toCommittedAt: null,
         fromIntegrity: previous.integrity,
         toIntegrity: null,
         fromLicense: previous.license ?? null,
@@ -123,7 +134,7 @@ export async function planResolveDependencies(
   manifest: LibraryManifest,
   resolver: DependencyResolver,
   currentLock: LibraryLock | null = null,
-  generatedBy = "@beautyfree/dotagent@0.0.0",
+  generatedBy = "dotagents@0.0.0",
 ): Promise<ResolutionPlan> {
   const dependencies = Object.entries(manifest.dependencies).sort(([left], [right]) => left.localeCompare(right, "en"));
   const resolved = await Promise.all(
@@ -143,12 +154,14 @@ export async function planResolveDependencies(
     resolved: Object.fromEntries(resolved),
   });
   const changes = diffLibraryLocks(currentLock, lock);
+  const sourcePolicy = resolver.sourcePolicy ?? null;
   const payload = {
     kind: "resolve-dependencies" as const,
     schemaVersion: 1 as const,
     manifestHash: computePlanId(manifest),
     lock,
     changes,
+    sourcePolicy,
   };
   return { ...payload, planId: computePlanId(payload) };
 }
@@ -157,7 +170,7 @@ export async function planResolveDependencies(
 export async function planLibraryResolution(
   root: string,
   resolver: DependencyResolver,
-  generatedBy = "@beautyfree/dotagent@0.0.0",
+  generatedBy = "dotagents@0.0.0",
 ): Promise<LibraryResolutionPlan> {
   const library = path.resolve(root);
   const loaded = await loadLibrary(library);
@@ -170,6 +183,7 @@ export async function planLibraryResolution(
     manifestHash: resolved.manifestHash,
     lock: resolved.lock,
     changes: resolved.changes,
+    sourcePolicy: resolved.sourcePolicy,
   };
   return { ...payload, planId: computePlanId(payload) };
 }

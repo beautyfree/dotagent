@@ -19,8 +19,29 @@ describe("portable and local configuration", () => {
         materialization: "symlink",
         exclusions: ["private", "scratch"],
         provenance: expect.objectContaining({ skills: "portable", agents: "local" }),
+        sourceSecurity: expect.objectContaining({ trust: expect.objectContaining({ mode: "deny" }) }),
       }),
     );
+  });
+
+  it("keeps source trust in Device-only local configuration", () => {
+    const local = parseLocalConfig(`
+schema_version: 1
+source_security:
+  trust:
+    mode: allowlist
+    repositories: [https://github.com/beautyfree/dotagents]
+  minimum_release_age_minutes: 1440
+`);
+    const portable = parsePortableConfig("schema_version: 1\ndefaults: { include: all }\n");
+    const effective = mergeConfig(portable, local);
+    expect(effective.sourceSecurity.trust.repositories).toEqual(["https://github.com/beautyfree/dotagents"]);
+    expect(effective.sourceSecurity.minimum_release_age_minutes).toBe(1440);
+    expect(() =>
+      parsePortableConfig(
+        "schema_version: 1\ndefaults: { include: all }\nsource_security: { trust: { mode: allow-all } }\n",
+      ),
+    ).toThrow(/source_security|Unrecognized key/i);
   });
 
   it("rejects literal environment secrets in local configuration", () => {

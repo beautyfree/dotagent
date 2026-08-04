@@ -60,7 +60,7 @@ describe("library lock", () => {
     const result = parseLibraryLock(
       JSON.stringify({
         lockfile_version: 1,
-        generated_by: "@beautyfree/dotagent@0.0.0",
+        generated_by: "dotagents@0.0.0",
         resolved: {
           community: {
             url: "https://github.com/example/skills",

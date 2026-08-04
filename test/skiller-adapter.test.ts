@@ -62,7 +62,7 @@ describe("Skiller compatibility adapter", () => {
   });
 
   it("plans owned and pinned skills without writing a compatibility library", () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-skiller-publish-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-skiller-publish-"));
     try {
       const source = join(root, "writing");
       mkdirSync(source);
@@ -118,7 +118,7 @@ describe("Skiller compatibility adapter", () => {
   });
 
   it("merges only reviewed owned skills and preserves untouched remote entries", () => {
-    const root = mkdtempSync(join(tmpdir(), "dotagent-skiller-merge-"));
+    const root = mkdtempSync(join(tmpdir(), "dotagents-skiller-merge-"));
     try {
       const source = join(root, "writing");
       mkdirSync(source);

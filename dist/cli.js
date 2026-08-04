@@ -17,6 +17,7 @@ import { applyMaterializationPlan, inspectMaterializationRecovery, recoverMateri
 import { computePlanId } from "./plan.js";
 import { prepareMaterializationInventory } from "./prepared-library.js";
 import { applyLibraryResolutionPlan, planLibraryResolution } from "./sources.js";
+import { parseSourceSecurityPolicy } from "./source-policy.js";
 import { existingTargetsForPlan, getMaterializationStatus } from "./status.js";
 async function emitPlan(plan, output, json, label) {
     if (output)
@@ -37,12 +38,40 @@ async function main() {
         "--remote",
         "--message",
         "--plan-id",
+        "--trust-source",
+        "--trust-host",
+        "--trust-github-org",
+        "--minimum-release-age",
+        "--minimum-release-age-exclude",
     ]);
     const optionValues = (name) => args.flatMap((argument, index) => {
         const value = args[index + 1];
         return argument === name && value ? [value] : [];
     });
     const optionValue = (name) => optionValues(name)[0];
+    const sourcePolicy = () => {
+        const minimumAge = Number(optionValue("--minimum-release-age") ?? "0");
+        if (!Number.isInteger(minimumAge) || minimumAge < 0)
+            throw new Error("--minimum-release-age must be a non-negative integer number of minutes");
+        const repositories = optionValues("--trust-source");
+        const hosts = optionValues("--trust-host");
+        const organizations = optionValues("--trust-github-org");
+        return parseSourceSecurityPolicy({
+            trust: {
+                mode: args.includes("--trust-all")
+                    ? "allow-all"
+                    : repositories.length > 0 || hosts.length > 0 || organizations.length > 0
+                        ? "allowlist"
+                        : "deny",
+                repositories,
+                hosts,
+                github_organizations: organizations,
+                allow_local: args.includes("--allow-local-sources"),
+            },
+            minimum_release_age_minutes: minimumAge,
+            minimum_release_age_exclude: optionValues("--minimum-release-age-exclude"),
+        });
+    };
     const positional = [];
     for (let index = 0; index < args.length; index += 1) {
         const argument = args[index];
@@ -58,7 +87,7 @@ async function main() {
     const directory = positional[0] ?? ".";
     const json = args.includes("--json");
     if (command === "help" || command === "--help" || command === "-h") {
-        process.stdout.write("beautyfree-dotagent init [library-directory] [--name package-name] [--out plan.json] [--json]\nbeautyfree-dotagent inspect [library-directory] [--json]\nbeautyfree-dotagent import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\nbeautyfree-dotagent resolve [library-directory] [--out plan.json] [--json]\nbeautyfree-dotagent doctor [library-directory] [--json]\nbeautyfree-dotagent audit [library-directory] [--public] [--json]\nbeautyfree-dotagent git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\nbeautyfree-dotagent clone <git-url> <library-directory> [--out plan.json] [--json]\nbeautyfree-dotagent commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent sync [library-directory] [--pull|--push] [--public|--team] [--out plan.json] [--json]\nbeautyfree-dotagent status [library-directory] [--json]\nbeautyfree-dotagent plan [library-directory] --target slug=mode=path [--out plan.json] [--json]\nbeautyfree-dotagent apply <plan.json> --yes [--json]\nbeautyfree-dotagent recover [library-directory] [--plan-id id --yes] [--json]\n");
+        process.stdout.write("dotagents init [library-directory] [--name package-name] [--out plan.json] [--json]\ndotagents inspect [library-directory] [--json]\ndotagents import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\ndotagents resolve [library-directory] [source-trust-options] [--minimum-release-age minutes] [--out plan.json] [--json]\ndotagents doctor [library-directory] [--json]\ndotagents audit [library-directory] [--public] [--json]\ndotagents git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\ndotagents clone <git-url> <library-directory> [source-trust-options] [--out plan.json] [--json]\ndotagents commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\ndotagents sync [library-directory] [--pull|--push] [--public|--team] [source-trust-options] [--out plan.json] [--json]\ndotagents status [library-directory] [--json]\ndotagents plan [library-directory] --target slug=mode=path [source-trust-options] [--out plan.json] [--json]\ndotagents apply <plan.json> --yes [--json]\ndotagents recover [library-directory] [--plan-id id --yes] [--json]\n\nsource-trust-options (network is denied when omitted):\n  --trust-source git-url       Trust one exact normalized repository; repeatable.\n  --trust-host host            Trust one Git host; repeatable.\n  --trust-github-org owner     Trust one GitHub organization; repeatable.\n  --allow-local-sources        Required in addition to --trust-source for file: repositories.\n  --trust-all                  Explicitly trust every source (not recommended).\n  --minimum-release-age mins   Require a reviewed commit cooling-off period before content is accepted.\n  --minimum-release-age-exclude git-url\n                               Explicitly exempt one reviewed repository; repeatable.\n");
         return 0;
     }
     if (command === "init") {
@@ -70,7 +99,10 @@ async function main() {
     }
     if (command === "resolve") {
         const root = path.resolve(directory);
-        const plan = await planLibraryResolution(root, new GitDependencyResolver({ cacheRoot: path.join(root, ".dotagent", "cache", "git") }));
+        const plan = await planLibraryResolution(root, new GitDependencyResolver({
+            cacheRoot: path.join(root, ".dotagents", "cache", "git"),
+            sourcePolicy: sourcePolicy(),
+        }));
         await emitPlan(plan, optionValue("--out"), json, "Dependency resolution");
         return 0;
     }
@@ -139,7 +171,7 @@ async function main() {
         const target = positional[1];
         if (!remote || !target)
             throw new Error("Clone requires a Git URL and a new library directory");
-        const plan = await planLibraryClone(remote, path.resolve(target));
+        const plan = await planLibraryClone(remote, path.resolve(target), sourcePolicy());
         await emitPlan(plan, optionValue("--out"), json, "Clone");
         return 0;
     }
@@ -158,12 +190,12 @@ async function main() {
             throw new Error("Choose either --pull or --push for one reviewed operation");
         if (args.includes("--pull")) {
             const visibility = args.includes("--public") ? "public" : args.includes("--team") ? "team" : "private";
-            const pullPlan = await planLibraryPull(root, visibility);
+            const pullPlan = await planLibraryPull(root, visibility, sourcePolicy());
             await emitPlan(pullPlan, optionValue("--out"), json, "Pull");
             return pullPlan.hasBlockers ? 1 : 0;
         }
         if (args.includes("--push")) {
-            const pushPlan = await planLibraryPush(root);
+            const pushPlan = await planLibraryPush(root, sourcePolicy());
             await emitPlan(pushPlan, optionValue("--out"), json, "Push");
             return 0;
         }
@@ -186,7 +218,13 @@ async function main() {
     }
     if (command === "plan") {
         const root = path.resolve(directory);
-        const inventory = await prepareMaterializationInventory({ root });
+        const inventory = await prepareMaterializationInventory({
+            root,
+            resolver: new GitDependencyResolver({
+                cacheRoot: path.join(root, ".dotagents", "cache", "git"),
+                sourcePolicy: sourcePolicy(),
+            }),
+        });
         const targetSpecs = optionValues("--target").map(parseMaterializationTargetSpec);
         if (targetSpecs.length === 0)
             throw new Error("At least one explicit --target slug=mode=path is required");
@@ -325,12 +363,12 @@ async function main() {
         process.stdout.write(json
             ? `${JSON.stringify(result, null, 2)}\n`
             : recovered
-                ? "Recovered unfinished dotagent operations.\n"
+                ? "Recovered unfinished dotagents operations.\n"
                 : "No unfinished operation found.\n");
         return 0;
     }
     if (command !== "inspect") {
-        process.stderr.write(`Unknown command: ${command}\nRun beautyfree-dotagent --help.\n`);
+        process.stderr.write(`Unknown command: ${command}\nRun dotagents --help.\n`);
         return 2;
     }
     const root = path.resolve(directory);

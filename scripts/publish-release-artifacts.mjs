@@ -119,7 +119,7 @@ export function publishReleaseArtifacts(options = {}) {
     tarballName,
     `${tarballName}.sha256`,
     "SHA256SUMS",
-    "dotagent.sbom.cdx.json",
+    "dotagents.sbom.cdx.json",
     "CHANGELOG.md",
     "RELEASE_NOTES.md",
     "migrating-from-skiller.md",

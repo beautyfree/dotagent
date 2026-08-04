@@ -2,7 +2,7 @@ import { parse, stringify } from "yaml";
 import { z } from "zod";
 import { planSkillExport } from "../export-policy.js";
 import { computePlanId } from "../plan.js";
-/** Compatibility format used by Skiller before beautyfree/dotagent libraries. */
+/** Compatibility format used by Skiller before beautyfree/dotagents libraries. */
 export const SKILLER_SYNC_MANIFEST_FILE = "skiller-sync.yaml";
 export const SKILLER_SYNC_MANIFEST_VERSION = 3;
 export const skillerStableIdSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/);
@@ -148,7 +148,7 @@ function normalizedInstallations(agentSlugs) {
 }
 /**
  * Builds Skiller's compatibility publish payload without writing to the library.
- * Source inspection, integrity, and secret findings come from dotagent's shared export policy.
+ * Source inspection, integrity, and secret findings come from dotagents's shared export policy.
  */
 export function planSkillerSyncPublish(profileId, mode, candidates, agentPolicy) {
     const bundledCandidates = candidates.filter((candidate) => candidate.kind === undefined || candidate.kind === "bundled" || candidate.kind === "vendored");

@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 function temp(): string {
-  const root = mkdtempSync(join(tmpdir(), "dotagent-discovery-"));
+  const root = mkdtempSync(join(tmpdir(), "dotagents-discovery-"));
   roots.push(root);
   return root;
 }

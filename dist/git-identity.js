@@ -1,6 +1,18 @@
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 /** Canonical comparison identity; credentials and transport-specific Git spelling are removed. */
 export function normalizeGitIdentity(input) {
     const value = input.trim();
+    if (path.isAbsolute(value))
+        return pathToFileURL(path.resolve(value)).href.replace(/\/$/, "");
+    if (/^[a-z]:[\\/]/i.test(value)) {
+        const windowsPath = value.replace(/\\/g, "/");
+        return new URL(`file:///${windowsPath}`).href.replace(/\/$/, "");
+    }
+    if (/^\\\\[^\\]+\\[^\\]+/.test(value)) {
+        const unc = value.slice(2).replace(/\\/g, "/");
+        return new URL(`file://${unc}`).href.replace(/\/$/, "");
+    }
     if (/^[a-z][a-z0-9+.-]*:\/\/[^/\s@]+:[^/\s@]+@/i.test(value))
         throw new Error("Git URL must not contain credentials");
     const scp = /^(?:[^@\s]+@)?([^:/\s]+):(.+)$/.exec(value);
@@ -17,6 +29,8 @@ export function normalizeGitIdentity(input) {
     catch {
         throw new Error(`Unsupported Git URL: ${input}`);
     }
+    if (parsed.search || parsed.hash)
+        throw new Error("Git URL must not contain query parameters or fragments");
     if (parsed.protocol === "file:")
         return parsed.href.replace(/\/$/, "");
     if (!parsed.hostname || parsed.username || parsed.password)

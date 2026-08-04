@@ -4,9 +4,9 @@ import { scanOwnedSkill } from "./inventory.js";
 import { computePlanId } from "./plan.js";
 export const MATERIALIZATION_STATE_VERSION = 1;
 export const MATERIALIZATION_JOURNAL_VERSION = 1;
-const COPY_MARKER = ".dotagent-managed.json";
+const COPY_MARKER = ".dotagents-managed.json";
 function metadataRoot(libraryRoot) {
-    return path.join(libraryRoot, ".dotagent");
+    return path.join(libraryRoot, ".dotagents");
 }
 function statePath(libraryRoot) {
     return path.join(metadataRoot(libraryRoot), "materialization-state.json");
@@ -81,10 +81,10 @@ async function copyDirectory(source, destination) {
     }
 }
 function backupPath(operation, planId) {
-    return `${operation.target}.dotagent-backup-${planId}`;
+    return `${operation.target}.dotagents-backup-${planId}`;
 }
 function stagePath(operation, planId) {
-    return `${operation.target}.dotagent-stage-${planId}`;
+    return `${operation.target}.dotagents-stage-${planId}`;
 }
 async function writeCopyMarker(destination, planId, operation) {
     await writeFile(path.join(destination, COPY_MARKER), `${JSON.stringify({

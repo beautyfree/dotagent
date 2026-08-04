@@ -1,4 +1,4 @@
-import type { DotagentIssue } from "./issues.js";
+import type { DotagentsIssue } from "./issues.js";
 import { type LibraryInventory } from "./inventory.js";
 export type SecretFinding = {
     rule: "private-key" | "github-token" | "provider-token" | "aws-access-key" | "connection-string" | "credential-assignment";
@@ -25,7 +25,7 @@ export interface LibraryAuditReport {
     ok: boolean;
     publicReady: boolean;
     library: LibraryInventory | null;
-    issues: DotagentIssue[];
+    issues: DotagentsIssue[];
 }
 export type LibrarySecretFinding = SecretFileFinding & {
     skill: string;

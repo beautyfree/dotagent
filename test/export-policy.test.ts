@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 function skillRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), "dotagent-export-"));
+  const root = mkdtempSync(join(tmpdir(), "dotagents-export-"));
   roots.push(root);
   mkdirSync(join(root, "references"));
   mkdirSync(join(root, ".git"));

@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 function fixture(): { root: string; workspace: string; source: string } {
-  const root = mkdtempSync(path.join(tmpdir(), "dotagent-library-update-"));
+  const root = mkdtempSync(path.join(tmpdir(), "dotagents-library-update-"));
   roots.push(root);
   const workspace = path.join(root, "workspace");
   const source = path.join(root, "source", "writing");
@@ -53,7 +53,7 @@ describe("transactional library update", () => {
     const review = plan(current, files);
     expect(review.planId).toBe(plan(current, files).planId);
     expect(libraryUpdateJournalPath(current.workspace)).toBe(
-      path.join(current.workspace, ".dotagent", "library-update-journal.json"),
+      path.join(current.workspace, ".dotagents", "library-update-journal.json"),
     );
     expect(existsSync(path.join(current.workspace, "skills.json"))).toBe(false);
     expect(applyLibraryUpdatePlan(review, { portableFiles: files }).updated).toEqual(["skills.json", "skills/writing"]);
@@ -101,10 +101,10 @@ describe("transactional library update", () => {
     expect(() => applyLibraryUpdatePlan(targetPlan, { portableFiles: files })).toThrow("target changed after review");
 
     const secret = fixture();
-    const secretFiles = { "dotagent.yaml": "token: github_pat_abcdefghijklmnopqrstuvwxyz123456\n" };
+    const secretFiles = { "dotagents.yaml": "token: github_pat_abcdefghijklmnopqrstuvwxyz123456\n" };
     const secretPlan = plan(secret, secretFiles);
     expect(secretPlan.secretFindings).toEqual([
-      { item: "dotagent.yaml", relativePath: "dotagent.yaml", rule: "github-token", line: 1, column: 8 },
+      { item: "dotagents.yaml", relativePath: "dotagents.yaml", rule: "github-token", line: 1, column: 8 },
     ]);
     expect(JSON.stringify(secretPlan)).not.toContain("github_pat_");
     expect(() => applyLibraryUpdatePlan(secretPlan, { portableFiles: secretFiles })).toThrow("blocked");
@@ -155,8 +155,8 @@ describe("transactional library update", () => {
         entries: [
           {
             operation,
-            stagePath: `${operation.target}.dotagent-stage-test`,
-            backupPath: `${operation.target}.dotagent-backup-test`,
+            stagePath: `${operation.target}.dotagents-stage-test`,
+            backupPath: `${operation.target}.dotagents-backup-test`,
             hadPrevious: false,
             status: "applied",
           },

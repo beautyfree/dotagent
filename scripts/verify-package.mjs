@@ -23,7 +23,7 @@ const required = [
   "dist/cli.js",
   "schemas/skills.schema.json",
   "schemas/skills-lock.schema.json",
-  "schemas/dotagent.schema.json",
+  "schemas/dotagents.schema.json",
 ];
 for (const file of required) {
   if (!files.has(file)) throw new Error(`Package is missing required file: ${file}`);

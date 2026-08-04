@@ -8,24 +8,24 @@ export declare const importDecisionSchema: z.ZodEffects<z.ZodObject<{
     reason: z.ZodOptional<z.ZodString>;
 }, "strict", z.ZodTypeAny, {
     candidateKey: string;
-    disposition: "dependency" | "vendored" | "owned" | "local-only" | "excluded" | "suggested";
-    license?: string | undefined;
+    disposition: "excluded" | "dependency" | "vendored" | "owned" | "local-only" | "suggested";
     reason?: string | undefined;
+    license?: string | undefined;
 }, {
     candidateKey: string;
-    disposition: "dependency" | "vendored" | "owned" | "local-only" | "excluded" | "suggested";
-    license?: string | undefined;
+    disposition: "excluded" | "dependency" | "vendored" | "owned" | "local-only" | "suggested";
     reason?: string | undefined;
+    license?: string | undefined;
 }>, {
     candidateKey: string;
-    disposition: "dependency" | "vendored" | "owned" | "local-only" | "excluded" | "suggested";
-    license?: string | undefined;
+    disposition: "excluded" | "dependency" | "vendored" | "owned" | "local-only" | "suggested";
     reason?: string | undefined;
+    license?: string | undefined;
 }, {
     candidateKey: string;
-    disposition: "dependency" | "vendored" | "owned" | "local-only" | "excluded" | "suggested";
-    license?: string | undefined;
+    disposition: "excluded" | "dependency" | "vendored" | "owned" | "local-only" | "suggested";
     reason?: string | undefined;
+    license?: string | undefined;
 }>;
 export type ImportDecision = z.infer<typeof importDecisionSchema>;
 /** Parses a renderer/CLI decision set and rejects duplicate candidate keys. */

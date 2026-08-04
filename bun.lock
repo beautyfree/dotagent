@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@beautyfree/dotagent",
+      "name": "dotagents",
       "dependencies": {
         "yaml": "^2.8.3",
         "zod": "^3.24.0",
