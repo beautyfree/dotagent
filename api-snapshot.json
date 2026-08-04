@@ -6,7 +6,7 @@
     {
       "subpath": ".",
       "types": "./dist/index.d.ts",
-      "sha256": "250d4521d3442c40c4cc919801cf89dcb49fae6fe9e0f2c3e0c25c12a07181f5"
+      "sha256": "6152afe022daddcd3bce058f9b07b5718142ff3b14b6ef98b3d7c0857d09667e"
     },
     {
       "subpath": "./adapters/skills-cli",
@@ -71,7 +71,7 @@
     {
       "subpath": "./git-workspace",
       "types": "./dist/git-workspace.d.ts",
-      "sha256": "f61a0ff765498f03fdcce567c792736c2220fb8fe65a2e52333d0abfd55279aa"
+      "sha256": "915f6d4fa1ee1bdedfcc0a857005687a212c44c5c580cce93055a6eddf5f9bc9"
     },
     {
       "subpath": "./history",
@@ -81,12 +81,12 @@
     {
       "subpath": "./import",
       "types": "./dist/import.d.ts",
-      "sha256": "01126b7b06f0fe22430c598b0b1cf5ddd16b3a7d9fc2421557303787d5cb7e00"
+      "sha256": "87dafedbac6e9f8c44fcbd1b631a4a79702aedf5279478a8f58ea47e53982a2f"
     },
     {
       "subpath": "./import-apply",
       "types": "./dist/import-apply.d.ts",
-      "sha256": "081051d60028b318fd59ed1073fb7ea0561aad91e15ec5358ff96c57f8d531c2"
+      "sha256": "3a98aaf3e0ef435841149e157c20a2a0be8b150092c4c3a0e80d7227eb9b2ce2"
     },
     {
       "subpath": "./init",

@@ -21,6 +21,27 @@ describe("CLI materialization flow", () => {
     expect(help.stdout).toContain("--allow-local-sources");
   });
 
+  it("offers one guided setup command with a machine-readable preview", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dotagents-cli-setup-"));
+    roots.push(root);
+    const library = join(root, "library");
+    const home = join(root, "home");
+    mkdirSync(join(library, "skills", "writing"), { recursive: true });
+    writeFileSync(
+      join(library, "skills", "writing", "SKILL.md"),
+      "---\nname: writing\ndescription: Writes clearly.\n---\n# Writing\n",
+    );
+    const preview = await run("bun", ["src/cli.ts", "setup", library, "--home", home, "--dry-run", "--json"], {
+      cwd: join(import.meta.dir, ".."),
+    });
+    expect(JSON.parse(preview.stdout)).toMatchObject({ kind: "setup", summary: { skillsFound: 1, owned: 1 } });
+
+    const applied = await run("bun", ["src/cli.ts", "setup", library, "--home", home, "--yes", "--json"], {
+      cwd: join(import.meta.dir, ".."),
+    });
+    expect(JSON.parse(applied.stdout)).toMatchObject({ ok: true, result: { import: { copied: 0, adopted: 1 } } });
+  });
+
   it("previews, requires confirmation, applies, and reports status", async () => {
     const root = mkdtempSync(join(tmpdir(), "dotagents-cli-e2e-"));
     roots.push(root);

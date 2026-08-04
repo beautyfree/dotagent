@@ -7,6 +7,7 @@ export interface ApplyImportOptions {
 export interface ApplyImportResult {
     planId: string;
     copied: number;
+    adopted: number;
     dependenciesRecorded: number;
     unchanged: number;
     requiresResolve: boolean;

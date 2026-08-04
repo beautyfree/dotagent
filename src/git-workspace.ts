@@ -383,7 +383,8 @@ function assertPlanId(plan: AnyGitPlan): void {
   if (computePlanId(payload) !== planId) throw new Error("Git plan is stale or modified");
 }
 
-function credentialFreeGitRemote(remote: string): {
+/** Validates a portable Git remote without contacting it or reading credentials. */
+export function credentialFreeGitRemote(remote: string): {
   remote: string;
   identity: string;
 } {

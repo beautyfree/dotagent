@@ -162,7 +162,7 @@ export async function planImport(libraryRoot, candidates) {
             requiresResolve ||= merged.changed || !(candidate.package in (loaded.value.lock?.resolved ?? {}));
             continue;
         }
-        if (candidate.kind !== "owned" && candidate.kind !== "vendored")
+        if (candidate.kind !== "owned" && candidate.kind !== "adopt-owned" && candidate.kind !== "vendored")
             throw new Error(`Unsupported import disposition: ${candidate.kind}`);
         const source = path.resolve(candidate.sourcePath);
         const scanned = await scanOwnedSkill(path.dirname(source), path.basename(source));
@@ -188,6 +188,19 @@ export async function planImport(libraryRoot, candidates) {
         }
         const targetPath = `skills/${candidate.skill}`;
         const target = path.join(library, "skills", candidate.skill);
+        const adoptsExistingTarget = candidate.kind === "adopt-owned";
+        if (adoptsExistingTarget && source !== target) {
+            operations.push({
+                skill: candidate.skill,
+                action: "conflict",
+                sourceKind: candidate.kind,
+                source,
+                sourceIntegrity: scanned.value.integrity,
+                target,
+                reason: "An adopted skill must already be in this library's skills directory",
+            });
+            continue;
+        }
         const existingPath = existingOwned.get(folded);
         if (alreadyClaimed && existingPath !== targetPath) {
             operations.push({
@@ -225,6 +238,25 @@ export async function planImport(libraryRoot, candidates) {
                     reason: "The library already contains a different version of this owned skill",
                 });
             }
+            continue;
+        }
+        if (adoptsExistingTarget && targetPresent && !existingPath) {
+            for (const finding of await scanSkillForSecrets(source))
+                secretFindings.push({ ...finding, skill: candidate.skill });
+            nextManifest.skills.push(targetPath);
+            nextManifest.skills.sort((left, right) => left.localeCompare(right, "en"));
+            const agents = normalizeAgents(candidate.agents);
+            nextConfig.skills[candidate.skill] = { include: true, ...(agents ? { agents } : {}) };
+            claimedNames.set(folded, `owned ${targetPath}`);
+            existingOwned.set(folded, targetPath);
+            operations.push({
+                skill: candidate.skill,
+                action: "adopt-owned",
+                sourceKind: candidate.kind,
+                source,
+                sourceIntegrity: scanned.value.integrity,
+                target,
+            });
             continue;
         }
         if (targetPresent || existingPath) {

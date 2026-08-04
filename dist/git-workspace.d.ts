@@ -112,6 +112,11 @@ export interface GitPushPlan {
     sourcePolicy: SourceSecurityPolicy;
     trust: SourceTrustDecision;
 }
+/** Validates a portable Git remote without contacting it or reading credentials. */
+export declare function credentialFreeGitRemote(remote: string): {
+    remote: string;
+    identity: string;
+};
 export declare function initializeLibraryGit(root: string, remote?: string, git?: WorkspaceGitPort): Promise<void>;
 export declare function setLibraryRemote(root: string, remote: string, git?: WorkspaceGitPort): Promise<void>;
 export declare function planLibraryGitInitialization(root: string, remote?: string, git?: WorkspaceGitPort): Promise<GitInitializePlan>;

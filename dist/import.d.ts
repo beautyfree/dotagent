@@ -7,6 +7,13 @@ export interface OwnedImportCandidate {
     sourcePath: string;
     agents?: string[];
 }
+/** Explicitly records a skill already inside this library's skills directory. */
+export interface AdoptOwnedImportCandidate {
+    kind: "adopt-owned";
+    skill: string;
+    sourcePath: string;
+    agents?: string[];
+}
 export interface DependencyImportCandidate {
     kind: "dependency";
     skill: string;
@@ -30,8 +37,8 @@ export interface LocalOnlyImportCandidate {
     sourcePath?: string;
     reason: string;
 }
-export type ImportCandidate = OwnedImportCandidate | DependencyImportCandidate | VendoredImportCandidate | LocalOnlyImportCandidate;
-export type ImportAction = "copy-owned" | "copy-vendored" | "record-dependency" | "unchanged" | "leave-local" | "exclude" | "conflict";
+export type ImportCandidate = OwnedImportCandidate | AdoptOwnedImportCandidate | DependencyImportCandidate | VendoredImportCandidate | LocalOnlyImportCandidate;
+export type ImportAction = "copy-owned" | "adopt-owned" | "copy-vendored" | "record-dependency" | "unchanged" | "leave-local" | "exclude" | "conflict";
 export interface ImportOperation {
     skill: string;
     action: ImportAction;

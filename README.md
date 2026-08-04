@@ -1,62 +1,99 @@
-# dotagents
+<p align="center">
+  <img src="docs/assets/dotagents-mark.svg" width="92" alt="dotagents" />
+</p>
 
-**Your portable AI-agent library.**
+<h1 align="center">dotagents</h1>
 
-Keep the skills and setup you have built in one Git-backed library, then bring
-the reviewed version to the agents you use on every computer. `dotagents`
-keeps the library portable; it never needs to own your Git host or credentials.
+<p align="center">
+  <strong>Your AI-agent setup, carried forward.</strong><br />
+  One portable library for the skills, instructions, and workflows you have built over time.
+</p>
 
-## Why
+<p align="center">
+  <a href="https://github.com/beautyfree/dotagents/actions/workflows/ci.yml"><img src="https://github.com/beautyfree/dotagents/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d6af7.svg" alt="MIT license" /></a>
+  <a href="https://github.com/beautyfree/dotagents/stargazers"><img src="https://img.shields.io/github/stars/beautyfree/dotagents?style=flat&color=6d6af7" alt="GitHub stars" /></a>
+</p>
 
-An agent setup is part of your working craft: skills, instructions, commands,
-and subagents that you have selected or written over time. It should be easy to
-carry, inspect, share deliberately, and restore without overwriting local work.
+![A real dotagents setup run](docs/assets/setup.gif)
 
-`dotagents` gives that setup a canonical home and a deliberate delivery path:
+## Your tools should travel with you
 
-1. Keep a portable library in Git.
-2. Preview exact changes as a plan.
-3. Apply only the plan you reviewed to an explicit agent target.
+The prompts, skills, and instructions you collect become part of how you work.
+They should not disappear with a laptop, get scattered across agent folders, or
+turn into an opaque pile of copies.
 
-The library can live in a private GitHub, GitLab, self-hosted, or local Git
-repository. Credentials stay with Git; `dotagents` rejects credential-bearing
-remote URLs from its portable files.
+`dotagents` gives them one calm, portable home. It discovers what you already
+use, explains what will happen in plain language, and lets you carry the result
+between computers or share it deliberately with a team.
 
-## Install
+It is for developers, certainly — and also for designers, writers, product
+managers, researchers, and anyone building a repeatable way of working with AI.
 
-Requires Node.js 20 or newer.
+## Start here
 
 ```sh
 npm install -g dotagents
-dotagents --help
+dotagents setup
 ```
 
-## Start a library
+That is the friendly path. `setup` scans compatible agent folders and shows a
+short review before it changes anything. It can adopt an existing
+`~/.agents/skills` library in place, so your skills are not copied over or
+silently replaced.
 
-Every write is a separate, explicit apply step.
+```text
+Your agent setup, in one library.
+Found 24 skills across 3 agents.
+
+16 skills are ready to keep in your library.
+6 skills stay linked to their original source.
+2 skills need review and will stay untouched.
+
+Nothing outside your new library will be removed or overwritten.
+```
+
+Use `--dry-run` when you only want the review, or `--yes` in an automated
+workflow:
 
 ```sh
-# Preview a new portable library. This does not create the directory yet.
-dotagents init ~/.agents --name my-agent-library --out init-plan.json
-
-# Inspect the plan, then create exactly what it described.
-dotagents apply init-plan.json --yes
-
-# Add an owned skill from an existing local folder.
-dotagents import ~/.agents \
-  --owned writing="$HOME/.codex/skills/writing" \
-  --out import-plan.json
-dotagents apply import-plan.json --yes
+dotagents setup --dry-run
+dotagents setup --yes
 ```
 
-`~/.agents` is only a convention. Use any directory you want for the canonical
-library.
+> [!TIP]
+> The demo above is not a mockup. It is rendered from
+> [`docs/demo/setup.tape`](docs/demo/setup.tape) with [VHS](https://github.com/charmbracelet/vhs), against a small fixture committed in this repository.
 
-## Bring it to an agent
+## A library, not another lock-in
 
-Tell `dotagents` exactly where a compatible agent should receive the library.
-It previews whether a symlink, copy, or other native delivery is safe before it
-touches the target.
+Your library is an ordinary Git repository. Keep it private, publish selected
+skills, use GitHub, GitLab, a company server, or a local remote — the choice is
+yours. Git keeps credentials; portable dotagents files never contain them.
+
+```sh
+dotagents setup ~/my-agent-library \
+  --remote git@github.com:you/my-agent-library.git
+```
+
+The command creates the local Git workspace and records `origin`. It does not
+make a commit, push, or publish anything for you.
+
+## Built to be safe without being scary
+
+| What you need | What dotagents does |
+| --- | --- |
+| Keep local work | Never overwrites an unmanaged agent folder. |
+| Keep source context | Records verified external skills as sources instead of mystery copies. |
+| Share confidently | Flags possible secrets without displaying their values. |
+| Restore reliably | Reviews a pinned Git revision before materializing it on another machine. |
+| Stay in control | Every persistent change is previewed and rechecked before it runs. |
+
+## Bring skills where you work
+
+Many compatible agents can read the shared `.agents/skills` library directly.
+For an agent that needs its own native folder, dotagents previews an explicit,
+safe delivery plan:
 
 ```sh
 dotagents plan ~/.agents \
@@ -65,73 +102,22 @@ dotagents plan ~/.agents \
 dotagents apply materialization-plan.json --yes
 ```
 
-Existing unmanaged files are never silently replaced. If an earlier managed
-copy has local edits, the plan stops and explains what needs review.
+The plan stops rather than replacing an existing folder it does not own.
 
-## What belongs in the library
+## Learn only what you need
 
-| Resource | What dotagents does |
-| --- | --- |
-| Skills | Inventories bounded Agent Skills folders, hashes their content, and materializes reviewed views. |
-| Instructions, commands, and subagents | Stores them as typed portable resources and delivers them only through an adapter that explicitly supports them. |
-| External skills | Keeps the upstream Git identity, immutable commit, integrity, and license in a lockfile instead of silently copying a moving source. |
-| Local machine state | Keeps paths, ownership records, journals, and local overrides out of the portable Git library. |
+- [Everyday workflows](docs/workflows.md) — first setup, a second computer, sharing, and recovery.
+- [Resource model](docs/resource-model-v2.md) — what is portable and why.
+- [Agent Skills RFC compatibility](docs/rfc-210-compatibility.md) — compatibility decisions and boundaries.
+- [CLI reference](docs/README.md) — plans, source trust, Git, and machine-readable output.
 
-MCP servers, hooks, installers, and executable scripts are intentionally not
-portable resources yet. They need a separate execution-trust model rather than
-a loose configuration field.
+## For teams and tool builders
 
-## Safe Git workflow
-
-`dotagents` works with GitHub, GitLab, a private server, or a local bare
-repository. It resolves remote content to an immutable commit, supports a
-reviewed cooling-off period, validates in staging, and only then exposes a
-clone or fast-forward update.
+`dotagents` is a small TypeScript library as well as a CLI. Its portable files
+are intentionally provider-neutral, while machine paths, journals, and local
+credentials stay local. Integrations can use the same discovery, planning, and
+apply primitives without depending on a particular agent app.
 
 ```sh
-dotagents clone git@github.com:you/agent-library.git ~/.agents \
-  --trust-source git@github.com:you/agent-library.git \
-  --minimum-release-age 10080 \
-  --out clone-plan.json
-dotagents apply clone-plan.json --yes
-
-dotagents sync ~/.agents --push \
-  --trust-source git@github.com:you/agent-library.git \
-  --out push-plan.json
-dotagents apply push-plan.json --yes
+dotagents --help
 ```
-
-Use `dotagents doctor`, `dotagents status`, and `dotagents audit --public`
-before sharing a library. Secret findings are value-free: the report identifies
-the file and rule, never prints the matched value.
-
-## How it differs
-
-| Tool or convention | Focus | dotagents' role |
-| --- | --- | --- |
-| [skills.sh](https://skills.sh/) | Discovering and installing reusable skill packages | Own and synchronize a reviewed personal or team library, including pinned external dependencies. |
-| `AGENTS.md` | Guidance for one project | A portable user- or team-level library that can be projected to several compatible agents. |
-| Rules/config generators | Producing project configuration | Canonical library, Git provenance, local overlays, review plans, and guarded delivery. |
-| [yourconscience/dotagents](https://github.com/yourconscience/dotagents) | A broader agent-dotfiles workflow | A TypeScript, library-first CLI focused on typed portable resources and explicit preview/apply boundaries. |
-
-The project takes inspiration from the upstream dotagents model and the
-[Agent Skills compatibility discussion](https://github.com/agentskills/agentskills/discussions/210), while remaining an independent implementation.
-
-## Documentation
-
-- [Resource model](docs/resource-model-v2.md)
-- [Agent Skills RFC compatibility](docs/rfc-210-compatibility.md)
-- [Changelog](CHANGELOG.md)
-
-## Development
-
-```sh
-bun install --frozen-lockfile
-bun run check
-bun run package:smoke
-```
-
-CI exercises the project on Linux, macOS, and Windows. The release workflow
-builds the npm tarball, installs that exact tarball in a clean consumer folder,
-generates an SBOM and checksums, and binds all artifacts to the immutable source
-commit before publication.

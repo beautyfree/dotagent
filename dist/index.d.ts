@@ -38,5 +38,6 @@ export * from "./selection.js";
 export * from "./sources.js";
 export * from "./source-policy.js";
 export * from "./status.js";
+export * from "./setup.js";
 export * from "./well-known.js";
 //# sourceMappingURL=index.d.ts.map

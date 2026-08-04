@@ -19,6 +19,7 @@ import { prepareMaterializationInventory } from "./prepared-library.js";
 import { applyLibraryResolutionPlan, planLibraryResolution } from "./sources.js";
 import { parseSourceSecurityPolicy } from "./source-policy.js";
 import { existingTargetsForPlan, getMaterializationStatus } from "./status.js";
+import { applySetupPlan, planSetup } from "./setup.js";
 async function emitPlan(plan, output, json, label) {
     if (output)
         await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
@@ -26,6 +27,54 @@ async function emitPlan(plan, output, json, label) {
         process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
     else
         process.stdout.write(`${label} plan ${plan.planId} written to ${path.resolve(output)}. Review it, then run apply with --yes.\n`);
+}
+function setupSummary(plan) {
+    const { summary } = plan;
+    const agentLabel = summary.agentsDetected === 1 ? "agent" : "agents";
+    const skillLabel = summary.skillsFound === 1 ? "skill" : "skills";
+    const lines = [
+        "Your agent setup, in one library.",
+        `Found ${summary.skillsFound} ${skillLabel} across ${summary.agentsDetected} ${agentLabel}.`,
+        "",
+        `${summary.owned} ${summary.owned === 1 ? "skill is" : "skills are"} ready to keep in your library.`,
+    ];
+    if (summary.sourceLinked)
+        lines.push(`${summary.sourceLinked} ${summary.sourceLinked === 1 ? "skill stays" : "skills stay"} linked to their original source.`);
+    if (summary.needsReview)
+        lines.push(`${summary.needsReview} ${summary.needsReview === 1 ? "skill needs" : "skills need"} review and will stay untouched.`);
+    if (summary.linkedAliases)
+        lines.push(`${summary.linkedAliases} linked ${summary.linkedAliases === 1 ? "alias is" : "aliases are"} already available; nothing will be copied.`);
+    lines.push("", "Nothing outside your new library will be removed or overwritten.");
+    return `${lines.join("\n")}\n`;
+}
+function statusSummary(status) {
+    if (status.targets.length === 0)
+        return "Your library is ready to connect to an agent. No agent folders are managed yet.\n";
+    const byHealth = (health) => status.targets.filter((target) => target.health === health).length;
+    const agents = new Set(status.targets.map((target) => target.agent)).size;
+    const current = byHealth("current");
+    const attention = status.targets.length - current;
+    const lines = [
+        `Your library is connected to ${agents} ${agents === 1 ? "agent" : "agents"}.`,
+        `${current} ${current === 1 ? "skill is" : "skills are"} up to date.`,
+    ];
+    if (attention)
+        lines.push(`${attention} ${attention === 1 ? "skill needs" : "skills need"} attention; run dotagents status --json for the exact paths.`);
+    else
+        lines.push("Nothing managed by dotagents needs attention.");
+    return `${lines.join("\n")}\n`;
+}
+async function confirmSetup() {
+    if (!process.stdin.isTTY || !process.stdout.isTTY)
+        return false;
+    const { createInterface } = await import("node:readline/promises");
+    const prompt = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+        return /^(y|yes)$/i.test((await prompt.question("Create this library now? [y/N] ")).trim());
+    }
+    finally {
+        prompt.close();
+    }
 }
 async function main() {
     const [command = "help", ...args] = process.argv.slice(2);
@@ -43,6 +92,7 @@ async function main() {
         "--trust-github-org",
         "--minimum-release-age",
         "--minimum-release-age-exclude",
+        "--home",
     ]);
     const optionValues = (name) => args.flatMap((argument, index) => {
         const value = args[index + 1];
@@ -87,7 +137,48 @@ async function main() {
     const directory = positional[0] ?? ".";
     const json = args.includes("--json");
     if (command === "help" || command === "--help" || command === "-h") {
-        process.stdout.write("dotagents init [library-directory] [--name package-name] [--out plan.json] [--json]\ndotagents inspect [library-directory] [--json]\ndotagents import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\ndotagents resolve [library-directory] [source-trust-options] [--minimum-release-age minutes] [--out plan.json] [--json]\ndotagents doctor [library-directory] [--json]\ndotagents audit [library-directory] [--public] [--json]\ndotagents git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\ndotagents clone <git-url> <library-directory> [source-trust-options] [--out plan.json] [--json]\ndotagents commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\ndotagents sync [library-directory] [--pull|--push] [--public|--team] [source-trust-options] [--out plan.json] [--json]\ndotagents status [library-directory] [--json]\ndotagents plan [library-directory] --target slug=mode=path [source-trust-options] [--out plan.json] [--json]\ndotagents apply <plan.json> --yes [--json]\ndotagents recover [library-directory] [--plan-id id --yes] [--json]\n\nsource-trust-options (network is denied when omitted):\n  --trust-source git-url       Trust one exact normalized repository; repeatable.\n  --trust-host host            Trust one Git host; repeatable.\n  --trust-github-org owner     Trust one GitHub organization; repeatable.\n  --allow-local-sources        Required in addition to --trust-source for file: repositories.\n  --trust-all                  Explicitly trust every source (not recommended).\n  --minimum-release-age mins   Require a reviewed commit cooling-off period before content is accepted.\n  --minimum-release-age-exclude git-url\n                               Explicitly exempt one reviewed repository; repeatable.\n");
+        process.stdout.write("Start here:\n  dotagents setup [library-directory] [--remote git-url] [--dry-run] [--yes] [--out setup-plan.json] [--json]\n  dotagents status [library-directory] [--json]\n  dotagents doctor [library-directory] [--json]\n\nSetup discovers existing skills, keeps verified external skills linked to their source, and never overwrites agent folders. Add --remote to make the new library a Git repository; in a terminal it asks before creating anything, while --yes is for automation.\n\nAdvanced workflows:\n  dotagents init [library-directory] [--name package-name] [--out plan.json] [--json]\n  dotagents inspect [library-directory] [--json]\n  dotagents import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\n  dotagents resolve [library-directory] [source-trust-options] [--minimum-release-age minutes] [--out plan.json] [--json]\n  dotagents git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\n  dotagents clone <git-url> <library-directory> [source-trust-options] [--out plan.json] [--json]\n  dotagents commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\n  dotagents sync [library-directory] [--pull|--push] [--public|--team] [source-trust-options] [--out plan.json]\n  dotagents plan [library-directory] --target slug=mode=path [source-trust-options] [--out plan.json] [--json]\n  dotagents apply <plan.json> --yes [--json]\n  dotagents recover [library-directory] [--plan-id id --yes] [--json]\n\nsource-trust-options (network is denied when omitted):\n  --trust-source git-url       Trust one exact normalized repository; repeatable.\n  --trust-host host            Trust one Git host; repeatable.\n  --trust-github-org owner     Trust one GitHub organization; repeatable.\n  --allow-local-sources        Required in addition to --trust-source for file: repositories.\n  --trust-all                  Explicitly trust every source (not recommended).\n  --minimum-release-age mins   Require a reviewed commit cooling-off period before content is accepted.\n");
+        return 0;
+    }
+    if (command === "setup") {
+        const root = positional[0] ? path.resolve(positional[0]) : undefined;
+        const name = optionValue("--name");
+        const home = optionValue("--home");
+        const remote = optionValue("--remote");
+        const plan = await planSetup({
+            ...(root ? { root } : {}),
+            ...(name ? { name } : {}),
+            ...(home ? { home } : {}),
+            ...(remote ? { remote } : {}),
+        });
+        const output = optionValue("--out");
+        if (output)
+            await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+        if (args.includes("--dry-run") || output) {
+            if (json)
+                process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+            else {
+                process.stdout.write(setupSummary(plan));
+                if (output)
+                    process.stdout.write(`Setup plan written to ${path.resolve(output)}. Review it, then run dotagents apply ${path.resolve(output)} --yes.\n`);
+            }
+            return 0;
+        }
+        if (!json)
+            process.stdout.write(setupSummary(plan));
+        const confirmed = args.includes("--yes") || (await confirmSetup());
+        if (!confirmed) {
+            if (json)
+                process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+            else
+                process.stdout.write("Nothing changed. Run dotagents setup --yes when you are ready.\n");
+            return 0;
+        }
+        const result = await applySetupPlan(plan);
+        if (json)
+            process.stdout.write(`${JSON.stringify({ ok: true, plan, result }, null, 2)}\n`);
+        else
+            process.stdout.write(`Your library is ready at ${result.root}: ${result.import.copied} copied, ${result.import.adopted} already there, and ${result.import.dependenciesRecorded} source-linked${result.gitInitialized ? "; Git is ready too" : ""}.\n`);
         return 0;
     }
     if (command === "init") {
@@ -209,11 +300,8 @@ async function main() {
         const status = await getMaterializationStatus(path.resolve(directory));
         if (json)
             process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
-        else if (status.targets.length === 0)
-            process.stdout.write("No materialized targets are managed yet.\n");
         else
-            for (const target of status.targets)
-                process.stdout.write(`${target.agent}/${target.skill}: ${target.health}\n`);
+            process.stdout.write(statusSummary(status));
         return status.targets.some((target) => target.health === "invalid") ? 1 : 0;
     }
     if (command === "plan") {
@@ -329,6 +417,12 @@ async function main() {
             process.stdout.write(json
                 ? `${JSON.stringify({ ok: true, head: plan.head }, null, 2)}\n`
                 : `Pushed ${plan.head} to ${plan.remoteIdentity}.\n`);
+        }
+        else if (plan.kind === "setup") {
+            const result = await applySetupPlan(plan);
+            process.stdout.write(json
+                ? `${JSON.stringify({ ok: true, ...result }, null, 2)}\n`
+                : `Your library is ready at ${result.root}: ${result.import.copied} copied, ${result.import.adopted} already there.\n`);
         }
         else {
             throw new Error("Unsupported plan kind");

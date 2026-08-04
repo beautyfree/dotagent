@@ -1,7 +1,7 @@
 {
   "name": "dotagents",
   "version": "0.1.0",
-  "description": "A portable, Git-backed library for your AI agent skills and setup",
+  "description": "Carry your AI-agent skills and setup across machines with a portable, Git-backed library",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -19,7 +19,10 @@
     "skills",
     "claude-code",
     "codex",
-    "git"
+    "git",
+    "dotfiles",
+    "ai-productivity",
+    "agentic-workflows"
   ],
   "publishConfig": {
     "access": "public"
@@ -212,6 +215,7 @@
     "release:artifacts": "node scripts/build-release-artifacts.mjs",
     "release:verify": "node scripts/verify-release-artifacts.mjs",
     "release:publish": "node scripts/publish-release-artifacts.mjs",
+    "demo:render": "bun run build && vhs docs/demo/setup.tape",
     "ci": "bun run check && node dist/cli.js inspect fixtures/valid-library --json && node dist/cli.js audit fixtures/valid-library --public --json",
     "release:check": "bun run ci && bun run package:check && bun run package:smoke && bun run api:check"
   },

@@ -90,7 +90,7 @@ async function copyDirectory(source, target) {
     }
 }
 async function assertOperationSource(operation) {
-    if ((operation.action !== "copy-owned" && operation.action !== "copy-vendored") ||
+    if ((operation.action !== "copy-owned" && operation.action !== "copy-vendored" && operation.action !== "adopt-owned") ||
         !operation.source ||
         !operation.sourceIntegrity)
         return;
@@ -223,12 +223,18 @@ export async function applyImportPlan(plan, options = {}) {
     if (hashText(baseManifestText) !== plan.baseManifestHash || hashText(baseConfigText) !== plan.baseConfigHash) {
         throw new Error("Portable library files changed after review; rebuild the import plan");
     }
-    const mutations = plan.operations.filter((operation) => operation.action === "copy-owned" || operation.action === "copy-vendored");
-    for (const operation of mutations) {
+    const copied = plan.operations.filter((operation) => operation.action === "copy-owned" || operation.action === "copy-vendored");
+    const adopted = plan.operations.filter((operation) => operation.action === "adopt-owned");
+    for (const operation of [...copied, ...adopted]) {
         await assertOperationSource(operation);
         if (!operation.target)
             throw new Error(`Missing import target for ${operation.skill}`);
-        if (await exists(operation.target))
+        if (operation.action === "adopt-owned") {
+            if (!(await exists(operation.target)))
+                throw new Error(`Adopted source disappeared after review: ${operation.skill}`);
+            await assertCopiedIntegrity(operation, operation.target);
+        }
+        else if (await exists(operation.target))
             throw new Error(`Import target appeared after review: ${operation.target}`);
     }
     const journal = {
@@ -240,7 +246,7 @@ export async function applyImportPlan(plan, options = {}) {
         baseConfigText,
         nextManifestText: manifestText(plan),
         nextConfigText: configText(plan),
-        operations: mutations.map((operation) => ({ operation, status: "pending" })),
+        operations: copied.map((operation) => ({ operation, status: "pending" })),
     };
     await writeJournal(journal);
     try {
@@ -269,7 +275,8 @@ export async function applyImportPlan(plan, options = {}) {
         await rm(journalPath(plan.library), { force: true });
         return {
             planId,
-            copied: mutations.length,
+            copied: copied.length,
+            adopted: adopted.length,
             dependenciesRecorded: plan.operations.filter((operation) => operation.action === "record-dependency").length,
             unchanged: plan.operations.filter((operation) => operation.action === "unchanged").length,
             requiresResolve: plan.requiresResolve,

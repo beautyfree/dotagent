@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="510" viewBox="0 0 960 510" role="img" aria-labelledby="title description">
+  <title id="title">dotagents setup preview</title>
+  <desc id="description">A terminal shows dotagents finding skills and explaining what will happen before it creates a library.</desc>
+  <rect width="960" height="510" rx="22" fill="#111318"/>
+  <rect x="1" y="1" width="958" height="508" rx="21" fill="none" stroke="#2b303b" stroke-width="2"/>
+  <circle cx="38" cy="36" r="7" fill="#fb5f57"/><circle cx="62" cy="36" r="7" fill="#f8bd2e"/><circle cx="86" cy="36" r="7" fill="#28c840"/>
+  <text x="120" y="42" fill="#8f98a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15">dotagents</text>
+  <line x1="0" y1="69" x2="960" y2="69" stroke="#2b303b"/>
+  <text x="42" y="113" fill="#aeb8ff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20">$ dotagents setup</text>
+  <text x="42" y="166" fill="#ffffff" font-family="ui-sans-serif, system-ui, sans-serif" font-size="29" font-weight="700">Your agent setup, in one library.</text>
+  <text x="42" y="207" fill="#c7cedb" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20">Found 31 skills across Codex and Claude Code.</text>
+  <rect x="42" y="244" width="876" height="64" rx="12" fill="#1a2030"/>
+  <text x="68" y="284" fill="#ffffff" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="700">18 skills</text>
+  <text x="185" y="284" fill="#c7cedb" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20">will become part of your library</text>
+  <rect x="42" y="322" width="876" height="64" rx="12" fill="#17251f"/>
+  <text x="68" y="362" fill="#ffffff" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="700">9 skills</text>
+  <text x="168" y="362" fill="#c7cedb" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20">will stay linked to their original source</text>
+  <rect x="42" y="400" width="876" height="64" rx="12" fill="#302916"/>
+  <text x="68" y="440" fill="#ffffff" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="700">4 skills</text>
+  <text x="168" y="440" fill="#e6d49a" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20">need review and will stay untouched</text>
+  <text x="42" y="493" fill="#8f98a8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">Nothing outside your new library will be removed or overwritten.</text>
+</svg>

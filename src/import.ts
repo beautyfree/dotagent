@@ -19,6 +19,14 @@ export interface OwnedImportCandidate {
   agents?: string[];
 }
 
+/** Explicitly records a skill already inside this library's skills directory. */
+export interface AdoptOwnedImportCandidate {
+  kind: "adopt-owned";
+  skill: string;
+  sourcePath: string;
+  agents?: string[];
+}
+
 export interface DependencyImportCandidate {
   kind: "dependency";
   skill: string;
@@ -47,12 +55,14 @@ export interface LocalOnlyImportCandidate {
 
 export type ImportCandidate =
   | OwnedImportCandidate
+  | AdoptOwnedImportCandidate
   | DependencyImportCandidate
   | VendoredImportCandidate
   | LocalOnlyImportCandidate;
 
 export type ImportAction =
   | "copy-owned"
+  | "adopt-owned"
   | "copy-vendored"
   | "record-dependency"
   | "unchanged"
@@ -246,7 +256,7 @@ export async function planImport(libraryRoot: string, candidates: ImportCandidat
       continue;
     }
 
-    if (candidate.kind !== "owned" && candidate.kind !== "vendored")
+    if (candidate.kind !== "owned" && candidate.kind !== "adopt-owned" && candidate.kind !== "vendored")
       throw new Error(`Unsupported import disposition: ${candidate.kind}`);
 
     const source = path.resolve(candidate.sourcePath);
@@ -272,6 +282,19 @@ export async function planImport(libraryRoot: string, candidates: ImportCandidat
     }
     const targetPath = `skills/${candidate.skill}`;
     const target = path.join(library, "skills", candidate.skill);
+    const adoptsExistingTarget = candidate.kind === "adopt-owned";
+    if (adoptsExistingTarget && source !== target) {
+      operations.push({
+        skill: candidate.skill,
+        action: "conflict",
+        sourceKind: candidate.kind,
+        source,
+        sourceIntegrity: scanned.value.integrity,
+        target,
+        reason: "An adopted skill must already be in this library's skills directory",
+      });
+      continue;
+    }
     const existingPath = existingOwned.get(folded);
     if (alreadyClaimed && existingPath !== targetPath) {
       operations.push({
@@ -308,6 +331,25 @@ export async function planImport(libraryRoot: string, candidates: ImportCandidat
           reason: "The library already contains a different version of this owned skill",
         });
       }
+      continue;
+    }
+    if (adoptsExistingTarget && targetPresent && !existingPath) {
+      for (const finding of await scanSkillForSecrets(source))
+        secretFindings.push({ ...finding, skill: candidate.skill });
+      nextManifest.skills.push(targetPath);
+      nextManifest.skills.sort((left, right) => left.localeCompare(right, "en"));
+      const agents = normalizeAgents(candidate.agents);
+      nextConfig.skills[candidate.skill] = { include: true, ...(agents ? { agents } : {}) };
+      claimedNames.set(folded, `owned ${targetPath}`);
+      existingOwned.set(folded, targetPath);
+      operations.push({
+        skill: candidate.skill,
+        action: "adopt-owned",
+        sourceKind: candidate.kind,
+        source,
+        sourceIntegrity: scanned.value.integrity,
+        target,
+      });
       continue;
     }
     if (targetPresent || existingPath) {

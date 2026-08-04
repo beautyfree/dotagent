@@ -228,7 +228,8 @@ function assertPlanId(plan) {
     if (computePlanId(payload) !== planId)
         throw new Error("Git plan is stale or modified");
 }
-function credentialFreeGitRemote(remote) {
+/** Validates a portable Git remote without contacting it or reading credentials. */
+export function credentialFreeGitRemote(remote) {
     const value = remote.trim();
     if (!value || /[\r\n\0]/.test(value))
         throw new Error("Git URL must be a single non-empty value");
