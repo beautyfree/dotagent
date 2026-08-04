@@ -71,3 +71,6 @@ jobs:
         run: node scripts/publish-release-artifacts.mjs release-artifacts
         env:
           GH_TOKEN: ${{ github.token }}
+          # Publish with GitHub Actions OIDC. A legacy registry token can force
+          # npm away from the trusted publisher and prevent first publication.
+          NODE_AUTH_TOKEN: ""
