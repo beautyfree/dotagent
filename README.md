@@ -38,11 +38,10 @@ agents already installed on your computer.
 
 ## Start here
 
-The npm package name is reserved for the first release. Until then, install the
-current CLI directly from this repository, then run one command:
+Install the CLI, then run one command:
 
 ```sh
-npm install -g github:beautyfree/dotagents
+npm install -g dotagents
 dotagents setup
 ```
 
