@@ -2,8 +2,9 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(new URL("..", import.meta.url).pathname);
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const scratch = mkdtempSync(join(tmpdir(), "dotagents-pack-"));
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
