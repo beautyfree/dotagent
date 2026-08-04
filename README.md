@@ -5,8 +5,8 @@
 <h1 align="center">dotagents</h1>
 
 <p align="center">
-  <strong>Your AI-agent setup, carried forward.</strong><br />
-  Keep the skills and workflows you have built — on every computer, with every agent.
+  <strong>One portable home for the AI-agent skills you have collected.</strong><br />
+  Set it up once, use it with compatible agents, and take it to another computer when you are ready.
 </p>
 
 <p align="center">
@@ -15,57 +15,128 @@
   <a href="https://github.com/beautyfree/dotagents/stargazers"><img src="https://img.shields.io/github/stars/beautyfree/dotagents?style=flat&color=6d6af7" alt="GitHub stars" /></a>
 </p>
 
-![dotagents setup](docs/assets/setup.gif)
+![A successful dotagents setup](docs/assets/setup.gif)
 
-## The way you work is worth keeping
+## What it does
 
-Every useful skill, prompt, and instruction you collect makes your work a
-little more yours. Over time, they become a personal toolkit — for coding,
-design, writing, research, product work, or anything else you do with AI.
+AI agents store skills in different places. `dotagents` gives you one library —
+normally `~/.agents` — and safely makes its skills available to the compatible
+agents already installed on your computer.
 
-`dotagents` gives that toolkit one home. It finds what you already use, keeps
-it safe, and makes it easy to take with you or share deliberately.
+| You have | dotagents does |
+| --- | --- |
+| A skill in `~/.agents/skills` | Keeps it in the shared library; agents that read the shared folder use it directly. |
+| A compatible agent with an empty skills folder | Creates per-skill links back to the library. No duplicate copy to maintain. |
+| A non-empty or unfamiliar agent folder | Leaves it alone. It never replaces files it does not manage. |
+| A skills.sh package with verifiable provenance | Records a pinned source instead of uploading another copy. |
 
-## One command to begin
+> [!IMPORTANT]
+> `dotagents setup` does **not** publish anything. It only creates or updates
+> your local `~/.agents` library after one confirmation. GitHub, GitLab, a
+> company Git server, or a public repository are entirely your choice and are
+> configured in a separate, reviewed step.
+
+## Start here
+
+The npm package name is reserved for the first release. Until then, install the
+current CLI directly from this repository, then run one command:
 
 ```sh
-npm install -g dotagents
+npm install -g github:beautyfree/dotagents
 dotagents setup
 ```
 
-That is all you need to start. dotagents looks at your existing agent skills,
-shows you what it found, and asks once before changing anything. Your current
-files stay where they are — nothing is silently replaced or uploaded. Empty
-compatible agent folders are connected safely as part of that same setup.
+The command shows what it found and asks once before it changes anything. After
+you answer `y`, it:
 
-Afterwards, your library has one clear job: it is the home for the skills you
-choose to carry. Agents that already understand `.agents/skills` use it
-directly; other compatible agents receive safe links only when their own skills
-folder is empty. Existing agent files are left untouched.
+1. creates `~/.agents` if necessary;
+2. brings in skills that are safe to own, while retaining verified external
+   sources as references;
+3. connects compatible empty agent folders with links; and
+4. reports exactly what is now available.
 
-## Keep your toolkit yours
+If you install another agent later, run this to connect it without touching
+existing agent files:
 
-- **Bring it anywhere.** Store one library in any Git host, a private server,
-  or your own machine.
-- **Use the agents you like.** Keep shared skills available to compatible
-  agents, with safe delivery when an agent needs its own folder.
-- **Share on your terms.** Make a private backup, collaborate with a team, or
-  publish only the skills you want others to use.
-- **Stay in control.** dotagents checks changes before applying them and never
-  exposes secret values in its reports.
+```sh
+dotagents connect
+```
 
-## When you want to go further
+Check the current connections at any time:
 
-Everything beyond first setup is available when you need it — moving to a new
-computer, connecting Git, sharing a library, or working with a team.
+```sh
+dotagents status
+```
+
+## Back up or share your library
+
+Once you like the library locally, you can put it in **any Git remote**. Create
+an empty repository wherever you prefer, then replace the example URL below.
+These commands first create review files; `apply --yes` is the deliberate step
+that performs the reviewed local Git action.
+
+```sh
+dotagents git-init ~/.agents \
+  --remote git@github.com:you/my-agent-library.git \
+  --out git-init-plan.json
+dotagents apply git-init-plan.json --yes
+
+dotagents commit ~/.agents \
+  --message "My agent library" \
+  --out commit-plan.json
+dotagents apply commit-plan.json --yes
+
+dotagents sync ~/.agents --push \
+  --trust-source git@github.com:you/my-agent-library.git \
+  --out push-plan.json
+dotagents apply push-plan.json --yes
+```
+
+Choose the repository visibility that fits your use: private for a backup,
+team-accessible for shared work, or public only after you have reviewed its
+contents. Before a public push, run:
+
+```sh
+dotagents doctor ~/.agents
+dotagents audit ~/.agents --public
+```
+
+Secret checks point to a file and line but never print the matched value.
+
+## Restore on a new computer
+
+Clone only a remote you trust. The clone plan pins the reviewed commit before
+writing your library; the final `connect` command then makes it available to
+the compatible agents installed on that computer.
+
+```sh
+dotagents clone git@github.com:you/my-agent-library.git ~/.agents \
+  --trust-source git@github.com:you/my-agent-library.git \
+  --out clone-plan.json
+dotagents apply clone-plan.json --yes
+dotagents connect
+```
+
+## What dotagents will not do
+
+- It does not create a remote repository, push to one, or make anything public
+  on its own.
+- It does not overwrite an existing agent skill or follow a linked file outside
+  a skill folder.
+- It does not silently trust a network source; network operations require an
+  explicit trust rule.
+- It does not run skill code while discovering, reviewing, or copying files.
+
+## Need the deeper controls?
+
+The normal route is `setup` → optional Git backup → `connect` on another
+computer. For dry runs, automation, recovery, source trust, and the complete
+command reference, see:
 
 - [Everyday workflows](docs/workflows.md)
+- [Full CLI reference](docs/README.md)
 - [How resources stay portable](docs/resource-model-v2.md)
 - [Supported Agent Skills conventions](docs/rfc-210-compatibility.md)
-- [Full CLI reference](docs/README.md)
 
-## Built for people, not lock-in
-
-dotagents is open source, written in TypeScript, and intentionally independent
-of any single AI provider or Git host. It is a portable library and CLI that
-other tools can build on — not another place to trap your setup.
+dotagents is open source, provider-neutral, and works with any Git host that
+you choose.
