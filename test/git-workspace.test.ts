@@ -98,6 +98,12 @@ describe("Git-backed library workspace", () => {
     await expect(applyLibraryClone({ ...plan, destination: `${target}-changed` })).rejects.toThrow("stale or modified");
     await applyLibraryClone(plan);
     expect(readFileSync(join(target, "skills/portable/SKILL.md"), "utf8")).toContain("portable");
+    expect(
+      execFileSync("git", ["config", "--get", "core.autocrlf"], {
+        cwd: target,
+        encoding: "utf8",
+      }).trim(),
+    ).toBe("false");
 
     const coolingTarget = join(parent, "cooling-library");
     const coolingPolicy = exactSourceSecurityPolicy([pathToFileURL(remote).href], {
