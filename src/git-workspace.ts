@@ -53,6 +53,7 @@ export interface GitWorkspaceStatus {
   changed: boolean;
   ahead: number;
   behind: number;
+  hasUpstream: boolean;
   remoteIdentity: string | null;
   head: string | null;
 }
@@ -745,12 +746,14 @@ export async function getLibraryGitStatus(
   }
   let ahead = 0;
   let behind = 0;
+  let hasUpstream = false;
   try {
     const counts = (await git.run(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], library))
       .split(/\s+/)
       .map(Number);
     ahead = counts[0] ?? 0;
     behind = counts[1] ?? 0;
+    hasUpstream = true;
   } catch {
     /* no upstream yet */
   }
@@ -759,6 +762,7 @@ export async function getLibraryGitStatus(
     changed: paths.changed.length > 0 || paths.ignored.length > 0,
     ahead,
     behind,
+    hasUpstream,
     remoteIdentity,
     head,
   };

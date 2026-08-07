@@ -37,42 +37,30 @@ dotagents apply setup-plan.json --yes
 
 ## Keep the library in Git
 
-Connect a new or existing remote while setting up:
+After setup has connected a repository, everyday updates need no path or URL:
 
 ```sh
-dotagents setup ~/.agents --remote git@github.com:you/agent-library.git
+dotagents sync
 ```
 
-This only initializes local Git and records the remote. Create and review a
-commit separately, then push it through a reviewed plan:
-
-```sh
-dotagents commit ~/.agents --message "Build my agent library" --out commit-plan.json
-dotagents apply commit-plan.json --yes
-
-dotagents sync ~/.agents --push --trust-source git@github.com:you/agent-library.git --out push-plan.json
-dotagents apply push-plan.json --yes
-```
+Sync uses the remembered `~/.agents` library and remote. It reviews portable
+files, creates a commit when needed, and pushes after one confirmation.
 
 ## Restore on another computer
 
-Clone only a trusted source, pinned to the reviewed commit:
+On a new computer, use setup to connect your existing library:
 
 ```sh
-dotagents clone git@github.com:you/agent-library.git ~/.agents \
-  --trust-source git@github.com:you/agent-library.git \
-  --out clone-plan.json
-dotagents apply clone-plan.json --yes
+dotagents setup
 ```
 
-Then preview delivery to agents that do not already read the shared library:
-
-```sh
-dotagents plan ~/.agents \
-  --target codex=symlink="$HOME/.codex/skills" \
-  --out materialization-plan.json
-dotagents apply materialization-plan.json --yes
-```
+The setup flow either identifies the remote library before it writes
+`~/.agents`, or lets you review the exact name of a new private GitHub/GitLab
+library before it is created. GitHub/GitLab can list writable libraries through
+their already-signed-in CLI, so you can select an existing one instead of
+remembering its URL. It then safely connects compatible agents and refuses to
+replace an existing library. A self-hosted server is configured by entering its
+credential-free Git URL once; later syncs reuse it locally.
 
 ## Check before sharing
 
@@ -102,5 +90,8 @@ complete policy and advanced options, run:
 dotagents --help
 ```
 
-This separation is intentional: a simple first run never contacts a remote,
-and an automated run cannot broaden trust by accident.
+This separation is intentional: provider sign-in or repository listing can use
+the provider's own CLI only after an interactive permission prompt (or the
+explicit `--allow-provider-network` automation flag). dotagents never fetches
+library content until an exact source has been selected and reviewed. An
+automated run cannot broaden content trust by accident.

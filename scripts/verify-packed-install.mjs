@@ -37,7 +37,8 @@ try {
   ]);
   const cli = join(scratch, "node_modules", manifest.name, "dist", "cli.js");
   const help = run(process.execPath, [cli, "--help"]);
-  if (!help.includes("dotagents init")) throw new Error("Installed CLI did not print its command help");
+  if (!help.includes("dotagents setup") || !help.includes("dotagents sync"))
+    throw new Error("Installed CLI did not print its primary workflow help");
 
   process.stdout.write(`Installed and exercised ${manifest.name}@${manifest.version} from its packed tarball.\n`);
 } finally {

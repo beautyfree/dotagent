@@ -29,6 +29,7 @@ export * from "./materialize-apply.js";
 export * from "./paths.js";
 export * from "./plan.js";
 export * from "./prepared-library.js";
+export * from "./providers.js";
 export * from "./reconcile.js";
 export * from "./repair.js";
 export * from "./resource-apply.js";
@@ -40,5 +41,6 @@ export * from "./sources.js";
 export * from "./source-policy.js";
 export * from "./status.js";
 export * from "./setup.js";
+export * from "./device-profile.js";
 export * from "./well-known.js";
 //# sourceMappingURL=index.js.map

@@ -17,6 +17,7 @@ export interface GitWorkspaceStatus {
     changed: boolean;
     ahead: number;
     behind: number;
+    hasUpstream: boolean;
     remoteIdentity: string | null;
     head: string | null;
 }

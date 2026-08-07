@@ -514,12 +514,14 @@ export async function getLibraryGitStatus(root, git = new NodeWorkspaceGitPort()
     }
     let ahead = 0;
     let behind = 0;
+    let hasUpstream = false;
     try {
         const counts = (await git.run(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], library))
             .split(/\s+/)
             .map(Number);
         ahead = counts[0] ?? 0;
         behind = counts[1] ?? 0;
+        hasUpstream = true;
     }
     catch {
         /* no upstream yet */
@@ -529,6 +531,7 @@ export async function getLibraryGitStatus(root, git = new NodeWorkspaceGitPort()
         changed: paths.changed.length > 0 || paths.ignored.length > 0,
         ahead,
         behind,
+        hasUpstream,
         remoteIdentity,
         head,
     };

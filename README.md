@@ -32,9 +32,11 @@ agents already installed on your computer.
 
 > [!IMPORTANT]
 > `dotagents setup` does **not** publish anything. It only creates or updates
-> your local `~/.agents` library after one confirmation. GitHub, GitLab, a
-> company Git server, or a public repository are entirely your choice and are
-> configured in a separate, reviewed step.
+> your local `~/.agents` library after one confirmation. When you choose to
+> connect GitHub, GitLab, or another Git server, dotagents records only its
+> credential-free remote address on this computer. It creates a remote only if
+> you explicitly select **Create a new private library** and confirm its exact
+> name; pushing remains a separate `dotagents sync` confirmation.
 
 ## Start here
 
@@ -45,14 +47,20 @@ npm install -g dotagents
 dotagents setup
 ```
 
-The command shows what it found and asks once before it changes anything. After
-you answer `y`, it:
+The command shows what it found and asks once before it changes anything. If
+you want to carry the library elsewhere, choose GitHub, GitLab, or **Another
+Git server** and enter that server's Git URL once. After you answer `y`, it:
 
 1. creates `~/.agents` if necessary;
 2. brings in skills that are safe to own, while retaining verified external
    sources as references;
 3. connects compatible empty agent folders with links; and
 4. reports exactly what is now available.
+
+Choosing GitHub or GitLab first asks permission to let that provider's own CLI
+list writable repositories, so you can reuse an existing library without
+remembering its URL. This is separate from reviewing library content and from
+creating a remote; automated setup must opt in with `--allow-provider-network`.
 
 If you install another agent later, run this to connect it without touching
 existing agent files:
@@ -69,31 +77,17 @@ dotagents status
 
 ## Back up or share your library
 
-Once you like the library locally, you can put it in **any Git remote**. Create
-an empty repository wherever you prefer, then replace the example URL below.
-These commands first create review files; `apply --yes` is the deliberate step
-that performs the reviewed local Git action.
+After the one-time setup, syncing never asks you to remember a path or remote.
+It uses the saved library connection on this computer, reviews portable files
+for secrets, and asks for confirmation before it writes or pushes.
 
 ```sh
-dotagents git-init ~/.agents \
-  --remote git@github.com:you/my-agent-library.git \
-  --out git-init-plan.json
-dotagents apply git-init-plan.json --yes
-
-dotagents commit ~/.agents \
-  --message "My agent library" \
-  --out commit-plan.json
-dotagents apply commit-plan.json --yes
-
-dotagents sync ~/.agents --push \
-  --trust-source git@github.com:you/my-agent-library.git \
-  --out push-plan.json
-dotagents apply push-plan.json --yes
+dotagents sync
 ```
 
-Choose the repository visibility that fits your use: private for a backup,
-team-accessible for shared work, or public only after you have reviewed its
-contents. Before a public push, run:
+Choose the repository visibility that fits your use: private for a personal
+backup, team-accessible for shared work, or public only after you have reviewed
+its contents. Before using a public remote, run:
 
 ```sh
 dotagents doctor ~/.agents
@@ -104,22 +98,24 @@ Secret checks point to a file and line but never print the matched value.
 
 ## Restore on a new computer
 
-Clone only a remote you trust. The clone plan pins the reviewed commit before
-writing your library; the final `connect` command then makes it available to
-the compatible agents installed on that computer.
+On a new computer, start with `dotagents setup`. Pick GitHub or GitLab and
+choose an existing repository, or review a new private library name before
+dotagents creates it through the provider CLI. For a company or self-hosted
+server, choose **Another Git server** and paste its Git URL once;
+dotagents saves that connection locally and will not ask again. The `--remote`
+option remains available for scripts and managed deployments. Before writing
+`~/.agents`, it reviews and pins the exact remote commit, then safely connects
+compatible agents it finds.
 
 ```sh
-dotagents clone git@github.com:you/my-agent-library.git ~/.agents \
-  --trust-source git@github.com:you/my-agent-library.git \
-  --out clone-plan.json
-dotagents apply clone-plan.json --yes
-dotagents connect
+dotagents setup
 ```
 
 ## What dotagents will not do
 
-- It does not create a remote repository, push to one, or make anything public
-  on its own.
+- It does not create a remote repository unless you explicitly select and
+  confirm its exact private name; it never makes one public on its own.
+- It does not push until a separate reviewed `dotagents sync` confirmation.
 - It does not overwrite an existing agent skill or follow a linked file outside
   a skill folder.
 - It does not silently trust a network source; network operations require an
@@ -128,7 +124,7 @@ dotagents connect
 
 ## Need the deeper controls?
 
-The normal route is `setup` → optional Git backup → `connect` on another
+The normal route is `setup` → `sync` → `setup` on another
 computer. For dry runs, automation, recovery, source trust, and the complete
 command reference, see:
 

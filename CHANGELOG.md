@@ -4,6 +4,31 @@ All notable changes to `dotagents` are recorded here. The project follows semant
 
 ## Unreleased
 
+## [0.2.0] - 2026-08-07
+
+### Added
+
+- Guided provider setup for GitHub and GitLab: after explicit permission, the
+  provider CLI can list writable libraries so people can select one instead of
+  remembering a remote URL.
+- Explicit, stale-checked plans for creating a new private GitHub or GitLab
+  library. A remote is never created or made public without reviewing and
+  confirming its exact name.
+- A credential-free, OS-native local connection profile. `dotagents sync` and
+  `dotagents status` reuse the selected library and remote without requiring a
+  path or URL on every run.
+- Cross-platform provider adapters and device-profile primitives exported from
+  the TypeScript library for desktop and CLI integrations.
+
+### Changed
+
+- The primary CLI flow is now `dotagents setup` followed by `dotagents sync`.
+  Advanced remote, plan-file, and trust-policy options remain available for
+  automation and managed environments.
+- Setup on a new device can restore a selected remote at its reviewed immutable
+  commit, then connect compatible installed agents without overwriting their
+  unmanaged files.
+
 ## [0.1.0] - 2026-08-04
 
 ### Added

@@ -6,7 +6,7 @@
     {
       "subpath": ".",
       "types": "./dist/index.d.ts",
-      "sha256": "6e9ea38f402c8d1a13770cfe67d510b617e84ca663f6913f030755665299e1ae"
+      "sha256": "68f5314bbc4a7cff9d95b93458e0cfc94084f0096149809521fad11843474664"
     },
     {
       "subpath": "./adapters/skills-cli",
@@ -71,7 +71,7 @@
     {
       "subpath": "./git-workspace",
       "types": "./dist/git-workspace.d.ts",
-      "sha256": "915f6d4fa1ee1bdedfcc0a857005687a212c44c5c580cce93055a6eddf5f9bc9"
+      "sha256": "ecb0380e73b331f4b7c6b27fc00210680d49880042af3930114055ffd74535ea"
     },
     {
       "subpath": "./history",

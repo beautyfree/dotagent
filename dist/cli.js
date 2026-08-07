@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -7,8 +8,9 @@ import { parseOwnedImportSpec, validateImportCandidates } from "./cli-import.js"
 import { parseMaterializationTargetSpec } from "./cli-target.js";
 import { applyConnectPlan, planConnect } from "./connect.js";
 import { doctorLibrary } from "./doctor.js";
+import { deviceProfilePath, loadDeviceProfile, providerFromRemote, saveDeviceProfile, selectDeviceProfile, } from "./device-profile.js";
 import { GitDependencyResolver } from "./git-resolver.js";
-import { applyLibraryClone, applyLibraryCommit, applyLibraryGitInitialization, applyLibraryPull, applyLibraryPush, getLibraryGitStatus, planLibraryClone, planLibraryCommit, planLibraryGitInitialization, planLibraryPull, planLibraryPush, } from "./git-workspace.js";
+import { applyLibraryClone, applyLibraryCommit, applyLibraryGitInitialization, applyLibraryPull, applyLibraryPush, credentialFreeGitRemote, getLibraryGitStatus, planLibraryClone, planLibraryCommit, planLibraryGitInitialization, planLibraryPull, planLibraryPush, } from "./git-workspace.js";
 import { planImport } from "./import.js";
 import { applyImportPlan, inspectImportRecovery, recoverImport } from "./import-apply.js";
 import { applyInitializeLibraryPlan, planInitializeLibrary } from "./init.js";
@@ -18,9 +20,13 @@ import { applyMaterializationPlan, inspectMaterializationRecovery, recoverMateri
 import { computePlanId } from "./plan.js";
 import { prepareMaterializationInventory } from "./prepared-library.js";
 import { applyLibraryResolutionPlan, planLibraryResolution } from "./sources.js";
-import { parseSourceSecurityPolicy } from "./source-policy.js";
+import { exactSourceSecurityPolicy, parseSourceSecurityPolicy } from "./source-policy.js";
 import { existingTargetsForPlan, getMaterializationStatus } from "./status.js";
 import { applySetupPlan, planSetup } from "./setup.js";
+import { createProviderAdapter, planProviderLibraryCreation, } from "./providers.js";
+function existingSetupRemote(connection, connectionId) {
+    return { ...connection, kind: "existing", ...(connectionId ? { connectionId } : {}) };
+}
 async function emitPlan(plan, output, json, label) {
     if (output)
         await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
@@ -73,6 +79,17 @@ function displayPath(value, home = process.env.HOME) {
         return `~/${path.relative(resolvedHome, resolvedValue)}`;
     return value;
 }
+function defaultLibraryRoot(home = process.env.HOME ?? process.env.USERPROFILE) {
+    if (!home)
+        throw new Error("Could not determine your home directory; pass the library path explicitly.");
+    return path.join(path.resolve(home), ".agents");
+}
+function remoteLabel(remote) {
+    const identity = credentialFreeGitRemote(remote).identity;
+    const parsed = new URL(identity);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    return segments.length >= 2 ? segments.slice(-2).join("/") : parsed.hostname;
+}
 function statusSummary(status) {
     if (status.targets.length === 0)
         return "Your library is ready to connect to an agent. No agent folders are managed yet.\n";
@@ -102,6 +119,105 @@ async function confirm(question) {
         prompt.close();
     }
 }
+async function choose(question, values, label) {
+    if (!process.stdin.isTTY || !process.stdout.isTTY)
+        return null;
+    const { createInterface } = await import("node:readline/promises");
+    const prompt = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+        process.stdout.write(`${question}\n${values.map((value, index) => `  ${index + 1}. ${label(value)}`).join("\n")}\n`);
+        const chosen = Number((await prompt.question("Choose a number (or press Enter to skip): ")).trim());
+        return Number.isInteger(chosen) && chosen >= 1 && chosen <= values.length ? (values[chosen - 1] ?? null) : null;
+    }
+    finally {
+        prompt.close();
+    }
+}
+async function ask(question) {
+    if (!process.stdin.isTTY || !process.stdout.isTTY)
+        return null;
+    const { createInterface } = await import("node:readline/promises");
+    const prompt = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+        const value = (await prompt.question(question)).trim();
+        return value || null;
+    }
+    finally {
+        prompt.close();
+    }
+}
+async function selectSetupRemote(options) {
+    const profileFile = deviceProfilePath(process.env, options.home);
+    if (options.connection) {
+        const selected = await selectDeviceProfile(options.connection, profileFile);
+        return existingSetupRemote(selected, selected.id);
+    }
+    if (options.remote) {
+        return existingSetupRemote({
+            remote: options.remote,
+            provider: providerFromRemote(options.remote),
+            label: remoteLabel(options.remote),
+        });
+    }
+    if (options.provider === "generic") {
+        if (!process.stdin.isTTY || !process.stdout.isTTY)
+            throw new Error("Pass --remote when configuring another or self-hosted Git server non-interactively.");
+        const remote = await ask("Git remote URL (press Enter to keep this library local for now): ");
+        if (!remote)
+            return null;
+        const validated = credentialFreeGitRemote(remote);
+        return existingSetupRemote({
+            remote: validated.remote,
+            provider: "generic",
+            label: remoteLabel(validated.remote),
+        });
+    }
+    if (options.provider === "github" || options.provider === "gitlab") {
+        if (!options.allowProviderNetwork) {
+            if (!process.stdin.isTTY || !process.stdout.isTTY)
+                throw new Error(`Pass --allow-provider-network to let ${options.provider} list repositories during non-interactive setup.`);
+            const allowed = await confirm(`Connect to ${options.provider} through its CLI to list repositories? [y/N] `);
+            if (!allowed)
+                throw new Error(`Provider connection was not approved; no ${options.provider} request was made.`);
+        }
+        const adapter = createProviderAdapter(options.provider);
+        let libraries;
+        try {
+            libraries = await adapter.listLibraries();
+        }
+        catch {
+            if (!process.stdin.isTTY || !process.stdout.isTTY)
+                throw new Error(`Sign in to ${options.provider} first, or pass --remote for a reviewed Git URL.`);
+            await adapter.signIn();
+            libraries = await adapter.listLibraries();
+        }
+        const create = { provider: options.provider, label: "Create a new private library", remote: "" };
+        const selected = await choose(`Your ${options.provider} repositories:`, [...libraries, create], (library) => library.label);
+        if (!selected)
+            return null;
+        if (selected !== create)
+            return existingSetupRemote(selected);
+        const name = await ask(options.provider === "github"
+            ? "New GitHub library name (name or owner/name): "
+            : "New GitLab library name (name or group/subgroup/name): ");
+        return name
+            ? { kind: "create", provider: options.provider, plan: planProviderLibraryCreation(options.provider, name) }
+            : null;
+    }
+    const active = await loadDeviceProfile(profileFile);
+    if (active)
+        return existingSetupRemote(active, active.id);
+    if (!process.stdin.isTTY || !process.stdout.isTTY)
+        return null;
+    const provider = await choose("Where should dotagents keep this library?", ["github", "gitlab", "generic"], (kind) => {
+        if (kind === "github")
+            return "GitHub — sign in and choose a repository";
+        if (kind === "gitlab")
+            return "GitLab — sign in and choose a repository";
+        return "Another Git server — enter its Git URL once";
+    });
+    return provider ? selectSetupRemote({ provider, ...(options.home ? { home: options.home } : {}) }) : null;
+}
 async function main() {
     const [command = "help", ...args] = process.argv.slice(2);
     const valueOptions = new Set([
@@ -119,6 +235,8 @@ async function main() {
         "--minimum-release-age",
         "--minimum-release-age-exclude",
         "--home",
+        "--provider",
+        "--connection",
     ]);
     const optionValues = (name) => args.flatMap((argument, index) => {
         const value = args[index + 1];
@@ -163,21 +281,71 @@ async function main() {
     const directory = positional[0] ?? ".";
     const json = args.includes("--json");
     if (command === "help" || command === "--help" || command === "-h") {
-        process.stdout.write("Start here:\n  dotagents setup\n  dotagents connect\n  dotagents status\n\nSetup creates your portable library. Connect safely makes it available to compatible installed agents. Both ask before changing anything.\n\nAdvanced workflows:\n  dotagents setup [library-directory] [--remote git-url] [--dry-run] [--yes] [--out setup-plan.json] [--json]\n  dotagents connect [library-directory] [--dry-run] [--yes] [--out connect-plan.json] [--json]\n  dotagents init [library-directory] [--name package-name] [--out plan.json] [--json]\n  dotagents inspect [library-directory] [--json]\n  dotagents import [library-directory] --owned skill=path [--candidate-file candidates.json] [--out plan.json] [--json]\n  dotagents resolve [library-directory] [source-trust-options] [--minimum-release-age minutes] [--out plan.json] [--json]\n  dotagents git-init [library-directory] [--remote git-url] [--out plan.json] [--json]\n  dotagents clone <git-url> <library-directory> [source-trust-options] [--out plan.json] [--json]\n  dotagents commit [library-directory] --message text [--public|--team] [--out plan.json] [--json]\n  dotagents sync [library-directory] [--pull|--push] [--public|--team] [source-trust-options] [--out plan.json]\n  dotagents plan [library-directory] --target slug=mode=path [source-trust-options] [--out plan.json] [--json]\n  dotagents apply <plan.json> --yes [--json]\n  dotagents recover [library-directory] [--plan-id id --yes] [--json]\n\nsource-trust-options (network is denied when omitted):\n  --trust-source git-url       Trust one exact normalized repository; repeatable.\n  --trust-host host            Trust one Git host; repeatable.\n  --trust-github-org owner     Trust one GitHub organization; repeatable.\n  --allow-local-sources        Required in addition to --trust-source for file: repositories.\n  --trust-all                  Explicitly trust every source (not recommended).\n  --minimum-release-age mins   Require a reviewed commit cooling-off period before content is accepted.\n");
+        process.stdout.write("Start here:\n  dotagents setup\n  dotagents sync\n  dotagents status\n\nSetup connects a personal library once. Choose or create a private GitHub/GitLab library interactively, reuse a saved library, or enter a self-hosted Git URL once. Sync then uses the saved connection without asking for paths or URLs. It asks before changing anything and stops for a real conflict.\n\nUseful options:\n  dotagents setup [library-directory] [--provider github|gitlab] [--remote git-url] [--connection id] [--allow-provider-network] [--dry-run] [--yes]\n  dotagents sync [library-directory] [--pull|--push] [--public|--team] [source-trust-options] [--out plan.json]\n  dotagents connect [library-directory] [--dry-run] [--yes]\n\nProvider repository listing asks before it contacts GitHub or GitLab. Automation must pass --allow-provider-network explicitly. Network access is denied for advanced source resolution until an explicit trust policy is supplied; local Git sources additionally need --allow-local-sources.\n");
         return 0;
     }
     if (command === "setup") {
         const root = positional[0] ? path.resolve(positional[0]) : undefined;
         const name = optionValue("--name");
         const home = optionValue("--home");
-        const remote = optionValue("--remote");
-        const plan = await planSetup({
+        const providerOption = optionValue("--provider");
+        if (providerOption && !["github", "gitlab", "generic"].includes(providerOption))
+            throw new Error("--provider must be github, gitlab, or generic");
+        const requestedRemote = optionValue("--remote");
+        const requestedConnection = optionValue("--connection");
+        let selected = await selectSetupRemote({
+            ...(requestedRemote ? { remote: requestedRemote } : {}),
+            ...(providerOption ? { provider: providerOption } : {}),
+            ...(requestedConnection ? { connection: requestedConnection } : {}),
+            ...(home ? { home } : {}),
+            ...(args.includes("--allow-provider-network") ? { allowProviderNetwork: true } : {}),
+        });
+        let remote = selected?.kind === "existing" ? selected.remote : undefined;
+        const targetRoot = root ?? defaultLibraryRoot(home);
+        const existingLibrary = await getLibraryGitStatus(targetRoot).catch(() => null);
+        if (selected?.kind === "existing" &&
+            !existsSync(targetRoot) &&
+            !args.includes("--dry-run") &&
+            !optionValue("--out")) {
+            const clone = await planLibraryClone(selected.remote, targetRoot, exactSourceSecurityPolicy([selected.remote]));
+            if (!json)
+                process.stdout.write(`dotagents found ${selected.label}. It will review and restore commit ${clone.resolvedCommit.slice(0, 12)} into ${displayPath(targetRoot, home)}.\n`);
+            const confirmed = args.includes("--yes") || (await confirm("Use this library on this computer? [y/N] "));
+            if (!confirmed) {
+                if (!json)
+                    process.stdout.write("Nothing changed.\n");
+                return 0;
+            }
+            await applyLibraryClone(clone);
+            const connection = await planConnect({ root: targetRoot, ...(home ? { home } : {}) });
+            const connected = connection.materialization.hasConflicts ? null : await applyConnectPlan(connection);
+            const profile = await saveDeviceProfile({ library: targetRoot, remote: selected.remote, provider: selected.provider, label: selected.label }, deviceProfilePath(process.env, home));
+            if (json)
+                process.stdout.write(`${JSON.stringify({ ok: true, restored: true, root: targetRoot, connection, connected, profile }, null, 2)}\n`);
+            else
+                process.stdout.write(`Library ready at ${displayPath(targetRoot, home)}. Future syncs use ${profile.label}; no URL is needed.\n`);
+            return connection.materialization.hasConflicts ? 1 : 0;
+        }
+        let plan = await planSetup({
             ...(root ? { root } : {}),
             ...(name ? { name } : {}),
             ...(home ? { home } : {}),
-            ...(remote ? { remote } : {}),
+            ...(remote && !existingLibrary?.remoteIdentity ? { remote } : {}),
         });
         const output = optionValue("--out");
+        const creation = selected?.kind === "create" ? selected : null;
+        if (creation && output)
+            throw new Error("Creating a remote library is an interactive reviewed action and cannot be written as an apply plan.");
+        if (creation && args.includes("--dry-run")) {
+            const review = { setup: plan, remote_creation: creation.plan };
+            if (json)
+                process.stdout.write(`${JSON.stringify(review, null, 2)}\n`);
+            else {
+                process.stdout.write(setupSummary(plan));
+                process.stdout.write(`After confirmation, dotagents will create private ${creation.provider} library ${creation.plan.name}. No remote will be created during this preview.\n`);
+            }
+            return 0;
+        }
         if (output)
             await writeFile(path.resolve(output), `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
         if (args.includes("--dry-run") || output) {
@@ -190,9 +358,30 @@ async function main() {
             }
             return 0;
         }
+        let creationConfirmed = false;
+        if (creation) {
+            if (!json)
+                process.stdout.write(`After confirmation, dotagents will create private ${creation.provider} library ${creation.plan.name}, then prepare this local library.\n`);
+            const confirmedCreation = await confirm(`Create private ${creation.provider} library ${creation.plan.name} and continue? [y/N] `);
+            if (!confirmedCreation) {
+                if (!json)
+                    process.stdout.write("Nothing changed.\n");
+                return 0;
+            }
+            const connection = await createProviderAdapter(creation.provider).createLibrary(creation.plan);
+            selected = existingSetupRemote(connection);
+            remote = connection.remote;
+            plan = await planSetup({
+                ...(root ? { root } : {}),
+                ...(name ? { name } : {}),
+                ...(home ? { home } : {}),
+                ...(remote && !existingLibrary?.remoteIdentity ? { remote } : {}),
+            });
+            creationConfirmed = true;
+        }
         if (!json)
             process.stdout.write(setupSummary(plan));
-        const confirmed = args.includes("--yes") || (await confirm("Create this library now? [y/N] "));
+        const confirmed = creationConfirmed || args.includes("--yes") || (await confirm("Create this library now? [y/N] "));
         if (!confirmed) {
             if (json)
                 process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
@@ -201,14 +390,24 @@ async function main() {
             return 0;
         }
         const result = await applySetupPlan(plan);
+        const git = await getLibraryGitStatus(result.root).catch(() => null);
+        if (git?.remoteIdentity)
+            await saveDeviceProfile({
+                library: result.root,
+                remote: git.remoteIdentity,
+                provider: selected?.kind === "existing" ? selected.provider : providerFromRemote(git.remoteIdentity),
+                label: selected?.kind === "existing" ? selected.label : git.remoteIdentity,
+            }, deviceProfilePath(process.env, home));
         const connection = await planConnect({ root: result.root, ...(home ? { home } : {}) });
         const connected = !connection.materialization.hasConflicts && connection.summary.linksToCreate > 0
             ? await applyConnectPlan(connection)
             : null;
         if (json)
-            process.stdout.write(`${JSON.stringify({ ok: true, plan, result, connection, connected }, null, 2)}\n`);
+            process.stdout.write(`${JSON.stringify({ ok: true, plan, result, connection, connected, ...(creation ? { remoteCreation: creation.plan } : {}) }, null, 2)}\n`);
         else {
             process.stdout.write(`Your library is ready at ${displayPath(result.root)}: ${result.import.copied} copied, ${result.import.adopted} already there, and ${result.import.dependenciesRecorded} source-linked${result.gitInitialized ? "; Git is ready too" : ""}.\n`);
+            if (result.gitInitialized && git?.remoteIdentity)
+                process.stdout.write(`Nothing has been uploaded yet. Run dotagents sync when you are ready to send this reviewed library to ${selected?.kind === "existing" ? selected.label : remoteLabel(git.remoteIdentity)}.\n`);
             if (connection.materialization.hasConflicts)
                 process.stdout.write(`\n${connectSummary(connection)}`);
             else {
@@ -348,7 +547,9 @@ async function main() {
         return commitPlan.hasBlockers ? 1 : 0;
     }
     if (command === "sync") {
-        const root = path.resolve(directory);
+        const home = optionValue("--home");
+        const profile = positional[0] ? null : await loadDeviceProfile(deviceProfilePath(process.env, home));
+        const root = positional[0] ? path.resolve(positional[0]) : (profile?.library ?? defaultLibraryRoot(home));
         if (args.includes("--pull") && args.includes("--push"))
             throw new Error("Choose either --pull or --push for one reviewed operation");
         if (args.includes("--pull")) {
@@ -362,14 +563,51 @@ async function main() {
             await emitPlan(pushPlan, optionValue("--out"), json, "Push");
             return 0;
         }
-        const gitStatus = await getLibraryGitStatus(root);
+        let gitStatus = await getLibraryGitStatus(root);
+        if (!gitStatus.remoteIdentity)
+            throw new Error("This library is not connected yet. Run dotagents setup to choose where it lives.");
+        if (profile && profile.remote !== gitStatus.remoteIdentity)
+            throw new Error("The saved library profile no longer matches this Git remote. Run dotagents setup again to review the change.");
+        if (gitStatus.ahead > 0 && gitStatus.behind > 0)
+            throw new Error("Your library changed both here and remotely. Nothing was overwritten; use the advanced sync review to reconcile it.");
+        if (!json)
+            process.stdout.write(`dotagents will sync ${displayPath(root)} with ${gitStatus.remoteIdentity}. Local agent settings and secrets stay on this computer.\n`);
+        const confirmed = args.includes("--yes") || (await confirm("Sync now? [y/N] "));
+        if (!confirmed) {
+            if (!json)
+                process.stdout.write("Nothing changed.\n");
+            return 0;
+        }
+        const policy = exactSourceSecurityPolicy([gitStatus.remoteIdentity]);
+        if (gitStatus.changed) {
+            const commit = await planLibraryCommit(root, "Update agent library", "private");
+            if (commit.hasBlockers)
+                throw new Error("Sync stopped because the library needs review. Run dotagents doctor for details.");
+            await applyLibraryCommit(commit);
+            gitStatus = await getLibraryGitStatus(root);
+        }
+        if (gitStatus.behind > 0) {
+            const pull = await planLibraryPull(root, "private", policy);
+            if (pull.hasBlockers)
+                throw new Error("Sync stopped because the remote library needs review.");
+            await applyLibraryPull(pull);
+            gitStatus = await getLibraryGitStatus(root);
+        }
+        if (gitStatus.ahead > 0 || (gitStatus.head && !gitStatus.hasUpstream)) {
+            const push = await planLibraryPush(root, policy);
+            await applyLibraryPush(push);
+            gitStatus = await getLibraryGitStatus(root);
+        }
         process.stdout.write(json
-            ? `${JSON.stringify(gitStatus, null, 2)}\n`
-            : `${gitStatus.branch}: ${gitStatus.changed ? "uncommitted changes" : "clean"}, ${gitStatus.ahead} ahead, ${gitStatus.behind} behind.\n`);
+            ? `${JSON.stringify({ ok: true, ...gitStatus }, null, 2)}\n`
+            : `Sync complete. ${gitStatus.branch} is up to date.\n`);
         return 0;
     }
     if (command === "status") {
-        const status = await getMaterializationStatus(path.resolve(directory));
+        const home = optionValue("--home");
+        const profile = positional[0] ? null : await loadDeviceProfile(deviceProfilePath(process.env, home));
+        const root = positional[0] ? path.resolve(positional[0]) : (profile?.library ?? defaultLibraryRoot(home));
+        const status = await getMaterializationStatus(root);
         if (json)
             process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
         else
