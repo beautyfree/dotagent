@@ -457,6 +457,9 @@ async function applyReviewedGitClone(plan, git, validateLibrary) {
     const staging = await mkdtemp(path.join(path.dirname(destination), `.${path.basename(destination)}.dotagents-clone-`));
     try {
         await git.run(["init", `--initial-branch=${plan.branch ?? DEFAULT_BRANCH}`], staging);
+        // A portable library is byte-addressed by reviewed hashes. Git's Windows
+        // line-ending conversion would silently change those bytes on checkout.
+        await git.run(["config", "core.autocrlf", "false"], staging);
         await git.run(["remote", "add", "origin", plan.remote], staging);
         await git.run(["fetch", "--no-tags", "--depth=1", "origin", plan.resolvedCommit], staging, {
             nonInteractive: true,
