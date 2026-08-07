@@ -64,10 +64,12 @@ describe("device profile", () => {
     expect(deviceProfilePath({}, "/Users/alex", "darwin")).toBe(
       "/Users/alex/Library/Application Support/dotagents/connections.json",
     );
-    expect(deviceProfilePath({ APPDATA: "C:\\Users\\Alex\\AppData\\Roaming" }, "C:\\Users\\Alex", "win32")).toContain(
-      "dotagents",
+    expect(deviceProfilePath({ APPDATA: "C:\\Users\\Alex\\AppData\\Roaming" }, "C:\\Users\\Alex", "win32")).toBe(
+      "C:\\Users\\Alex\\AppData\\Roaming\\dotagents\\connections.json",
     );
-    expect(deviceProfilePath({}, "C:\\Users\\Alex", "win32")).toContain("AppData");
+    expect(deviceProfilePath({}, "C:\\Users\\Alex", "win32")).toBe(
+      "C:\\Users\\Alex\\AppData\\Roaming\\dotagents\\connections.json",
+    );
     expect(deviceProfilePath({}, "/home/alex", "linux")).toBe("/home/alex/.config/dotagents/connections.json");
   });
 });

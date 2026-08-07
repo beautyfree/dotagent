@@ -42,12 +42,15 @@ export function deviceProfilePath(
   home = homedir(),
   platform: NodeJS.Platform = process.platform,
 ): string {
-  if (environment.DOTAGENTS_CONFIG_HOME) return path.join(environment.DOTAGENTS_CONFIG_HOME, "connections.json");
-  if (environment.XDG_CONFIG_HOME) return path.join(environment.XDG_CONFIG_HOME, "dotagents", "connections.json");
+  // `platform` is injectable for cross-platform callers and tests. Do not let
+  // the host running the code rewrite a Windows or POSIX configuration path.
+  const paths = platform === "win32" ? path.win32 : path.posix;
+  if (environment.DOTAGENTS_CONFIG_HOME) return paths.join(environment.DOTAGENTS_CONFIG_HOME, "connections.json");
+  if (environment.XDG_CONFIG_HOME) return paths.join(environment.XDG_CONFIG_HOME, "dotagents", "connections.json");
   if (platform === "win32")
-    return path.join(environment.APPDATA ?? path.join(home, "AppData", "Roaming"), "dotagents", "connections.json");
-  if (platform === "darwin") return path.join(home, "Library", "Application Support", "dotagents", "connections.json");
-  return path.join(home, ".config", "dotagents", "connections.json");
+    return paths.join(environment.APPDATA ?? paths.join(home, "AppData", "Roaming"), "dotagents", "connections.json");
+  if (platform === "darwin") return paths.join(home, "Library", "Application Support", "dotagents", "connections.json");
+  return paths.join(home, ".config", "dotagents", "connections.json");
 }
 
 function cleanConnection(
